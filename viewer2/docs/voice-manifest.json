@@ -1,0 +1,699 @@
+{
+  "measurement": "30 Hz recorded-card playback, same scheduler as HUD; includes global 3s and per-ship 6s spacing, fit speakers only. Actual display frame timing can change counts slightly.",
+  "card": [
+    "L51000.json",
+    "L51001.json",
+    "L51002.json",
+    "L51003.json",
+    "L51004.json",
+    "L51005.json",
+    "L51006.json",
+    "L51007.json",
+    "L51008.json",
+    "L51009.json",
+    "L51010.json",
+    "L51011.json"
+  ],
+  "fights": 12,
+  "seconds": 1370.3500000000001,
+  "lines": [
+    {
+      "id": "attack",
+      "station": "pilot",
+      "trigger": "Enter attack run or punish",
+      "priority": 1,
+      "observed": 64,
+      "per_fight": 5.33,
+      "per_minute": 2.8,
+      "recommended_variations": 8,
+      "lines": [
+        "Going in.",
+        "Taking the opening.",
+        "Closing for the shot.",
+        "Pressing the attack.",
+        "Moving in.",
+        "We have an opening.",
+        "Commit to the run.",
+        "Taking the fight to them."
+      ],
+      "files": [
+        "attack_01.wav",
+        "attack_02.wav",
+        "attack_03.wav",
+        "attack_04.wav",
+        "attack_05.wav",
+        "attack_06.wav",
+        "attack_07.wav",
+        "attack_08.wav"
+      ]
+    },
+    {
+      "id": "evade",
+      "station": "pilot",
+      "trigger": "Enter juke",
+      "priority": 1,
+      "observed": 18,
+      "per_fight": 1.5,
+      "per_minute": 0.79,
+      "recommended_variations": 6,
+      "lines": [
+        "Breaking!",
+        "Changing vector.",
+        "Hard break.",
+        "Rolling clear.",
+        "Hold on.",
+        "Jinking now.",
+        "Off their line.",
+        "Burning clear."
+      ],
+      "files": [
+        "evade_01.wav",
+        "evade_02.wav",
+        "evade_03.wav",
+        "evade_04.wav",
+        "evade_05.wav",
+        "evade_06.wav",
+        "evade_07.wav",
+        "evade_08.wav"
+      ]
+    },
+    {
+      "id": "extend",
+      "station": "pilot",
+      "trigger": "Enter extend",
+      "priority": 1,
+      "observed": 5,
+      "per_fight": 0.42,
+      "per_minute": 0.22,
+      "recommended_variations": 4,
+      "lines": [
+        "Extending.",
+        "Opening the range.",
+        "Resetting the run.",
+        "Pulling clear.",
+        "Making room.",
+        "Coming around."
+      ],
+      "files": [
+        "extend_01.wav",
+        "extend_02.wav",
+        "extend_03.wav",
+        "extend_04.wav",
+        "extend_05.wav",
+        "extend_06.wav"
+      ]
+    },
+    {
+      "id": "hold_range",
+      "station": "pilot",
+      "trigger": "Enter Counter holding range; opposing rail has no reload opening",
+      "priority": 1,
+      "observed": 6,
+      "per_fight": 0.5,
+      "per_minute": 0.26,
+      "recommended_variations": 4,
+      "lines": [
+        "Holding the range.",
+        "Bleeding closing speed.",
+        "Keeping our distance.",
+        "Hold here. Wait for the shot.",
+        "Braking the approach.",
+        "Keeping room to move."
+      ],
+      "files": [
+        "hold_range_01.wav",
+        "hold_range_02.wav",
+        "hold_range_03.wav",
+        "hold_range_04.wav",
+        "hold_range_05.wav",
+        "hold_range_06.wav"
+      ]
+    },
+    {
+      "id": "torpedo_break",
+      "station": "pilot",
+      "trigger": "Enter torpedo break",
+      "priority": 2,
+      "observed": 1,
+      "per_fight": 0.08,
+      "per_minute": 0.04,
+      "recommended_variations": 3,
+      "lines": [
+        "Torpedo — hard over!",
+        "Incoming. Breaking hard!",
+        "Torpedo inbound. Hold on.",
+        "Missile closing. Hard break!",
+        "Burning off the intercept.",
+        "Incoming. Changing vector!"
+      ],
+      "files": [
+        "torpedo_break_01.wav",
+        "torpedo_break_02.wav",
+        "torpedo_break_03.wav",
+        "torpedo_break_04.wav",
+        "torpedo_break_05.wav",
+        "torpedo_break_06.wav"
+      ]
+    },
+    {
+      "id": "ram",
+      "station": "pilot",
+      "trigger": "Enter ramming; ranged weapons exhausted",
+      "priority": 3,
+      "observed": 0,
+      "per_fight": 0,
+      "per_minute": 0,
+      "recommended_variations": 3,
+      "lines": [
+        "Weapons are out. Ramming speed!",
+        "Ranged weapons lost. Going through them.",
+        "Weapons unavailable. Brace for collision.",
+        "Cannot fire. Taking her in."
+      ],
+      "files": [
+        "ram_01.wav",
+        "ram_02.wav",
+        "ram_03.wav",
+        "ram_04.wav"
+      ]
+    },
+    {
+      "id": "overcharge",
+      "station": "gunner",
+      "trigger": "Rail enters overcharge",
+      "priority": 2,
+      "observed": 10,
+      "per_fight": 0.83,
+      "per_minute": 0.44,
+      "recommended_variations": 4,
+      "lines": [
+        "Safeties off.",
+        "Overcharging the rail.",
+        "Pushing the capacitors.",
+        "Taking the overload shot.",
+        "Running the gun hot.",
+        "One hard shot."
+      ],
+      "files": [
+        "overcharge_01.wav",
+        "overcharge_02.wav",
+        "overcharge_03.wav",
+        "overcharge_04.wav",
+        "overcharge_05.wav",
+        "overcharge_06.wav"
+      ]
+    },
+    {
+      "id": "launch",
+      "station": "gunner",
+      "trigger": "Torpedo launch; salvo grouped by cooldown",
+      "priority": 1,
+      "observed": 46,
+      "per_fight": 3.83,
+      "per_minute": 2.01,
+      "recommended_variations": 8,
+      "lines": [
+        "Birds away.",
+        "Torpedoes away.",
+        "Salvo out.",
+        "Launch confirmed.",
+        "Fish in the water.",
+        "Tubes clear.",
+        "Sending the salvo.",
+        "Torpedoes running."
+      ],
+      "files": [
+        "launch_01.wav",
+        "launch_02.wav",
+        "launch_03.wav",
+        "launch_04.wav",
+        "launch_05.wav",
+        "launch_06.wav",
+        "launch_07.wav",
+        "launch_08.wav"
+      ]
+    },
+    {
+      "id": "fire",
+      "station": "gunner",
+      "trigger": "Rail fired",
+      "priority": 1,
+      "observed": 25,
+      "per_fight": 2.08,
+      "per_minute": 1.09,
+      "recommended_variations": 6,
+      "lines": [
+        "Firing.",
+        "Shot away.",
+        "Rail away.",
+        "Round out.",
+        "Taking the shot.",
+        "Gun fired.",
+        "Sending it.",
+        "Rail fired."
+      ],
+      "files": [
+        "fire_01.wav",
+        "fire_02.wav",
+        "fire_03.wav",
+        "fire_04.wav",
+        "fire_05.wav",
+        "fire_06.wav",
+        "fire_07.wav",
+        "fire_08.wav"
+      ]
+    },
+    {
+      "id": "repaired",
+      "station": "engineer",
+      "trigger": "Destroyed component repaired",
+      "priority": 2,
+      "observed": 8,
+      "per_fight": 0.67,
+      "per_minute": 0.35,
+      "recommended_variations": 4,
+      "lines": [
+        "System back online.",
+        "Repairs holding.",
+        "We have that system back.",
+        "Back in service.",
+        "Restored. Keep fighting.",
+        "Repair complete."
+      ],
+      "files": [
+        "repaired_01.wav",
+        "repaired_02.wav",
+        "repaired_03.wav",
+        "repaired_04.wav",
+        "repaired_05.wav",
+        "repaired_06.wav"
+      ]
+    },
+    {
+      "id": "system_lost",
+      "station": "engineer",
+      "trigger": "Component destroyed",
+      "priority": 2,
+      "observed": 2,
+      "per_fight": 0.17,
+      "per_minute": 0.09,
+      "recommended_variations": 3,
+      "lines": [
+        "System down!",
+        "Lost a system!",
+        "Damage control, on it.",
+        "We have a system failure.",
+        "That system is out.",
+        "Working on the damage."
+      ],
+      "files": [
+        "system_lost_01.wav",
+        "system_lost_02.wav",
+        "system_lost_03.wav",
+        "system_lost_04.wav",
+        "system_lost_05.wav",
+        "system_lost_06.wav"
+      ]
+    },
+    {
+      "id": "crew_lost",
+      "station": "ops",
+      "trigger": "Crew killed; another conscious survivor reports",
+      "priority": 3,
+      "observed": 5,
+      "per_fight": 0.42,
+      "per_minute": 0.22,
+      "recommended_variations": 4,
+      "lines": [
+        "Crew member down.",
+        "We lost someone.",
+        "Station casualty.",
+        "No response from that station."
+      ],
+      "files": [
+        "crew_lost_01.wav",
+        "crew_lost_02.wav",
+        "crew_lost_03.wav",
+        "crew_lost_04.wav"
+      ]
+    },
+    {
+      "id": "pilot_out",
+      "station": "ops",
+      "trigger": "Pilot blacked out",
+      "priority": 3,
+      "observed": 0,
+      "per_fight": 0,
+      "per_minute": 0,
+      "recommended_variations": 3,
+      "lines": [
+        "Pilot is out. Holding steady.",
+        "Pilot unconscious. Hold course.",
+        "Pilot blacked out. Stay steady.",
+        "No response from the pilot."
+      ],
+      "files": [
+        "pilot_out_01.wav",
+        "pilot_out_02.wav",
+        "pilot_out_03.wav",
+        "pilot_out_04.wav"
+      ]
+    },
+    {
+      "id": "defence_dry",
+      "station": "ops",
+      "trigger": "All working PDC mounts exhausted, once per ship",
+      "priority": 2,
+      "observed": 2,
+      "per_fight": 0.17,
+      "per_minute": 0.09,
+      "recommended_variations": 3,
+      "lines": [
+        "Point defence dry.",
+        "No defence rounds left.",
+        "PDC ammunition exhausted.",
+        "Defence guns are empty."
+      ],
+      "files": [
+        "defence_dry_01.wav",
+        "defence_dry_02.wav",
+        "defence_dry_03.wav",
+        "defence_dry_04.wav"
+      ]
+    },
+    {
+      "id": "defence_hot",
+      "station": "ops",
+      "trigger": "All loaded working PDC mounts overheated; at least 15s between warnings",
+      "priority": 2,
+      "observed": 17,
+      "per_fight": 1.42,
+      "per_minute": 0.74,
+      "recommended_variations": 6,
+      "lines": [
+        "Defence guns too hot.",
+        "PDCs overheated. Cooling.",
+        "Defence needs to cool.",
+        "Point defence is cooling down.",
+        "Defence cooling. Keep clear.",
+        "Hot mounts. Need a moment."
+      ],
+      "files": [
+        "defence_hot_01.wav",
+        "defence_hot_02.wav",
+        "defence_hot_03.wav",
+        "defence_hot_04.wav",
+        "defence_hot_05.wav",
+        "defence_hot_06.wav"
+      ]
+    },
+    {
+      "id": "g_limit",
+      "station": "pilot",
+      "trigger": "Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4",
+      "priority": 2,
+      "observed": 0,
+      "per_fight": 0,
+      "per_minute": 0,
+      "recommended_variations": 3,
+      "lines": [
+        "Near my limit.",
+        "Need to ease this burn.",
+        "Vision closing in.",
+        "Too much gee. Easing off."
+      ],
+      "files": [
+        "g_limit_01.wav",
+        "g_limit_02.wav",
+        "g_limit_03.wav",
+        "g_limit_04.wav"
+      ]
+    }
+  ],
+  "perFight": [
+    {
+      "file": "L51000.json",
+      "seconds": 49.783,
+      "counts": {
+        "attack": 1,
+        "evade": 0,
+        "extend": 0,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 2,
+        "fire": 2,
+        "repaired": 1,
+        "system_lost": 1,
+        "crew_lost": 2,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 2,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51001.json",
+      "seconds": 118.617,
+      "counts": {
+        "attack": 3,
+        "evade": 2,
+        "extend": 1,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 6,
+        "fire": 5,
+        "repaired": 1,
+        "system_lost": 0,
+        "crew_lost": 1,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 1,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51002.json",
+      "seconds": 66.575,
+      "counts": {
+        "attack": 4,
+        "evade": 0,
+        "extend": 0,
+        "hold_range": 3,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 1,
+        "launch": 1,
+        "fire": 1,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 2,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51003.json",
+      "seconds": 161.725,
+      "counts": {
+        "attack": 4,
+        "evade": 3,
+        "extend": 1,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 6,
+        "fire": 3,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 2,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51004.json",
+      "seconds": 130.075,
+      "counts": {
+        "attack": 14,
+        "evade": 1,
+        "extend": 0,
+        "hold_range": 2,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 2,
+        "launch": 1,
+        "fire": 2,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 1,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51005.json",
+      "seconds": 184.45,
+      "counts": {
+        "attack": 9,
+        "evade": 3,
+        "extend": 1,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 4,
+        "launch": 8,
+        "fire": 1,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 0,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51006.json",
+      "seconds": 177.008,
+      "counts": {
+        "attack": 4,
+        "evade": 1,
+        "extend": 1,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 2,
+        "launch": 11,
+        "fire": 2,
+        "repaired": 0,
+        "system_lost": 1,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 0,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51007.json",
+      "seconds": 221.15,
+      "counts": {
+        "attack": 8,
+        "evade": 4,
+        "extend": 1,
+        "hold_range": 0,
+        "torpedo_break": 1,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 8,
+        "fire": 2,
+        "repaired": 3,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 2,
+        "defence_hot": 0,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51008.json",
+      "seconds": 63.992,
+      "counts": {
+        "attack": 3,
+        "evade": 1,
+        "extend": 0,
+        "hold_range": 1,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 1,
+        "launch": 1,
+        "fire": 2,
+        "repaired": 2,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 1,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51009.json",
+      "seconds": 66.442,
+      "counts": {
+        "attack": 4,
+        "evade": 0,
+        "extend": 0,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 1,
+        "fire": 1,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 1,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 4,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51010.json",
+      "seconds": 59.058,
+      "counts": {
+        "attack": 6,
+        "evade": 2,
+        "extend": 0,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 1,
+        "fire": 1,
+        "repaired": 0,
+        "system_lost": 0,
+        "crew_lost": 0,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 1,
+        "g_limit": 0
+      }
+    },
+    {
+      "file": "L51011.json",
+      "seconds": 71.475,
+      "counts": {
+        "attack": 4,
+        "evade": 1,
+        "extend": 0,
+        "hold_range": 0,
+        "torpedo_break": 0,
+        "ram": 0,
+        "overcharge": 0,
+        "launch": 0,
+        "fire": 3,
+        "repaired": 1,
+        "system_lost": 0,
+        "crew_lost": 1,
+        "pilot_out": 0,
+        "defence_dry": 0,
+        "defence_hot": 3,
+        "g_limit": 0
+      }
+    }
+  ]
+}

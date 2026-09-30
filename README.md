@@ -1,5 +1,11 @@
 # Speed Kills
 
+The current **Hard Burn** duel sim is in `crates/duel`, with its broadcast viewer in `viewer2`.
+Run `python3 viewer2/serve.py` and open http://127.0.0.1:8095/.
+See [broadcast changes, validation and fresh cards](viewer2/docs/BROADCAST_IMPROVEMENTS.md) and the [voice recording manifest](viewer2/docs/VOICE_RECORDING_MANIFEST.md).
+
+The training dashboard below belongs to the earlier orbital/RL prototype.
+
 RL-driven 3D gunship duels around a planet. See [DESIGN.md](DESIGN.md).
 
 ## Training dashboard

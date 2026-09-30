@@ -1,12 +1,14 @@
 // Hard Burn broadcast viewer: plays back recorded duels.
 import * as THREE from 'three';
-import { loadIndex, loadMatch } from './data.js';
+import { loadIndex, loadMatch, loadLeague } from './data.js';
+import { showPrematch, settle, loadPicks, savePicks, recordText } from './prematch.js';
 import { Scene, TEAM, THREAT } from './scene.js';
 import { Director } from './director.js';
 import { Hud } from './hud.js';
 import { Critic } from './critic.js';
 import { Audio } from './audio.js';
 import { CamControl } from './camctl.js';
+import { rememberResult } from './history.js';
 
 const Q = new URLSearchParams(location.search);
 const opt = {
@@ -56,6 +58,9 @@ class App {
       }
       this.audio = sound;
     }
+    this.hud.onFinish = () => { if (live) { rememberResult(this.m.raw); const file = this.index[this.idx]?.file; const p = loadPicks(); p[file] = { ...(p[file] || {}), seen: true }; savePicks(p); } };
+    this.hud.voiceVariations = () => Object.fromEntries(Object.entries(this.audio?.voices || {}).map(([id, clips]) => [id, Object.keys(clips).map(Number)]));
+    this.hud.onVoice = (v, i) => this.audio?.voice(v.id, v.variation, i, v.station);
     this.t = 0;
     document.querySelector('#title').textContent = `${match.ships[0].name} v ${match.ships[1].name}`;
   }
@@ -66,17 +71,19 @@ class App {
     const scale = this.dir.timeScale;
     const t0 = this.t;
     // Play on a few seconds past the end (the final state held) for the kill and the result card.
-    if (!state.paused) this.t = Math.min(m.duration + 6, this.t + dtWall * state.speed * scale);
+    if (!state.paused) this.t = Math.min(this.replayEnd ?? m.duration + 6, this.t + dtWall * state.speed * scale);
     const t = this.t;
     let st = stateAt(m, t);
     this.scene.mid.copy(st.ships[0].pos).add(st.ships[1].pos).multiplyScalar(0.5);
     const evs = t > t0 ? m.eventsBetween(t0, t) : [];
+    this.hud.voiceEnabled = t > t0 && document.querySelector('#prematch').hidden;
     this.hud.onEvents(t, evs, st);
     this.critic.events_(evs, st);
     if (render) this.fx(evs, st, now);
     this.dir.update(t, st, dtWall * Math.max(0.55, scale));
     this.scene.update(t, st, now);
     this.hud.update(t, st, this.scene.camera);
+    if (this.replayEnd && t >= this.replayEnd) { this.replayEnd = null; this.hud.replay = false; this.hud.showResult(t); state.paused = true; }
     this.critic.frame(t, st, dtWall, scale, this.hud);
     if (render) this.scene.render(now);
     if (render && this.audio && !state.paused) this.audio.update(t, st, evs, this.dir, dtWall);
@@ -128,6 +135,8 @@ class App {
         sc.flash(loser, new THREE.Color('#ffffff'), 0.1, 1.0, 0.18);
         const f = document.querySelector('#flashframe');
         f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+      } else if (e.k === 'part_lost' && ['drive', 'reactor', 'railgun'].includes(e.part)) {
+        sc.flash(st.ships[e.ship].pos, TEAM[e.ship], 0.06, .7);
       } else if (e.k === 'pdc_hit') {
         sc.flash(new THREE.Vector3(...e.pos), TEAM[1 - e.victim], 0.008, 0.2);
       }
@@ -140,11 +149,11 @@ class App {
     if (this.audio) this.audio.hush();
     const target = Math.max(0, Math.min(this.m.duration + 6, t));
     document.querySelector('#callouts').innerHTML = '';
-    this.hud.callouts = []; this.hud.resultAt = null; this.hud.chatState = null; this.hud.lastMode = null; this.hud.pending = [];
+    this.hud.callouts = []; this.hud.resultAt = null; this.hud.chatState = null; this.hud.voiceEvents = [[], []]; this.hud.radioNext = -1; this.hud.voiceEnabled = false; this.hud.lastOver = null; this.hud.lastExT = undefined; this.hud.leader = undefined; this.hud.lastMode = null; this.hud.pending = [];
     this.hud.flagPending = []; for (const P of this.hud.plates) { P.flagState = null; P.flag.classList.remove('on'); P.chat.classList.remove('on'); } this.hud.platePos = [null, null];
     document.querySelector('#result').hidden = true;
     this.scene.deathT = null;
-    for (const f of this.scene.fx) this.scene.root.remove(f.obj);
+    for (const f of this.scene.fx) this.scene.removeEffect(f.obj);
     this.scene.fx = [];
     this.dir = new Director(this.m, this.scene);
     this.dir.user = camctl;
@@ -165,6 +174,7 @@ class App {
       for (let j = 0; j < 2; j++) this.scene.planeCenter.lerp(this.scene.mid, 0.02); // (two 60 fps frames per step)
       this.dir.update(this.t, st, dtw * Math.max(0.55, this.dir.timeScale));
     }
+    this.t = target;
     this.hud.update(this.t, stateAt(this.m, this.t), this.scene.camera);
     state.paused = wasPaused;
   }
@@ -186,13 +196,35 @@ async function open(i) {
   if (file && i === undefined) { index.push({ file, seed: file }); }
   const entry = file && i === undefined ? index[index.length - 1] : index[(idx + index.length) % index.length];
   const match = await loadMatch(entry.file);
+  app?.scene.dispose();
+  state.paused = true;
   app = new App(match, index, file && i === undefined ? index.length - 1 : (idx + index.length) % index.length);
   window.__app = app;
-  if (opt.audit) return audit();
-  if (opt.story) return story();
+  if (opt.audit) { state.paused = false; return audit(); }
+  if (opt.story) { state.paused = false; return story(); }
+  // A league fight opens on the pre-match screen (ships, crews, odds, the pick), paused.
+  league ??= await loadLeague();
+  const mine = app;
+  if (league && entry.ships && !opt.t && live) {
+    state.paused = true;
+    await showPrematch({ league, entry, pos: app.idx + 1, count: index.length });
+    if (app !== mine) return; // (another fight was opened meanwhile)
+    state.paused = false;
+  }
+  if (entry.ships) app.pickFile = entry.file;
+  const p = entry.ships && loadPicks()[entry.file];
+  if (p?.pick !== undefined) app.hud.setPick(p.side);
+  app.hud.pickResult = () => {
+    if (!entry.ships) return null;
+    const w = mine.m.raw.winner;
+    const s = settle(entry.file, w);
+    return s ? { ...s, record: recordText(loadPicks()), winner: w } : null;
+  };
   if (opt.t > 0) app.seek(opt.t);
+  if (!opt.t) state.paused = opt.paused;
   state.lastWall = null;
 }
+let league;
 
 // Audit: play the whole match as a 60 fps display would, without rendering; publish the report.
 function audit() {
@@ -280,7 +312,9 @@ async function auditAll(index) {
   const all = [];
   for (let k = 0; k < index.length; k++) {
     const match = await loadMatch(index[k].file);
+    app?.scene.dispose();
     app = new App(match, index, k);
+    state.paused = false;
     window.__app = app; window.__auditProgress = k;
     const dt = 1 / 60;
     let guard = 0;
@@ -291,7 +325,7 @@ async function auditAll(index) {
   const summary = Object.fromEntries(crit.map((c) => [c, all.filter((a) => a.report[c].pass).length + '/' + all.length]));
   window.__auditAll = { summary, all };
   document.querySelector('#critic').hidden = false;
-  document.querySelector('#critic').textContent = JSON.stringify(summary, null, 1);
+  document.querySelector('#critic').textContent = JSON.stringify({ summary, all }, null, 1);
 }
 
 function loop(now) {
@@ -308,6 +342,7 @@ function loop(now) {
 
 window.addEventListener('keydown', (e) => {
   if (!app) return;
+  if (!document.querySelector('#prematch').hidden) return;
   if (e.key === ' ') { state.paused = !state.paused; if (state.paused && app.audio) app.audio.hush(); e.preventDefault(); }
   else if (e.key === 'm') toggleSound();
   else if (e.key === 'ArrowRight') app.seek(app.t + 5);
@@ -422,7 +457,8 @@ function act(a) {
   else if (a === 'fwd') app.seek(app.t + 5);
   else if (a === 'next') { ctl.builtFor = null; open(app.idx + 1); }
   else if (a === 'prev') { ctl.builtFor = null; open(app.idx - 1); }
-  else if (a === 'replay') { app.seek(0); state.paused = false; }
+  else if (a === 'replay') { app.replayEnd = null; app.hud.replay = false; app.seek(0); state.speed = 1; state.paused = false; }
+  else if (a === 'decisive') { const d = app.hud.decisive; if (d) { app.hud.replay = true; app.seek(d.start); app.replayEnd = d.end; state.speed = 1; state.paused = false; } }
   else if (a === 'speed') { const S = [1, 2, 4, 0.5]; state.speed = S[(S.indexOf(state.speed) + 1) % S.length] ?? 1; }
   else if (a === 'sound') toggleSound();
   else if (a === 'music' || a === 'sfx') toggleMix(a);
@@ -445,7 +481,7 @@ ctl.el.addEventListener('click', (e) => { const b = e.target.closest('button'); 
 // Taps on the picture: one shows or hides the controls; a double tap on the left or right third
 // skips back or forward 5 s (with the same buttons in the controls, so nothing is gesture-only).
 window.addEventListener('pointerup', (e) => {
-  if (!app || e.target.closest('#controls') || e.target.closest('#camhud') || e.target.closest('#result')) return;
+  if (!app || e.target.closest('#controls') || e.target.closest('#camhud') || e.target.closest('#result') || e.target.closest('#prematch')) return;
   // (A camera drag or pinch isn't a tap.)
   if (camctl && camctl.dragged) { ctl.lastTap = null; return; }
   if (e.pointerType === 'mouse' && e.button !== 0) return;

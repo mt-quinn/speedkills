@@ -245,7 +245,7 @@ impl World {
         let yaw_pos = (bp + ss) / 2.0;
         let yaw_neg = (bs + sp) / 2.0;
         let mut want = inp.rate;
-        let (max_rate, rot_accel, rcs_accel) = (s.class.max_rate, s.class.rot_accel, s.class.rcs_accel);
+        let (max_rate, rot_accel, rcs_accel) = (s.class.max_rate, s.rot_accel(), s.rcs_accel());
         let lim = |x: f64, f: f64| x.clamp(-max_rate * f, max_rate * f);
         want.x = lim(want.x, all);
         want.z = lim(want.z, all);
@@ -280,7 +280,7 @@ impl World {
         let inp = self.inputs[i];
         let (gunner_eff, powered) = {
             let s = &self.ships[i];
-            (s.crew_at(Station::Gunner).efficiency(), s.powered())
+            (s.crew_at(Station::Gunner).efficiency() * s.crew_at(Station::Gunner).skill, s.powered())
         };
         // Without a working gunner the fire-control computer is slower (half speed).
         let pace = if gunner_eff > 0.0 { gunner_eff } else { 0.5 };
@@ -357,12 +357,12 @@ impl World {
                 s.rail_charge = 0.0;
                 s.rail_held = 0.0;
                 s.rail_overcharged = false;
-                s.rail_cooldown = RAIL_VENT_COOLDOWN;
+                s.rail_cooldown = RAIL_VENT_COOLDOWN / s.power();
                 self.events.push(Event::RailVented { ship: i });
             } else if inp.fire_rail && s.rail_charge >= 1.0 {
                 s.rail_charge = 0.0;
                 s.rail_held = 0.0;
-                s.rail_cooldown = s.class.rail_cooldown;
+                s.rail_cooldown = s.class.rail_cooldown / s.power();
                 s.rail_ammo -= 1;
                 // (The round leaves along the nose, scattered by fire-control dispersion.)
                 let sigma = if self.rail_scatter { s.rail_sigma() } else { 0.0 };
@@ -470,9 +470,9 @@ impl World {
     /// nothing inbound, the enemy ship at close range).
     fn point_defence(&mut self, i: usize, dt: f64) {
         let e = 1 - i;
-        let (pos, vel, orient, powered, alive) = {
+        let (pos, vel, orient, powered, alive, power) = {
             let s = &self.ships[i];
-            (s.pos, s.vel, s.orient, s.powered(), s.alive)
+            (s.pos, s.vel, s.orient, s.powered(), s.alive, s.power())
         };
         for p in self.ships[i].pdcs.iter_mut() {
             p.target = None;
@@ -500,7 +500,7 @@ impl World {
             let mount = &self.ships[i].pdcs[m];
             if health <= 0.0 || mount.ammo <= 0.0 || mount.overheated {
                 let mm = &mut self.ships[i].pdcs[m];
-                mm.heat = (mm.heat - PDC_COOL * dt).max(0.0);
+                mm.heat = (mm.heat - PDC_COOL * power * dt).max(0.0);
                 if mm.overheated && mm.heat < 0.5 {
                     mm.overheated = false;
                 }
@@ -514,7 +514,7 @@ impl World {
                 taken.push(k);
                 fired = true;
                 let r = (self.torps[k].pos - pos).len();
-                let hazard = PDC_KILL_RATE * self.ships[i].class.pdc_rate * health / (1.0 + (r / PDC_FALLOFF).powi(2));
+                let hazard = PDC_KILL_RATE * self.ships[i].class.pdc_rate * self.ships[i].pdc_control() * health / (1.0 + (r / PDC_FALLOFF).powi(2));
                 let tid = self.torps[k].id;
                 self.ships[i].pdcs[m].target = Some(tid);
                 if self.rng.f64() < 1.0 - (-hazard * dt).exp() {
@@ -535,7 +535,7 @@ impl World {
                     // Erratic manoeuvring (acceleration across the line of fire) spoils the aim.
                     let los = (ep - pos).normalized_or(Vec3::Z);
                     let jink = (eacc - los * eacc.dot(los)).len();
-                    let rate = PDC_SHIP_RATE * self.ships[i].class.pdc_rate * health / (1.0 + (r / PDC_SHIP_FALLOFF).powi(2)) / (1.0 + jink / 15.0);
+                    let rate = PDC_SHIP_RATE * self.ships[i].class.pdc_rate * self.ships[i].pdc_control() * health / (1.0 + (r / PDC_SHIP_FALLOFF).powi(2)) / (1.0 + jink / 15.0);
                     if self.rng.f64() < 1.0 - (-rate * dt).exp() {
                         let er = self.ships[e].class.radius;
                         let jitter = self.rng.unit_vec() * (er * 0.6);
@@ -560,7 +560,7 @@ impl World {
                     mm.overheated = true;
                 }
             } else {
-                mm.heat = (mm.heat - PDC_COOL * dt).max(0.0);
+                mm.heat = (mm.heat - PDC_COOL * power * dt).max(0.0);
             }
         }
         self.torps.retain(|t| t.alive);
@@ -695,7 +695,7 @@ impl World {
                     s.repair = Some((k, prog));
                 }
             } else {
-                s.parts[k] = (s.parts[k] + REPAIR_RATE * eng * dt).min(REPAIR_CEILING);
+                s.parts[k] = (s.parts[k] + REPAIR_RATE * eng * s.crew_at(Station::Engineer).skill.powi(2) * dt).min(REPAIR_CEILING);
                 if s.parts[k] >= REPAIR_CEILING - 1e-9 {
                     s.repair = None;
                 }

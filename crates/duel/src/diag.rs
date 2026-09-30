@@ -181,9 +181,17 @@ pub fn run_pilots(seed: u64, p: [Pilot; 2]) -> MatchDiag {
     run_classes(seed, p, [crate::params::STANDARD, crate::params::STANDARD])
 }
 
-pub fn run_classes(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass; 2]) -> MatchDiag {
+pub fn run_classes(seed: u64, p: [Pilot; 2], classes: [crate::params::ShipClass; 2]) -> MatchDiag {
+    run_spec(seed, p, classes, None)
+}
+
+/// A match with named crews aboard (the league's rosters).
+pub fn run_spec(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass; 2], crews: Option<[[crate::ship::CrewSpec; 4]; 2]>) -> MatchDiag {
     let (a, b) = (p[0].style, p[1].style);
     let mut w = World::with_classes(seed, classes);
+    if let Some(c) = crews {
+        for i in 0..2 { w.ships[i].apply_crew(&c[i]); }
+    }
     let mut d = MatchDiag { seed, min_dist: f64::MAX, ..Default::default() };
     d.sides[0].style = format!("{a:?}");
     d.sides[1].style = format!("{b:?}");

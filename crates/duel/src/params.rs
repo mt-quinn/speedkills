@@ -18,7 +18,7 @@ pub const DISENGAGE_TIME: f64 = 10.0;
 pub const DISENGAGE_MEMORY: f64 = 30.0;
 /// No time limit: a fight runs until a ship is destroyed, dead in space, loses its crew or breaks
 /// off. (An experiment knob for measurement; unbounded by default.)
-pub fn time_limit() -> f64 { tune("TIME_LIMIT", f64::INFINITY) }
+pub fn time_limit() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("TIME_LIMIT", f64::INFINITY)) }
 
 // ---- the ship (one design, one loadout) ----
 /// Drawn and collided as a sphere of this radius; components sit inside it (ship frame:
@@ -124,21 +124,21 @@ pub const RAIL_PEN: (f64, f64) = (120.0, 1.5);
 /// Fire-control dispersion (rad, per axis): a spinal gun is aimed by pointing the whole ship, so
 /// the shot scatters with the shooter's own rotation (per rad/s) and sideways acceleration (per
 /// g), on top of a base; doubled with the sensors out, 1.5× without a working gunner.
-pub fn rail_disp_base() -> f64 { tune("RAIL_DISP_BASE", 0.001) }
-pub fn rail_disp_rate() -> f64 { tune("RAIL_DISP_RATE", 0.02) }
-pub fn rail_disp_lat() -> f64 { tune("RAIL_DISP_LAT", 0.002) }
+pub fn rail_disp_base() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("RAIL_DISP_BASE", 0.001)) }
+pub fn rail_disp_rate() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("RAIL_DISP_RATE", 0.02)) }
+pub fn rail_disp_lat() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("RAIL_DISP_LAT", 0.002)) }
 /// Spall: a round through the hull throws fragments, so what it wrecks widens behind the entry
 /// hole — the damage radius grows by this much per metre travelled inside the ship.
-pub fn rail_spall() -> f64 { tune("RAIL_SPALL", 0.0) }
+pub fn rail_spall() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("RAIL_SPALL", 0.0)) }
 /// Crew take this fraction of a hit's damage as health points (100 = dead).
-pub fn crew_harm() -> f64 { tune("CREW_HARM", 1.0) }
+pub fn crew_harm() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("CREW_HARM", 1.0)) }
 /// A PDC round that strikes the hull gets inside with this chance, and then does `PDC_PEN_DMG`
 /// to everything within `PDC_PEN_R` of its path in toward the ship's spine.
-pub fn pdc_pen_p() -> f64 { tune("PDC_PEN_P", 0.06) }
-pub fn pdc_pen_dmg() -> f64 { tune("PDC_PEN_DMG", 60.0) }
+pub fn pdc_pen_p() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("PDC_PEN_P", 0.06)) }
+pub fn pdc_pen_dmg() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("PDC_PEN_DMG", 60.0)) }
 pub const PDC_PEN_R: f64 = 1.2;
 /// A component loses dmg / PART_ARMOR of its health from a hit (1.0 = destroyed).
-pub fn part_armor() -> f64 { tune("PART_ARMOR", 120.0) }
+pub fn part_armor() -> f64 { static V: std::sync::OnceLock<f64> = std::sync::OnceLock::new(); *V.get_or_init(|| tune("PART_ARMOR", 120.0)) }
 
 /// Experiment knob: a value from the environment (SK_<NAME>), else the default. Read once.
 pub fn tune(name: &str, default: f64) -> f64 {

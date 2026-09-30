@@ -105,7 +105,7 @@ export class Critic {
       V4_depth: { min_sep_px: this.minSep, frames_too_close: this.sepSmall / f, tag_overlap: this.tagOverlap / f, pass: this.sepSmall / f < 0.02 && this.tagOverlap / f < 0.01 },
       V5_text: { captions: hud.stats.captionsShown, per_min: hud.stats.captionsShown / Math.max(1, this.m.duration / 60), max_at_once: hud.stats.maxSimultaneous, shortest_s: hud.stats.shortest, pass: hud.stats.maxSimultaneous <= 2 && hud.stats.shortest >= 1.5 && hud.stats.captionsShown / Math.max(1, this.m.duration / 60) <= 8 },
       V6_slowmo: { share: this.slowWall / Math.max(1e-6, this.wall), entries: this.slowEntries, per_min: this.slowEntries / Math.max(1, this.m.duration / 60), pass: this.slowWall / Math.max(1e-6, this.wall) <= 0.12 && this.slowEntries / Math.max(1, this.m.duration / 60) <= 3 },
-      V9_fills_frame: { tiny_share: this.tiny / f, pass: this.tiny / f < 0.02 },
+      V9_fills_frame: { samples: (this.tinyLog || []).slice(0, 8), tiny_share: this.tiny / f, pass: this.tiny / f < 0.02 },
       V8_fps: { p5, median: fps.length ? fps[Math.floor(fps.length / 2)] : 0, pass: p5 >= 50 },
     };
     return r;

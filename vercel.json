@@ -1,0 +1,32 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "",
+  "outputDirectory": "viewer2",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/sfx/(.*).opus",
+      "headers": [
+        { "key": "Content-Type", "value": "audio/ogg" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/sfx/(.*).m4a",
+      "headers": [
+        { "key": "Content-Type", "value": "audio/mp4" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/matches/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, must-revalidate" }]
+    },
+    {
+      "source": "/(js/.*|style.css|index.html|)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+    }
+  ]
+}

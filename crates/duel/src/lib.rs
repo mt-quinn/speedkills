@@ -4,6 +4,7 @@
 //! defence by saturation, and everything close by the spinal railgun. Hard burns are paid for by
 //! the crew's bodies. Deterministic for a given seed; fixed timestep.
 pub mod diag;
+pub mod league;
 pub mod trace;
 pub mod params;
 pub mod pilot;

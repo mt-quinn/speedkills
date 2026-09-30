@@ -6,12 +6,15 @@
 import * as THREE from 'three';
 import { TEAM_CSS } from './scene.js';
 import { PART_LABEL } from './data.js';
+import { portrait } from './portraits.js';
+import { defence, tactical, decisive } from './broadcast.js';
+import { voiceState, voiceRequests, chooseVoice } from './voices.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
 const PLAN = {
-  guns: 'guns up', juke: 'breaking hard', punish: 'going in', 'attack run': 'attack run', extend: 'extending',
+  'holding range': 'holding range', guns: 'guns up', juke: 'breaking hard', punish: 'going in', 'attack run': 'attack run', extend: 'extending',
   salvo: 'salvo', 'torpedo break': 'torpedo break', 'closing in': 'closing', braking: 'braking', brawl: 'charging in',
   pressing: 'pressing', ramming: 'ramming!', '': '—',
 };
@@ -67,11 +70,24 @@ export class Hud {
     const mid = el('div', 'sb-mid');
     this.clock = el('div', 'sb-clock', '0:00');
     this.leadTxt = el('div', 'sb-lead', 'even');
-    this.barCap = el('div', 'sb-cap', 'integrity');
+    this.barCap = el('div', 'sb-cap', 'condition · not win odds');
     // Range between the ships, and whether it's closing or opening.
     this.rangeTxt = el('div', 'sb-range');
     mid.append(this.clock, this.rangeTxt, this.leadTxt, this.barCap);
     sb.append(side(0), mid, side(1));
+    document.querySelector('.tactical')?.remove();
+    this.tactical = el('div', 'tactical'); sb.after(this.tactical);
+  }
+
+  // The viewer's pick, marked on the scoreboard.
+  setPick(side) {
+    this.pickSide = side;
+    document.querySelectorAll('#scoreboard .sb-side').forEach((el, i) => {
+      el.classList.toggle('picked', i === side);
+      let b = el.querySelector('.sb-pick');
+      if (i === side && !b) { b = el.ownerDocument.createElement('span'); b.className = 'sb-pick'; b.textContent = 'your pick'; el.append(b); }
+      if (i !== side && b) b.remove();
+    });
   }
 
   // The plate: everything about one ship, next to the ship.
@@ -86,7 +102,13 @@ export class Hud {
     hull.append(el('b', null, 'hull'), hullFill, hullTxt);
     const meta = el('div', 'pl-meta');
     const crew = el('span', 'pl-crew');
-    const dots = this.m.ships[i].crew.map(() => { const d = el('i'); crew.append(d); return d; });
+    const dots = this.m.ships[i].crew.map((c) => {
+      const d = el('i', 'crew-face'), art = portrait(c.name);
+      d.style.setProperty('--portrait-url', `url('assets/portraits/${art.file}')`);
+      d.style.setProperty('--portrait-color', art.color);
+      d.setAttribute('role', 'img'); d.tabIndex = 0;
+      crew.append(d); return d;
+    });
     const ammo = el('span', 'pl-ammo', '');
     meta.append(crew, ammo);
     const outs = el('div', 'pl-outs');
@@ -181,7 +203,8 @@ export class Hud {
     const N = this.names;
     this.endT ??= (this.m.events.find((e) => e.k === 'end') || { t: Infinity }).t;
     for (const e of evs) {
-      this.chatterEvent(t, e);
+      (this.voiceEvents ||= [[], []]);
+      if (e.ship !== undefined) this.voiceEvents[e.ship].push(e);
       switch (e.k) {
         // Hits are shown in the scene (the ring on the ship) and on the tug; text is for
         // consequences — what broke, who died — on the victim's plate.
@@ -195,7 +218,7 @@ export class Hud {
           if (e.t >= this.endT - 1e-3) break;
           if (e.k === 'part_lost' && e.part === 'railgun' && this.overT && Math.abs(this.overT[e.ship] - e.t) < 1e-3) break; // (said by the overcharge flag)
           const lh = this.lastHit && Math.abs(this.lastHit.t - e.t) < 1e-3 && this.lastHit.victim === e.ship ? this.lastHit : null;
-          const what = e.k === 'part_lost' ? `${e.part === 'railgun' ? 'gun' : PART_LABEL[e.part] || e.part} out` : `${this.m.ships[e.ship].crew[e.crew].name} killed`;
+          const what = e.k === 'part_lost' ? `${e.part === 'railgun' ? 'gun' : PART_LABEL[e.part] || e.part} out` : `${this.m.ships[e.ship].crew[e.crew].name} killed · ${({pilot:'flight computer takes over',gunner:'rail accuracy impaired',engineer:'repairs lost',ops:'defence control impaired'})[this.m.ships[e.ship].crew[e.crew].station]}`;
           this.flag(t, e.ship, lh ? `${what} · ${lh.kind}` : what, { prio: e.k === 'crew_killed' ? 3 : 2, key: 'hit' + e.t, hold: 3 });
           break;
         }
@@ -218,53 +241,23 @@ export class Hud {
 
   // Radio chatter: short crew lines under each plate — plan changes and events, by the crew
   // member who'd say it. Sparse by rule: one line per ship at most every 6 s, shown for 2.6 s.
-  chat(t, i, station, line, prio = 1) {
-    this.chatState ??= [{ until: -1, next: -1, prio: 0 }, { until: -1, next: -1, prio: 0 }];
-    const cs = this.chatState[i];
-    if (t < cs.next && prio <= cs.prio) return;
-    const who = this.m.ships[i].crew.find((c) => c.station === station) || this.m.ships[i].crew[0];
-    const node = this.plates[i].chat;
-    node.innerHTML = `<b>${who.name}:</b> “${line}”`;
-    node.classList.remove('on'); void node.offsetWidth; node.classList.add('on');
-    cs.until = t + 2.6; cs.next = t + 6; cs.prio = prio;
-    this.stats.chatter = (this.stats.chatter || 0) + 1;
-  }
-
   chatterFor(t, i, r) {
-    this.lastMode ??= ['', ''];
-    const cs = this.chatState && this.chatState[i];
-    const finished = t > (this.endT ?? Infinity);
-    if ((cs && t > cs.until) || !r.alive || finished) this.plates[i].chat.classList.remove('on');
-    if (!r.alive || finished) return;
-    if (r.mode !== this.lastMode[i]) {
-      const m = r.mode;
-      if (m === 'attack run' || m === 'punish') this.chat(t, i, 'pilot', 'Going in.');
-      else if (m === 'juke') this.chat(t, i, 'pilot', 'Breaking!');
-      else if (m === 'extend') this.chat(t, i, 'pilot', 'Extending.');
-      else if (m === 'torpedo break') this.chat(t, i, 'pilot', 'Torpedo — hard over!', 2);
-      else if (m === 'ramming') this.chat(t, i, 'pilot', 'Guns are dry. Ramming speed!', 3);
-      this.lastMode[i] = m;
-    }
-    const over = r.rail[4] === 1;
-    this.lastOver ??= [false, false];
-    if (over && !this.lastOver[i]) this.chat(t, i, 'gunner', 'Safeties off.', 2);
-    this.lastOver[i] = over;
-  }
-
-  chatterEvent(t, e) {
-    switch (e.k) {
-      case 'torp_launch': this.chat(t, e.ship, 'gunner', 'Birds away.'); break;
-      case 'rail_fire': this.chat(t, e.ship, 'gunner', 'Firing.'); break;
-      case 'repaired': { const L = (PART_LABEL[e.part] || e.part).replace(/^./, (c) => c.toUpperCase()); this.chat(t, e.ship, 'engineer', /s$/.test(L) ? `${L} are back.` : `${L}'s back.`, 2); break; }
-      case 'part_lost': this.chat(t, e.ship, 'engineer', `Lost the ${PART_LABEL[e.part] || e.part}!`, 2); break;
-      case 'crew_killed': {
-        const dead = this.m.ships[e.ship].crew[e.crew];
-        const by = dead.station === 'ops' ? 'pilot' : 'ops';
-        this.chat(t, e.ship, by, `${dead.name}'s gone.`, 3);
-        break;
-      }
-      case 'blackout': if (this.m.ships[e.ship].crew[e.crew].station === 'pilot') this.chat(t, e.ship, 'ops', 'Pilot’s out — holding her steady.', 3); break;
-    }
+    this.chatState ??= [voiceState(), voiceState()];
+    const cs = this.chatState[i], node = this.plates[i].chat;
+    const finished = t >= (this.endT ?? Infinity);
+    if (t > cs.until || !r.alive || finished || (cs.speaker !== undefined && r.crew[cs.speaker][0] !== 0)) { node.classList.remove('on'); node.replaceChildren(); }
+    if (finished || !this.voiceEnabled) return;
+    const events = this.voiceEvents?.[i] || [];
+    if (this.voiceEvents) this.voiceEvents[i] = [];
+    const ids = voiceRequests(cs, r, this.m.ships[i].crew, events);
+    if (t < (this.radioNext ?? -1)) return;
+    const v = chooseVoice(cs, t, r, this.m.ships[i].crew, ids, this.voiceVariations?.() || {});
+    if (!v) return;
+    node.replaceChildren(el('b', null, v.who.name + ':'), document.createTextNode(` “${v.line}”`));
+    node.classList.remove('on'); void node.offsetWidth; node.classList.add('on');
+    this.radioNext = t + 3;
+    this.stats.chatter = (this.stats.chatter || 0) + 1;
+    this.onVoice?.(v, i);
   }
 
   // Exchange results: announced 1.5 s after each ends (not the last one — the result card has
@@ -288,7 +281,7 @@ export class Hud {
       const kind = x.kind.toUpperCase();
       const head = x.winner === null ? `${kind} ${x.n} · even` : `${this.names[x.winner]} wins ${kind} ${x.n}`;
       const order = x.winner === 1 ? [1, 0] : [0, 1];
-      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}%`).join(' · ') + (swung ? ` · ${this.names[after]} leads` : '');
+      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}%`).join(' · ') + (swung ? ` · ${this.names[after]} gains condition edge` : '');
       this.say(t, { head, sub }, { team: x.winner, prio: 2, key: 'ex', hold: 3.4 });
     }
     for (let i = 0; i < 2; i++) { const s = '■'.repeat(won[i]); if (this.exPips[i].textContent !== s) this.exPips[i].textContent = s; }
@@ -300,7 +293,7 @@ export class Hud {
     const d = h[0] - h[1];
     const now = d > 0.03 ? 0 : d < -0.03 ? 1 : this.leader ?? null;
     if (this.leader !== undefined && this.leader !== null && now !== null && now !== this.leader && !this.m.exchangeAt(t) && t < this.endT) {
-      this.say(t, `${this.names[now]} takes the lead`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
+      this.say(t, `${this.names[now]} takes the condition edge`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
     }
     if (now !== null) this.leader = now;
   }
@@ -309,7 +302,7 @@ export class Hud {
   showResult(t) {
     const box = $('#result');
     // (From the recorded end — however playback got here, live or by seeking.)
-    if (t < this.endT + 1.4) { box.hidden = true; return; }
+    if (this.replay || t < this.endT + 1.4) { box.hidden = true; return; }
     if (!box.hidden) return;
     const m = this.m, ev = m.events, end = ev.find((e) => e.k === 'end');
     const w = end.winner;
@@ -318,15 +311,21 @@ export class Hud {
       const torps = ev.filter((e) => e.k === 'torp_hit' && e.victim === 1 - i).length;
       const lost = ev.filter((e) => e.k === 'crew_killed' && e.ship === i).length;
       const exw = m.exchanges.filter((x) => x.winner === i).length;
-      return [['exchanges won', `${exw}/${m.exchanges.length}`], ['hits', dealt], ['torpedoes through', torps], ['crew lost', lost]];
+      return [['exchanges won', `${exw}/${m.exchanges.length}`], ['hits', dealt], ['torpedoes through', torps], ['crew lost', lost], ['crew alive at finish', m.ships[i].crew.filter((c, k) => m.raw.frames.at(-1).s[i].crew[k][0] !== 2).map((c) => c.name).join(', ') || 'none']];
     };
     const mm = Math.floor(end.t / 60), ss = String(Math.floor(end.t % 60)).padStart(2, '0');
     const how = { destroyed: 'destroyed', 'crew dead': 'crew lost', 'dead in space': 'dead in space', time: 'on points', 'broke off': 'broke off', 'both disabled': 'both disabled · decided on condition' }[end.reason] || end.reason;
     const cause = m.raw.summary.finish_cause;
+    this.decisive = decisive(m.raw);
+    this.onFinish?.();
     box.innerHTML = `<div class="res-head ${w === null ? '' : 't' + w}">${w === null ? 'DRAW' : this.names[w] + ' WINS'}</div>
       <div class="res-sub">${w === null ? how : this.names[1 - w] + ' ' + how}${BY[cause] ? ' ' + BY[cause] : ''} · ${mm}:${ss}</div>
+      ${(() => { const pr = this.pickResult && this.pickResult(); if (!pr) return ''; const ok = pr.result === pr.pick; const fav = pr.odds >= 0.5 ? 'favourite' : 'underdog';
+        return `<div class="res-pick ${ok ? 'right' : 'wrong'}">${ok ? '✓ You called it' : '✗ Not this time'} · you picked <b>${pr.name}</b> (${Math.round(100 * pr.odds)}% ${fav}) · ${pr.record}</div>`; })()}
+      <div class="res-story">${this.decisive.story}</div>
       <div class="res-cols">${[0, 1].map((i) => `<div class="res-col t${i}"><div class="res-name">${this.names[i]}</div>${stat(i).map(([k, v]) => `<div class="res-row"><span>${k}</span><b>${v}</b></div>`).join('')}</div>`).join('')}</div>
       <div class="res-actions">
+        <button type="button" data-a="decisive">Decisive sequence</button>
         <button type="button" data-a="replay"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Replay</button>
         <button type="button" data-a="next" class="primary">Next fight<small>${this.fightLabel || ''}</small><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7z"/></svg></button>
       </div>`;
@@ -367,25 +366,26 @@ export class Hud {
     const sc = ex ? this.m.exchangeScore(ex, t) : [0, 0];
     for (let i = 0; i < 2; i++) {
       const B = this.bars[i];
-      const hp = Math.max(0, Math.min(1, h[i])) * 100;
+      const hp = st.ships[i].raw.alive ? Math.max(0, Math.min(1, h[i])) * 100 : 0;
       const loss = ex ? Math.min(100 - hp, sc[1 - i]) : 0; // (points dealt by the other ship)
       B.fill.style.width = `${hp}%`;
       B.chunk.style[i === 0 ? 'left' : 'right'] = `${hp}%`;
       B.chunk.style.width = `${loss}%`;
       B.chunk.classList.toggle('drain', !ex);
-      const pt = `${Math.round(hp)}%`;
+      const pt = st.ships[i].raw.alive ? `${Math.round(hp)}%` : 'OUT';
       if (B.pct.textContent !== pt) B.pct.textContent = pt;
       const dt = loss >= 0.5 ? `−${Math.round(loss)}%` : '';
       if (B.delta.textContent !== dt) B.delta.textContent = dt;
     }
-    if (ex) {
+    if (ex && t < this.endT) {
       this.leadTxt.textContent = `exchange ${ex.n}`;
       this.leadTxt.className = 'sb-lead live';
     } else {
-      this.leadTxt.textContent = Math.abs(d) < 0.03 ? 'even' : `${this.names[d > 0 ? 0 : 1]} ahead`;
-      this.leadTxt.className = `sb-lead ${Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
+      this.leadTxt.textContent = t >= this.endT ? (this.m.raw.winner === null ? 'draw' : `${this.names[this.m.raw.winner]} wins`) : Math.abs(d) < 0.03 ? 'condition even' : `${this.names[d > 0 ? 0 : 1]} condition edge`;
+      this.leadTxt.className = `sb-lead ${t >= this.endT ? (this.m.raw.winner === null ? '' : 't' + this.m.raw.winner) : Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
     }
-    const ended = t > this.endT + 1e-3;
+    const ended = t >= this.endT;
+    this.tactical.textContent = this.replay ? 'REPLAY · DECISIVE SEQUENCE' : ended || this.callouts.length ? '' : tactical(st.ships.map((s) => s.raw), this.names, this.m.objects(t, 'tp').map((tp) => ({owner:tp.owner,p:tp.pos.toArray()})));
     for (let i = 0; i < 2; i++) this.fillPlate(t, i, st.ships[i].raw, ended);
     const portrait = document.body.classList.contains('portrait');
     if (portrait) this.placeDocked(st, cam); else this.placePlates(st, cam);
@@ -403,16 +403,23 @@ export class Hud {
     P.plan.innerHTML = `${plan}${!ended && r.alive && g > 6 ? ` <b class="${g > 11 ? 'hot' : 'warm'}">${g.toFixed(0)} g</b>` : ''}`;
     P.p.classList.toggle('lost', lost);
     // Railgun: its charge, in the head.
-    const [charge, , , ammo, over] = r.rail;
-    const rtxt = ended || !r.alive || charge < 0.02 ? '' : charge >= 0.999 ? 'RAIL READY' : `RAIL ${Math.round(charge * 100)}%`;
+    const [charge, , cooldown, ammo, over] = r.rail;
+    const rtxt = ended || !r.alive || r.parts[11] <= 0 || ammo <= 0 ? '' : cooldown > 0 ? `RAIL ${(Math.ceil(cooldown * 10) / 10).toFixed(1)}s` : charge < 0.02 ? '' : charge >= 0.999 ? 'RAIL READY' : `RAIL ${Math.round(charge * 100)}%`;
     if (P.rail.textContent !== rtxt) P.rail.textContent = rtxt;
     P.rail.className = `pl-rail${charge >= 0.999 ? ' ready' : ''}${over ? ' over' : ''}`;
     const hf = Math.max(0, r.hull / ms.hull);
     P.hullFill.style.width = `${hf * 100}%`;
     P.hullFill.style.background = hf < 0.3 ? '#ff3b5c' : TEAM_CSS[i];
     P.hullTxt.textContent = `${Math.round(hf * 100)}%`;
-    r.crew.forEach(([state, health], k) => { P.dots[k].className = state === 2 ? 'dead' : state === 1 ? 'out' : health < 60 ? 'hurt' : ''; });
-    const am = `rail ${ammo} · torps ${r.torps[0]}`;
+    r.crew.forEach(([state, health, dose], k) => {
+      const c = ms.crew[k], status = state === 2 ? 'dead' : state === 1 ? 'blacked out' : health < 60 ? 'injured' : 'fit';
+      P.dots[k].className = `crew-face ${state === 2 ? 'dead' : state === 1 ? 'out' : health < 60 ? 'hurt' : ''}`;
+      const label = `${c.name} · ${c.station} · ${status} · g dose ${Math.round(dose * 100)}% of blackout`;
+      P.dots[k].title = label; P.dots[k].setAttribute('aria-label', label);
+    });
+    const df = defence(r);
+    const am = `rail ${ammo} · torps ${r.torps[0]} · PDC ${df.ammo.toFixed(0)}s${df.hot ? ` · ${df.hot} hot` : ''}`;
+    P.ammo.title = `PDC reserve: total firing seconds across working mounts (${r.pdc.map((p,k) => r.parts[7+k] <= 0 ? 'out' : p[0].toFixed(1) + 's').join(' / ')}). Multiple mounts consume reserve simultaneously.`;
     if (am !== P.lastAmmo) { P.ammo.textContent = am; P.lastAmmo = am; }
     const outs = OUTS.map(([label, idx]) => {
       const down = idx.filter((k) => r.parts[k] <= 0).length;
@@ -428,7 +435,7 @@ export class Hud {
     if (P.outsFreshUntil && t > P.outsFreshUntil) { P.outs.classList.remove('fresh'); P.outsFreshUntil = 0; }
     // PDC burst: its running tally.
     const b = t <= this.endT + 2 ? this.m.burstAt(i, t) : null;
-    const txt = !b ? '' : b.mode === 'ship' ? `PDC on target ${b.hits}/${b.rounds} · ${b.rounds ? Math.round((100 * b.hits) / b.rounds) : 0}%` : `PDC vs torpedoes · ${b.hits}/${b.engaged} down`;
+    const txt = !b ? '' : b.mode === 'ship' ? `PDC engaging ship` : `PDC interception · ${b.hits} torpedoes down`;
     if (P.acc.textContent !== txt) P.acc.textContent = txt;
     P.acc.classList.toggle('done', !!(b && b.done));
     const f = P.flagState;
@@ -442,6 +449,9 @@ export class Hud {
   measureStage(portrait) {
     const W = window.innerWidth, H = window.innerHeight;
     const sb = $('#scoreboard').getBoundingClientRect();
+    this.tactical.style.top = `${sb.bottom + 5}px`;
+    $('#result').style.top = `${sb.bottom + 8}px`;
+    $('#callouts').style.top = `${sb.bottom + 5}px`;
     // (Once the result card is up, the stage is what's left under it.)
     const res = $('#result');
     const top = !res.hidden && portrait ? res.getBoundingClientRect().bottom + 8 : sb.bottom + (portrait ? 44 : H < 520 ? 4 : 10);

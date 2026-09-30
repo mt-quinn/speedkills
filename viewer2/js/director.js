@@ -186,7 +186,8 @@ export class Director {
     cam.setViewOffset(W, H, (W / 2) - (stage.left + stage.right) / 2, (H / 2) - (stage.top + stage.bottom) / 2, W, H);
     const vfov = cam.fov * DEG;
     const tanY = Math.tan(vfov / 2) * (sH / H), tanX = Math.tan(vfov / 2) * cam.aspect * (sW / W);
-    const M = 0.74;
+    // Keep extra room for a fast separation while the distance spring catches up.
+    const M = 0.70 + 0.04 * portrait;
     // Camera basis for this view direction.
     const fwd = dir.clone().negate(), right = fwd.clone().cross(up).normalize(), camUp = right.clone().cross(fwd).normalize();
     // Lead the action: frame where the ships will be in 0.8 s as well as where they are (it's a
@@ -211,10 +212,10 @@ export class Director {
     }
     const cur = this.dist.x;
     // Pull back briskly when the frame needs it (1 s spring, up to 80%/s); ease in more gently
-    // (1.6 s, 35%/s). Easing out is what keeps the action in frame; easing in is what keeps it calm.
+    // (desktop 1.6 s / 35% per second; phones 1.4 s / 40%). Easing out is what keeps the action in frame; easing in is what keeps it calm.
     const out = want > cur;
-    this.dist.tau = out ? 1.0 : 1.6;
-    const maxRate = (out ? 0.8 : 0.35) * cur;
+    this.dist.tau = out ? 1.0 : 1.6 - 0.2 * portrait;
+    const maxRate = (out ? 0.8 : 0.35 + 0.05 * portrait) * cur;
     const d = this.dist.step(Math.min(cur + maxRate, Math.max(cur - maxRate, want)), dt);
     const look = this.look.step(centre, dt);
     // The viewer's hand on the camera (orbit/zoom offsets), applied last: the director's own

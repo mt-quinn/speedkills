@@ -84,8 +84,23 @@ fn ship_frame(o: &mut String, s: &Ship, p: &Pilot) {
 /// Record a whole match. `summary` is the diagnostics of the same match (same seed and pilots),
 /// embedded so the viewer knows the story up front (lead changes, finishing cause…).
 pub fn record(seed: u64, styles: [Style; 2], classes: [ShipClass; 2], summary: &MatchDiag) -> String {
+    let names = [SHIP_NAMES[(seed % 16) as usize], SHIP_NAMES[((seed / 16 + seed * 7 + 5) % 16) as usize]];
+    let names = if names[0] == names[1] { [names[0], SHIP_NAMES[((seed + 3) % 16) as usize]] } else { names };
+    let p = [Pilot::seeded(styles[0], seed * 2), Pilot::seeded(styles[1], seed * 2 + 1)];
+    record_with(seed, p, styles, classes, summary, names, None)
+}
+
+/// A league fight: its ships' names and crews aboard, their pilots' habits.
+pub fn record_league(seed: u64, a: &crate::league::ShipEntry, b: &crate::league::ShipEntry, summary: &MatchDiag) -> String {
+    let p = [Pilot::league(a.style, seed * 2, a.identity), Pilot::league(b.style, seed * 2 + 1, b.identity)];
+    record_with(seed, p, [a.style, b.style], [STANDARD, STANDARD], summary, [a.name, b.name], Some([a.crew, b.crew]))
+}
+
+fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipClass; 2], summary: &MatchDiag, names: [&str; 2], crews: Option<[[CrewSpec; 4]; 2]>) -> String {
     let mut w = World::with_classes(seed, classes);
-    let mut p = [Pilot::seeded(styles[0], seed * 2), Pilot::seeded(styles[1], seed * 2 + 1)];
+    if let Some(c) = crews {
+        for i in 0..2 { w.ships[i].apply_crew(&c[i]); }
+    }
     let mut frames = String::new();
     let mut events = String::new();
     let mut nframes = 0;
@@ -144,8 +159,6 @@ pub fn record(seed: u64, styles: [Style; 2], classes: [ShipClass; 2], summary: &
     }
     // Header.
     let mut o = String::new();
-    let names = [SHIP_NAMES[(seed % 16) as usize], SHIP_NAMES[((seed / 16 + seed * 7 + 5) % 16) as usize]];
-    let names = if names[0] == names[1] { [names[0], SHIP_NAMES[((seed + 3) % 16) as usize]] } else { names };
     let _ = write!(o, "{{\"version\":1,\"seed\":{seed},\"hz\":{TRACE_HZ},\"ships\":[");
     for i in 0..2 {
         let c = &classes[i];
@@ -162,7 +175,7 @@ pub fn record(seed: u64, styles: [Style; 2], classes: [ShipClass; 2], summary: &
             c.torpedoes,
             c.rail_ammo,
             c.pdc_ammo,
-            s.crew.iter().map(|cr| format!("{{\"name\":{},\"station\":{}}}", js(cr.name), js(cr.station.name()))).collect::<Vec<_>>().join(",")
+            s.crew.iter().map(|cr| format!("{{\"name\":{},\"station\":{},\"skill\":{:.3},\"tolerance\":{:.3}}}", js(cr.name), js(cr.station.name()), cr.skill, cr.tolerance)).collect::<Vec<_>>().join(",")
         );
     }
     o.push_str("],\"parts\":[");

@@ -73,11 +73,11 @@ const hash = (a, b, c, d) => { const x = Math.sin(a * 127.1 + b * 311.7 + c * 74
 function depthCue() {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
-    uniforms: { uCentre: { value: new THREE.Vector3() }, uSpan: { value: 1000 } },
+    uniforms: { uCentre: { value: new THREE.Vector3() }, uSpan: { value: 1000 }, uEmphasis: { value: 1 } },
     vertexShader: `attribute vec4 rgba; uniform vec3 uCentre; varying vec4 vC; varying float vD;
       void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = mv.z - (viewMatrix * vec4(uCentre, 1.0)).z; vC = rgba; gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `uniform float uSpan; varying vec4 vC; varying float vD;
-      void main() { float k = smoothstep(-uSpan, uSpan, vD); gl_FragColor = vec4(vC.rgb, vC.a * mix(0.28, 1.3, k)); }`,
+    fragmentShader: `uniform float uSpan, uEmphasis; varying vec4 vC; varying float vD;
+      void main() { float k = smoothstep(-uSpan, uSpan, vD); gl_FragColor = vec4(vC.rgb, vC.a * mix(0.28, 1.3, k) * uEmphasis); }`,
   });
 }
 
@@ -236,7 +236,8 @@ export class Scene {
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+    this.onResize = () => this.resize();
+    window.addEventListener('resize', this.onResize);
 
     // Fight plane: fixed orientation for the match, perpendicular to the opening separation, so
     // both ships start on it and every later climb or dive shows as a stalk.
@@ -552,6 +553,21 @@ export class Scene {
     return Math.max(0.028 * short, Math.min(SHIP_SCREEN * short, 0.34 * sepH));
   }
 
+  removeEffect(obj) {
+    this.root.remove(obj);
+    obj.traverse((o) => { o.geometry?.dispose(); if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose(); });
+  }
+
+  dispose() {
+    window.removeEventListener('resize', this.onResize);
+    const geometries = new Set(), materials = new Set();
+    this.scene.traverse((o) => { if (o.geometry) geometries.add(o.geometry); if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m); });
+    for (const g of geometries) g.dispose();
+    for (const m of materials) m.dispose();
+    for (const pass of this.composer.passes) pass.dispose?.();
+    this.composer.dispose(); this.renderer.dispose();
+  }
+
   update(t, st, now) {
     this._now = now;
     // After the end, the guns go quiet.
@@ -585,6 +601,9 @@ export class Scene {
       this.gimbal.scale.setScalar(this.gimbalR);
       for (const mt of [this.gridMat, this.gimbalMat]) if (mt) { mt.uniforms.uCentre.value.copy(this.planeCenter).sub(this.mid); mt.uniforms.uSpan.value = this.gimbalR; }
     }
+    const busy = !this.ended && (st.ships.some((s) => s.raw.rail[0] > .8 || s.raw.pdc.some((p) => p[2] >= 0 || p[3])) || m.objects(t, 'tp').length > 2);
+    this.visualEmphasis = (this.visualEmphasis ?? 1) + ((busy ? .4 : 1) - (this.visualEmphasis ?? 1)) * .08;
+    for (const mt of [this.gridMat, this.gimbalMat]) if (mt) mt.uniforms.uEmphasis.value = this.visualEmphasis;
     this.updateDust();
 
     for (let i = 0; i < 2; i++) {
@@ -622,12 +641,13 @@ export class Scene {
       g.visible = true;
       const alive = s.raw.alive;
       g.userData.edges.material.opacity = alive ? 0.95 : 0.3;
-      g.userData.hullMat.color.copy(alive ? TEAM[i].clone().multiplyScalar(0.85) : new THREE.Color(0x2a2d33));
-      g.userData.hullMat.emissive.copy(alive ? TEAM[i].clone().multiplyScalar(0.28) : new THREE.Color(0));
-      g.userData.tip.visible = alive;
+      g.userData.hullMat.color.copy(TEAM[i]).multiplyScalar(alive ? .4 + .45 * Math.max(0, s.raw.hull / m.ships[i].hull) : .15);
+      g.userData.hullMat.emissive.copy(TEAM[i]).multiplyScalar(alive ? .28 : 0);
+      g.userData.tip.visible = alive && s.raw.parts[11] > 0;
+      g.userData.tip.material.color.copy(s.raw.rail[4] ? THREAT : WHITE);
       // Plume: drive thrust = acceleration along the nose.
       const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(s.quat);
-      const thrustG = this.ended ? 0 : Math.max(0, s.acc.dot(fwd)) / 9.81;
+      const thrustG = this.ended || !alive || s.raw.parts[0] <= 0 ? 0 : Math.max(0, s.acc.dot(fwd)) / 9.81;
       const plume = g.userData.plume;
       // Flame length reads as g: one ship length at 12 g, capped.
       const L = thrustG > 0.3 ? Math.min(30, 4 + thrustG * 1.9) : 0.001;
@@ -638,7 +658,7 @@ export class Scene {
       // Stalk and footprint.
       const foot = this.toPlane(s.pos);
       setLine(this.stalks[i], [s.pos, foot]);
-      this.stalks[i].material.opacity = 0.5;
+      this.stalks[i].material.opacity = 0.5 * this.visualEmphasis;
       this.feet[i].position.copy(foot);
       this.feet[i].quaternion.copy(this.planeQuat);
       this.feet[i].scale.setScalar(sc * 7);
@@ -649,7 +669,7 @@ export class Scene {
         for (let k = 0; k < N; k++) {
           const tk = Math.max(0, t - (k / (N - 1)) * span);
           pts.push(k === 0 ? s.pos : m.ship(tk, i).pos);
-          const f = (1 - k / (N - 1)) ** 1.6 * 0.6;
+          const f = (1 - k / (N - 1)) ** 1.6 * 0.6 * this.visualEmphasis;
           col.push(c.r * f, c.g * f, c.b * f);
         }
         const l = this.paths[i];
@@ -759,7 +779,7 @@ export class Scene {
     // Transient effects.
     this.fx = this.fx.filter((f) => {
       const age = now - f.born;
-      if (age > f.life) { this.root.remove(f.obj); return false; }
+      if (age > f.life) { this.removeEffect(f.obj); return false; }
       if (age < 0) { f.tick(-1, f.obj, this); return true; }
       f.tick(age / f.life, f.obj, this);
       return true;

@@ -103,6 +103,20 @@ export class Audio {
       s.connect(this.bgmBus); s.start();
       this.bgmBus.gain.setTargetAtTime(0.32, ctx.currentTime, 1.5);
     }
+    this.voices = {};
+    try {
+      const response = await fetch('sfx/voices/index.json');
+      if (response.ok) {
+        const manifest = await response.json();
+        await Promise.all(Object.entries(manifest).map(async ([id, files]) => {
+          if (!Array.isArray(files)) return;
+          const decoded = await Promise.all(files.map(async (file) => {
+            try { const r = await fetch(`sfx/voices/${file}`); if (!r.ok) return null; const b = await ctx.decodeAudioData(await r.arrayBuffer()); normalise(b, -18); return b; } catch { return null; }
+          }));
+          this.voices[id] = Object.fromEntries(files.map((file, i) => [Number(file.match(/_(\d+)\./)?.[1]) - 1, decoded[i]]).filter(([k,b]) => Number.isInteger(k) && k >= 0 && b));
+        }));
+      }
+    } catch { /* subtitles remain available without recordings */ }
     this.ready = true;
   }
 
@@ -167,12 +181,27 @@ export class Audio {
     src.start(ctx.currentTime + when);
   }
 
+  voice(id, variation, side, station) {
+    if (!this.playing || !this.ready || !this.sfxOn || this.voiceSource) return;
+    const clip = this.voices[id]?.[variation];
+    if (!clip) return;
+    const src = this.ctx.createBufferSource(); src.buffer = clip;
+    const gain = this.ctx.createGain(); gain.gain.value = .85;
+    const pan = this.ctx.createStereoPanner(); pan.pan.value = side ? .25 : -.25;
+    // Speech bypasses the slow-motion filter and never changes pitch.
+    src.connect(gain).connect(pan).connect(this.sfxGate);
+    this.voiceSpeaker = { side, station };
+    this.voiceSource = src; src.onended = () => { if (this.voiceSource === src) this.voiceSource = null; src.disconnect(); gain.disconnect(); pan.disconnect(); };
+    src.start();
+  }
+
   // Called once per rendered frame during live playback.
   update(t, st, evs, dir, dtWall) {
     const dt = Math.min(0.1, dtWall);
     if (!this.enabled || !this.ready) return;
     const ctx = this.ctx, now = ctx.currentTime;
     this.tNow = t;
+    if (this.voiceSource && (!st.ships[this.voiceSpeaker.side].raw.alive || st.ships[this.voiceSpeaker.side].raw.crew[this.voiceSpeaker.station][0] !== 0)) { this.voiceSource.stop(); this.voiceSource = null; }
     const slow = dir.timeScale < 0.99;
     // Slow motion: new sounds pitched down, the whole effects bus muffled.
     this.slowRate = slow ? 0.72 : 1;
@@ -182,8 +211,9 @@ export class Audio {
     // Music: ducks under slow motion, swells for the result.
     // (It also sits back while a railgun charges, so the spin-up is heard.)
     const maxCharge = ended ? 0 : Math.max(...st.ships.map((s) => (s.raw.alive ? s.raw.rail[0] : 0)));
-    const bgm = t > endT + 1.2 ? 0.45 : slow ? 0.16 : 0.32 * (1 - 0.25 * Math.min(1, maxCharge / 0.4));
+    const bgm = this.voiceSource ? .1 : t > endT + 1.2 ? 0.45 : slow ? 0.16 : 0.32 * (1 - 0.25 * Math.min(1, maxCharge / 0.4));
     this.bgmBus.gain.setTargetAtTime(bgm, now, 0.4);
+    this.sfx.gain.setTargetAtTime(this.voiceSource ? .5 : 1, now, .08);
 
     // ---- events ----
     for (const e of evs) {
@@ -301,6 +331,7 @@ export class Audio {
   hush() {
     if (!this.ready) return;
     const now = this.ctx.currentTime;
+    if (this.voiceSource) { this.voiceSource.stop(); this.voiceSource = null; }
     for (const L of this.layers) {
       if (L.engine) L.engine.gain.gain.setTargetAtTime(0, now, 0.05);
       if (L.charge) { L.charge.gain.gain.setTargetAtTime(0, now, 0.05); L.charge.lfoDepth.gain.setTargetAtTime(0, now, 0.05); }

@@ -8,6 +8,11 @@ export const PART_LABEL = {
   pdc_stbd: 'starboard PDC', launcher: 'torpedo launcher', railgun: 'railgun',
 };
 
+// The league (roster, crews, odds), if this card is a league card.
+export async function loadLeague() {
+  try { const r = await fetch('league.json'); return r.ok ? r.json() : null; } catch (e) { return null; }
+}
+
 export async function loadIndex() {
   const r = await fetch('matches/index.json');
   return r.json();

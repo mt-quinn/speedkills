@@ -132,6 +132,10 @@ pub struct Crew {
     pub dose: f64,
     /// Personal tolerance: thresholds are multiplied by it.
     pub tolerance: f64,
+    /// Skill at their station (1 = league average): pilot — handling (rotation authority and
+    /// thruster jinks); gunner — railgun scatter and charge speed; engineer — repair speed;
+    /// ops — point-defence fire control.
+    pub skill: f64,
     pub state: CrewState,
     /// Died of g (rather than a hit).
     pub g_death: bool,
@@ -207,7 +211,24 @@ pub struct Ship {
 
 const NAMES: [[&str; 4]; 2] = [["Vasquez", "Okoye", "Brandt", "Liang"], ["Moreau", "Tanaka", "Reyes", "Sørensen"]];
 
+/// A crew member as the league knows them: name, skill at their station, g-tolerance.
+#[derive(Clone, Copy, Debug)]
+pub struct CrewSpec {
+    pub name: &'static str,
+    pub skill: f64,
+    pub tolerance: f64,
+}
+
 impl Ship {
+    /// Put a named crew aboard (station order: pilot, gunner, engineer, ops).
+    pub fn apply_crew(&mut self, spec: &[CrewSpec; 4]) {
+        for (c, sp) in self.crew.iter_mut().zip(spec.iter()) {
+            c.name = sp.name;
+            c.skill = sp.skill;
+            c.tolerance = sp.tolerance;
+        }
+    }
+
     pub fn new(side: usize, class: ShipClass, pos: Vec3, vel: Vec3, orient: Quat, rng: &mut Rng) -> Ship {
         let crew = STATIONS
             .iter()
@@ -218,6 +239,7 @@ impl Ship {
                 health: 100.0,
                 dose: 0.0,
                 tolerance: rng.range(TOLERANCE.0, TOLERANCE.1),
+                skill: 1.0,
                 state: CrewState::Fit,
                 g_death: false,
             })
@@ -271,6 +293,31 @@ impl Ship {
     pub fn scale(&self) -> f64 {
         self.class.radius / SHIP_RADIUS
     }
+    /// Handling, from the pilot's skill (the flight computer flies at league average when the
+    /// pilot is out: blackouts and deaths have their own limits in the world step).
+    pub fn handling(&self) -> f64 {
+        let p = self.crew_at(Station::Pilot);
+        if p.working() { p.skill.powf(1.5) } else { 1.0 }
+    }
+    /// How fast the pilot reacts to the enemy's muzzle flash (s).
+    pub fn flash_reaction(&self) -> f64 { FLASH_REACTION / self.handling() }
+    /// The weakest conscious crew member's g-tolerance: how hard the whole crew can be pushed.
+    pub fn crew_tolerance(&self) -> f64 {
+        self.crew.iter().filter(|c| c.working()).map(|c| c.tolerance).fold(f64::MAX, f64::min).min(1.5)
+    }
+    /// Power management, from the engineer (league average without a working one).
+    pub fn power(&self) -> f64 {
+        let e = self.crew_at(Station::Engineer);
+        if e.working() { e.skill } else { 1.0 }
+    }
+    pub fn rcs_accel(&self) -> f64 { self.class.rcs_accel * self.handling() }
+    pub fn rot_accel(&self) -> f64 { self.class.rot_accel * self.handling() }
+    /// Point-defence fire control, from ops (without a working ops officer the mounts run on
+    /// their own, at 0.7).
+    pub fn pdc_control(&self) -> f64 {
+        let o = self.crew_at(Station::Ops);
+        if o.working() { o.skill.sqrt() } else { 0.7 }
+    }
     /// A broken part can come back while there's a live engineer (repairs run at any g).
     pub fn fixable(&self, p: Part) -> bool {
         self.part(p) > 0.0 || self.crew_at(Station::Engineer).alive()
@@ -292,8 +339,13 @@ impl Ship {
         let f = self.forward();
         let lat = (self.accel - f * self.accel.dot(f)).len() / G;
         let sensors = if self.part(Part::Sensors) <= 0.0 { 2.0 } else { 1.0 };
-        let gunner = if self.crew_at(Station::Gunner).working() { 1.0 } else { 1.5 };
-        (rail_disp_base() + rail_disp_rate() * self.rate.len() + rail_disp_lat() * lat) * sensors * gunner
+        let gc = self.crew_at(Station::Gunner);
+        let gunner = if gc.working() { 1.0 / gc.skill } else { 1.5 };
+        // (The pilot holds the gun platform steady — rotation and g scatter over their handling —
+        // and a crew that takes g well aims better under it.)
+        let steady = self.handling();
+        let tol = self.crew_tolerance().min(1.5);
+        (rail_disp_base() + (rail_disp_rate() * self.rate.len() + rail_disp_lat() * lat / tol) / steady) * sensors * gunner
     }
     pub fn powered(&self) -> bool {
         self.part(Part::Reactor) > 0.0

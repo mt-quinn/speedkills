@@ -654,3 +654,42 @@ fn class_matchup() {
         }
     }
 }
+
+/// How much each crew stat moves a fight: one side gets one stat raised (skill ×`hi`, or the
+/// whole crew's g-tolerance), the other is league average; doctrines drawn from the tactical
+/// styles, sides alternated. The control (identical crews) should sit at 50%.
+#[test]
+#[ignore]
+fn crew_stat_effects() {
+    use crate::diag::run_spec;
+    use crate::ship::CrewSpec;
+    let n: u64 = std::env::var("GATE_N").ok().and_then(|v| v.parse().ok()).unwrap_or(400);
+    let hi: f64 = std::env::var("HI").ok().and_then(|v| v.parse().ok()).unwrap_or(1.2);
+    let avg = [CrewSpec { name: "A", skill: 1.0, tolerance: 1.0 }; 4];
+    let styles = crate::pilot::TACTICAL;
+    let conds: Vec<(&str, Box<dyn Fn(&mut [CrewSpec; 4])>)> = vec![
+        ("control", Box::new(|_c: &mut [CrewSpec; 4]| {})),
+        ("pilot", Box::new(move |c: &mut [CrewSpec; 4]| c[0].skill = hi)),
+        ("gunner", Box::new(move |c: &mut [CrewSpec; 4]| c[1].skill = hi)),
+        ("engineer", Box::new(move |c: &mut [CrewSpec; 4]| c[2].skill = hi)),
+        ("ops", Box::new(move |c: &mut [CrewSpec; 4]| c[3].skill = hi)),
+        ("g-tolerance (all)", Box::new(|c: &mut [CrewSpec; 4]| for x in c.iter_mut() { x.tolerance = 1.15 })),
+        ("all skills", Box::new(move |c: &mut [CrewSpec; 4]| for x in c.iter_mut() { x.skill = hi })),
+    ];
+    for (name, f) in conds.iter() {
+        let (mut w, mut d) = (0.0, 0.0);
+        for k in 0..n {
+            let seed = 70_000 + k;
+            let (sa, sb) = (styles[(k as usize) % styles.len()], styles[(k as usize / styles.len()) % styles.len()]);
+            let mut good = avg;
+            f(&mut good);
+            let flip = k % 2 == 1;
+            let crews = if flip { [avg, good] } else { [good, avg] };
+            let pl = [Pilot::seeded(sa, seed * 2), Pilot::seeded(sb, seed * 2 + 1)];
+            let m = run_spec(seed, pl, [STANDARD, STANDARD], Some(crews));
+            let me = if flip { 1 } else { 0 };
+            match m.winner { Some(x) if x == me => w += 1.0, Some(_) => {}, None => d += 1.0 }
+        }
+        println!("{name:20} wins {:.1}%  (draws {:.1}%)", 100.0 * (w + 0.5 * d) / n as f64, 100.0 * d / n as f64);
+    }
+}

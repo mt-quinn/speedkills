@@ -84,7 +84,7 @@ impl Style {
             Style::Knife => Doctrine { home: (800.0, 1500.0), salvo: (4500.0, 7500.0), odds: 0.3, approach_g: 5.0, slash: false, pass_by: 0.0, runs_on_ready: false, screen: 0.0 },
             Style::Striker => Doctrine { home: (1500.0, 3000.0), salvo: (4500.0, 7500.0), odds: 0.3, approach_g: 5.0, slash: true, pass_by: 200.0, runs_on_ready: true, screen: 0.0 },
             Style::Warden => Doctrine { home: (3000.0, 4500.0), salvo: (4000.0, 8000.0), odds: 0.45, approach_g: 3.0, slash: false, pass_by: 0.0, runs_on_ready: false, screen: 15.0 },
-            Style::Counter => Doctrine { home: (2500.0, 4200.0), salvo: (4500.0, 7500.0), odds: 0.7, approach_g: 3.0, slash: false, pass_by: 0.0, runs_on_ready: false, screen: 0.0 },
+            Style::Counter => Doctrine { home: (2500.0, 4200.0), salvo: (4500.0, 7500.0), odds: 0.7, approach_g: 3.0, slash: false, pass_by: 0.0, runs_on_ready: false, screen: 8.0 },
             _ => Doctrine { home: (3000.0, 4200.0), salvo: (4500.0, 7500.0), odds: 0.3, approach_g: 3.0, slash: !std::env::var("SLASH").map_or(false, |v| v == "off"), pass_by: 300.0, runs_on_ready: false, screen: 0.0 },
         }
     }
@@ -178,6 +178,14 @@ impl Pilot {
             last_salvo_t: -99.0,
             band_since: None,
         }.with_temper(seed)
+    }
+
+    /// A league pilot: the fight's own randomness from `fight_seed`, the habits (temperament)
+    /// from who they are (`identity`), the same in every fight.
+    pub fn league(style: Style, fight_seed: u64, identity: u64) -> Pilot {
+        let mut p = Pilot::seeded(style, fight_seed);
+        p = p.with_temper(identity.wrapping_mul(0x9E37_79B9) ^ 0x5151);
+        p
     }
 
     fn with_temper(mut self, seed: u64) -> Pilot {
@@ -373,7 +381,7 @@ impl Pilot {
         let incoming = w.slugs.iter().any(|sl| sl.owner != me && sl.alive && (s.pos - sl.pos).dot(sl.vel) > 0.0);
         // The flash: their fire control aimed at where our present jink would take us, so
         // reverse it (the drive can't reverse in time — it cuts, by turning away).
-        for sl in w.slugs.iter().filter(|sl| sl.owner != me && sl.alive && w.t - sl.born >= FLASH_REACTION) {
+        for sl in w.slugs.iter().filter(|sl| sl.owner != me && sl.alive && w.t - sl.born >= s.flash_reaction()) {
             if !self.seen_flash.contains(&sl.id) {
                 self.seen_flash.push(sl.id);
                 if self.juke_dir != Vec3::ZERO {
@@ -391,8 +399,8 @@ impl Pilot {
         let our_move = s.rail_charge >= 1.0 && our_shot.p_hit > self.fire_odds && our_shot.p_hit >= their_shot.p_env - 0.1;
         // A juke only works where a hard sideways burn opens more than the ship's width before
         // the round arrives (after the crew sees the flash). Closer than that it's a gunfight.
-        let tr = (dist / RAIL_SPEED - FLASH_REACTION).max(0.0);
-        let juke_works = 0.5 * (s.class.rcs_accel + 8.0 * G) * tr * tr > 1.5 * s.class.radius;
+        let tr = (dist / RAIL_SPEED - s.flash_reaction()).max(0.0);
+        let juke_works = 0.5 * (s.rcs_accel() + 8.0 * G) * tr * tr > 1.5 * s.class.radius;
         // (Stop when there's nothing to dodge: their charge is more than 2.5 s from ready and no
         // round is in flight — juking against a gun that isn't coming up locked both ships into
         // waiting for each other.)
@@ -410,7 +418,8 @@ impl Pilot {
             inp.rate = turn_toward(s, self.juke_dir);
             // The juice, budgeted: a blackout is ~15 s with nobody flying. Only a ship that's
             // already dying goes past what keeps the crew conscious.
-            let want: f64 = if e.rail_charge >= 0.95 || incoming { 11.0 } else { 8.0 };
+            // (How hard: scaled by what the crew can take — the weakest conscious member.)
+            let want: f64 = (if e.rail_charge >= 0.95 || incoming { 11.0 } else { 8.0 }) * s.crew_tolerance().min(1.3).powi(2);
             let mut g = want.min(g_budget(s, 1.5));
             // The juice past what the crew can take: a ship that's losing badly will kill its own
             // people to live through the next round.
@@ -561,7 +570,7 @@ impl Pilot {
         } else if dist > doc.home.1 + if ahead { 600.0 } else { 0.0 } && closing < 150.0 + 100.0 * (doc.approach_g - 3.0) {
             // Work in to the doctrine's range.
             inp.thrust_g = doc.approach_g.min(g_budget(s, 3.0));
-        } else if !ahead && dist > doc.home.0 && closing < 50.0 {
+        } else if self.style != Style::Counter && !ahead && dist > doc.home.0 && closing < 50.0 {
             // In the band with their gun up: work in steadily, never away.
             inp.thrust_g = 1.5;
         }
@@ -591,11 +600,18 @@ impl Pilot {
         // can still stop short of the stand-off. Ramming kills both ships.
         // Only our own approach counts: if they're the ones charging in, braking would just
         // spend the RCS we need for jinking.
-        let stand_off = (doc.home.0 * 0.7).max(500.0);
-        let v_max = (2.0 * s.class.rcs_accel * (dist - stand_off).max(0.0)).sqrt();
+        let stand_off = if self.style == Style::Counter && their_down_for <= ours_ready_in + 1.5 {
+            doc.home.0
+        } else { (doc.home.0 * 0.7).max(500.0) };
+        let v_max = (2.0 * s.rcs_accel() * (dist - stand_off).max(0.0)).sqrt();
         let our_approach = (s.vel - (s.vel + e.vel) * 0.5).dot(to_enemy);
-        if !doc.slash && closing > v_max && our_approach > 0.5 * closing {
+        // Counter actively bleeds closing speed with RCS while the enemy gun is ready.
+        // No outward drive burn: finite thrusters cannot turn this into endless retreat.
+        let counter_hold = self.style == Style::Counter && their_down_for <= ours_ready_in + 1.5
+            && dist < doc.home.1 && closing > 30.0;
+        if counter_hold || (!doc.slash && closing > v_max && our_approach > 0.5 * closing) {
             inp.thrust_g = 0.0;
+            if counter_hold { self.mode = "holding range"; }
             inp.strafe = s.orient.inv_rotate(-to_enemy) + inp.strafe * 0.3;
         }
     }
@@ -648,11 +664,11 @@ pub fn shot(s: &Ship, e: &Ship) -> Shot {
     let los = rel.normalized_or(s.forward());
     let lat = |v: Vec3| v - los * v.dot(los);
     let f = e.forward();
-    let rcs = e.class.rcs_accel;
+    let rcs = e.rcs_accel();
     let drive = f * e.accel.dot(f).max(0.0).min(if e.accel.dot(f) > rcs * 1.5 { f64::MAX } else { 0.0 });
     // (What the prediction leaves out: the jink on right now, over and above the average.)
     let rcs_now = lat(e.accel - e.accel_avg - drive).len().min(rcs);
-    let tr = (t - FLASH_REACTION).max(0.0);
+    let tr = (t - e.flash_reaction()).max(0.0);
     let escape = 0.5 * (rcs + rcs_now + lat(drive).len()) * tr * tr;
     let radius = e.class.radius;
     let p_env = (radius / escape.max(radius)).powi(2);
@@ -693,7 +709,7 @@ pub fn g_budget(s: &Ship, horizon: f64) -> f64 {
         felt = felt.min(4.0 * (rate / DOSE_K).powf(0.25));
     }
     // Worst case the RCS push lines up with the drive.
-    (felt - s.class.rcs_accel / G).max(2.0)
+    (felt - s.rcs_accel() / G).max(2.0)
 }
 
 /// Time for a round of speed `speed` to meet the target on its present motion (velocity and
@@ -737,7 +753,7 @@ pub fn turn_toward(s: &Ship, dir: Vec3) -> Vec3 {
     // Time-optimal: as fast as the ship can still brake to a stop in the angle left
     // (ω = √(2αθ), with a margin), capped at its turn rate. A fixed proportional gain lags a
     // moving target by a degree or so, which is tens of metres at gun range.
-    let alpha = s.class.rot_accel;
+    let alpha = s.rot_accel();
     let rate = (0.7 * (2.0 * alpha * ang).sqrt()).max(2.5 * ang).min(s.class.max_rate);
     axis * rate
 }
