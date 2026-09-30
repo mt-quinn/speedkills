@@ -12,3 +12,11 @@ runs/duel/*
 runs/viewer/*
 !runs/duel/LOG.md
 !runs/viewer/LOG.md
+node_modules/
+.env*
+.vercel/
+.convex/
+viewer2/js/live/client.bundle.js
+viewer2/live-config.json
+dist/
+.vercel

@@ -1,0 +1,24 @@
+{
+  "name": "hard-burn",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build-web.mjs",
+    "dev:backend": "convex dev",
+    "test": "node --test viewer2/tools/broadcast.test.mjs shared/*.test.mjs",
+    "test:backend": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:sim": "cargo build -p hb-live-sim --release --target wasm32-unknown-unknown && node tools/embed-sim.mjs"
+  },
+  "dependencies": {
+    "convex": "^1.42.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0",
+    "convex-test": "^0.0.41",
+    "vitest": "^3.2.0",
+    "@types/node": "^22.0.0",
+    "@edge-runtime/vm": "^5.0.0"
+  }
+}

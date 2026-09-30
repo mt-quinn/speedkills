@@ -135,6 +135,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hb-live-sim"
+version = "0.1.0"
+dependencies = [
+ "sk-duel",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

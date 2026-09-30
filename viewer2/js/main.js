@@ -1,6 +1,6 @@
 // Hard Burn broadcast viewer: plays back recorded duels.
 import * as THREE from 'three';
-import { loadIndex, loadMatch, loadLeague } from './data.js';
+import { loadIndex, loadMatch, loadLeague, Match } from './data.js';
 import { showPrematch, settle, loadPicks, savePicks, recordText } from './prematch.js';
 import { Scene, TEAM, THREAT } from './scene.js';
 import { Director } from './director.js';
@@ -11,6 +11,8 @@ import { CamControl } from './camctl.js';
 import { rememberResult } from './history.js';
 
 const Q = new URLSearchParams(location.search);
+const networkLive = !Q.has('studio') && !Q.has('audit') && !Q.has('auditall') && !Q.has('story');
+let liveClock = null;
 const opt = {
   match: Q.get('match'),
   t: parseFloat(Q.get('t') || '0'),
@@ -58,7 +60,7 @@ class App {
       }
       this.audio = sound;
     }
-    this.hud.onFinish = () => { if (live) { rememberResult(this.m.raw); const file = this.index[this.idx]?.file; const p = loadPicks(); p[file] = { ...(p[file] || {}), seen: true }; savePicks(p); } };
+    this.hud.onFinish = () => { if (live && !networkLive) { rememberResult(this.m.raw); const file = this.index[this.idx]?.file; const p = loadPicks(); p[file] = { ...(p[file] || {}), seen: true }; savePicks(p); } };
     this.hud.voiceVariations = () => Object.fromEntries(Object.entries(this.audio?.voices || {}).map(([id, clips]) => [id, Object.keys(clips).map(Number)]));
     this.hud.onVoice = (v, i) => this.audio?.voice(v.id, v.variation, i, v.station);
     this.t = 0;
@@ -68,10 +70,11 @@ class App {
   // Advance match time by one display frame of `dtWall` seconds.
   step(dtWall, now, render = true) {
     const m = this.m;
-    const scale = this.dir.timeScale;
+    const scale = networkLive ? 1 : this.dir.timeScale;
     const t0 = this.t;
     // Play on a few seconds past the end (the final state held) for the kill and the result card.
-    if (!state.paused) this.t = Math.min(this.replayEnd ?? m.duration + 6, this.t + dtWall * state.speed * scale);
+    if (networkLive && liveClock) this.t = Math.max(this.t, Math.min(m.duration + 15, liveClock()));
+    else if (!state.paused) this.t = Math.min(this.replayEnd ?? m.duration + 6, this.t + dtWall * state.speed * scale);
     const t = this.t;
     let st = stateAt(m, t);
     this.scene.mid.copy(st.ships[0].pos).add(st.ships[1].pos).multiplyScalar(0.5);
@@ -94,6 +97,7 @@ class App {
   // How fast the broadcast is running, whenever it isn't 1×: the factor, what it is, and a meter
   // (log scale, 0.25× to 1×, the tick at 1×) so the ramp in and out of slow motion is visible.
   timeBadge(scale) {
+    if (networkLive) { document.querySelector('#timebadge').style.opacity = 0; document.querySelector('#slowvig').style.opacity = 0; return; }
     const rate = (state.paused ? 0 : state.speed) * scale;
     const show = state.paused || Math.abs(rate - 1) > 0.02;
     const b = document.querySelector('#timebadge');
@@ -330,7 +334,7 @@ async function auditAll(index) {
 
 function loop(now) {
   requestAnimationFrame(loop);
-  if (!app || opt.audit || opt.story || opt.auditall) return;
+  if (!app || opt.audit || opt.story || opt.auditall || (networkLive && document.body.dataset.screen !== 'broadcast')) return;
   const w = now / 1000;
   const dt = state.lastWall === null ? 1 / 60 : Math.min(0.1, w - state.lastWall);
   state.lastWall = w;
@@ -341,7 +345,7 @@ function loop(now) {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (!app) return;
+  if (!app || networkLive) return;
   if (!document.querySelector('#prematch').hidden) return;
   if (e.key === ' ') { state.paused = !state.paused; if (state.paused && app.audio) app.audio.hush(); e.preventDefault(); }
   else if (e.key === 'm') toggleSound();
@@ -450,7 +454,7 @@ const ctl = {
   },
 };
 function act(a) {
-  if (!app) return;
+  if (!app || (networkLive && !['sound', 'music', 'sfx'].includes(a))) return;
   ctl.poke();
   if (a === 'play') state.paused = !state.paused;
   else if (a === 'back') app.seek(app.t - 5);
@@ -481,7 +485,7 @@ ctl.el.addEventListener('click', (e) => { const b = e.target.closest('button'); 
 // Taps on the picture: one shows or hides the controls; a double tap on the left or right third
 // skips back or forward 5 s (with the same buttons in the controls, so nothing is gesture-only).
 window.addEventListener('pointerup', (e) => {
-  if (!app || e.target.closest('#controls') || e.target.closest('#camhud') || e.target.closest('#result') || e.target.closest('#prematch')) return;
+  if (networkLive || !app || e.target.closest('#controls') || e.target.closest('#camhud') || e.target.closest('#result') || e.target.closest('#prematch')) return;
   // (A camera drag or pinch isn't a tap.)
   if (camctl && camctl.dragged) { ctl.lastTap = null; return; }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -500,5 +504,34 @@ window.addEventListener('pointerup', (e) => {
   ctl.single = setTimeout(() => { if (ctl.shown) ctl.hide(); else ctl.show(); }, zone === 'mid' ? 0 : 260);
 });
 
-open();
+if (!networkLive) open();
 requestAnimationFrame(loop);
+
+export function mountBroadcast(raw, clock) {
+  app?.scene.dispose();
+  liveClock = clock;
+  state.speed = 1; state.paused = false; state.lastWall = null;
+  app = new App(new Match(raw), [], 0);
+  app.hud.liveNetwork = true;
+  app.seek(Math.max(0, clock()));
+  return app;
+}
+export function resumeBroadcast() {
+  if (app && liveClock) { app.seek(Math.max(0, liveClock())); state.paused = false; state.lastWall = null; }
+}
+export function stopBroadcast() {
+  app?.scene.dispose(); app?.audio?.hush(); app = null; liveClock = null;
+}
+export function muteBroadcast(muted) { if (sound) toggleSound(!muted); }
+
+// Parent league shell owns phase timing; this frame only renders the active broadcast.
+if (networkLive) window.addEventListener('message', e => {
+  if (e.origin !== location.origin || e.source !== parent) return;
+  const message = e.data;
+  if (message?.kind === 'mount-live') {
+    const epoch = message.startsAt, serverOffset = message.offset;
+    mountBroadcast(message.raw, () => (Date.now() + serverOffset - epoch) / 1000);
+  }
+  if (message?.kind === 'resume-live') resumeBroadcast();
+  if (message?.kind === 'sound-live') muteBroadcast(message.muted);
+});

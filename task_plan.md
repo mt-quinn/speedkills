@@ -19,3 +19,20 @@ Browser button locator initially used uppercased rendered text. Corrected to sou
 
 ## Final verification
 13 Rust tests and8 Node tests pass. All6 sim spectacle gates pass across1200 fights. Desktop audit12/12 on allcriteria. Phone390×844 audit12/12 except frame-fill11/12 (L51006 tiny3.1% of runtime); faster zoom experiments were rejected. Voice manifest measures1370s over12 fights and recommends72clips across16cues. Full45pairing×400 odds refreshed; cached fresh-card authoring verified. No recorded voice files yet.
+
+## Voice revision — complete
+User requested fewer, stronger scripts with repeated performances of identical words. Catalog and runtime now use one script per cue; manifest recommends vocal takes rather than wording variations.18 scripts/77 takes, measured on the same12 fights. Ten broadcast tests pass.
+
+# Hangar and continuous live league — active
+
+## Agreed product
+Hangar is home. Empty berth teaches sponsorship goal. Credits from betting fund a new named ship; 1% of winning bettors’ profit is owner income. Paid single-station candidate tryouts can be accepted/rejected; pending candidates survive navigation/reload. Rename costs a fee. Crews/ships reset between duels. One global stream:60s betting, real-time fight,15s results. Past fights expose stats only. Optional global viewer chat with remembered visibility, mute/report/rate limits. Vercel hosts hardburn.vercel.app; Convex is the target shared backend.
+
+## Implementation phases
+1. Inspect deployment/sim boundaries, record interaction and backend design — in progress.
+2. Authoritative league/economy/chat backend with meaningful state/settlement tests.
+3. Hangar, ownership, betting, results archive, optional chat; preserve pending decisions.
+4. Integrate synchronized broadcast with no public playback controls or archives of traces.
+5. Desktop/mobile and multi-client validation; setup/deployment documentation.
+
+Economy values are initial tuning defaults, clearly centralized. No production deployment or git push requested in this turn. Preserve uncommitted voice revision.

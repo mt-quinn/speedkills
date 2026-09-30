@@ -14,7 +14,7 @@ Picks lock at the beginning, including choosing Just watch. Settlement and histo
 
 ## Voice recording
 
-Start with [VOICE_RECORDING_MANIFEST.md](VOICE_RECORDING_MANIFEST.md). It gives exact scripts, filenames, station, trigger, observed frequency and recommended variation count. The JSON companion contains the full measurement and per-fight counts. No voice recordings are shipped yet. Partial packs work: loaded clips select matching subtitles, and missing cues remain text.
+Start with [VOICE_RECORDING_MANIFEST.md](VOICE_RECORDING_MANIFEST.md). It gives exact scripts, filenames, station, trigger, observed frequency and recommended vocal take count. The JSON companion contains the full measurement and per-fight counts. No voice recordings are shipped yet. Each cue has one fixed script. Multiple vocal takes rotate with the same subtitle; partial packs work and missing cues remain text.
 
 ```sh
 node --experimental-default-type=module viewer2/tools/register-voices.mjs
@@ -39,6 +39,6 @@ The first generates twelve unique random pairings with fresh seeds and cached od
 - Counter versus Knife49%; versus Duelist57%; overall52%. Counter averages15.4 seconds holding range per fight; the other styles zero. Average closest approach450m, compared with232m for the first reserve-only experiment. Shot ranges remain broadly similar; this change establishes a defensive phase rather than distinct weapon ranges.
 - League odds refreshed:18,000 fights. Card authoring tool verified by generating L51000–L51011 using those cached odds.
 - Desktop card audit: all eight criteria pass12/12. At390×844, all pass12/12 except frame-fill11/12; L51006 has ships smaller than the target for3.1% of its runtime. More aggressive phone camera recovery did not justify its extra movement, so this remains a known limit.
-- Eight pure broadcast tests pass and cover dead/unconscious speakers, disabled PDCs, radio spacing/variation, warning rearming, replay bounds, finish explanation, deduplicated history/picks and partial voice packs.
+- Ten pure broadcast tests pass and cover dead/unconscious speakers, disabled PDCs, radio spacing and same-script vocal takes, warning rearming, replay bounds, finish explanation, deduplicated history/picks and partial voice packs.
 
 The spectacle gate uses standard crews. An individual random league card may include very long fights or several similar finishes. The camera uses a little more desktop margin and responsive approach/recovery settings. The viewer audit’s FPS result uses synthetic time steps and is not a hardware performance benchmark.

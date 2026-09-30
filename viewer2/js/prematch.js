@@ -52,7 +52,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const SKILL = { pilot: 'Handling', gunner: 'Gunnery', engineer: 'Engineering', ops: 'Defence' };
 const SKILL_NOTE = { pilot: 'Dodging · aim stability', gunner: 'Accuracy · charge speed', engineer: 'Repairs · weapon cooling', ops: 'Point-defence fire control' };
 
-function shipCard(side, ship, gp) {
+export function shipCard(side, ship, gp) {
   const st = STYLE[ship.style] || [ship.style, ''];
   const strongest = ship.crew.reduce((a, b) => a.skill > b.skill ? a : b);
   const rows = ship.crew.map((c) => {

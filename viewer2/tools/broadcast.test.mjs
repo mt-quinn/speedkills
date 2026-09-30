@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { defence, tactical, decisive } from '../js/broadcast.js';
-import { chooseVoice, voiceRequests, voiceState } from '../js/voices.js';
+import { VOICES, chooseVoice, voiceRequests, voiceState } from '../js/voices.js';
 import { rememberResult, loadHistory, form, meetings } from '../js/history.js';
 import { settle, record, loadPicks, savePicks } from '../js/prematch.js';
 const storage = new Map();
@@ -27,11 +27,11 @@ test('defence excludes disabled mounts; current state supplies opening', () => {
   assert.match(tactical([a,b], ['A','B']), /A has no point defence/);
   assert.equal(tactical([b,b], ['A','B']), '');
 });
-test('radio is sparse and variants rotate', () => {
+test('radio is sparse and uses the fixed script without recordings', () => {
   const s = voiceState(), r = raw(), crew = m.ships[0].crew;
   assert.equal(chooseVoice(s, 0, r, crew, ['fire']).variation, 0);
   assert.equal(chooseVoice(s, 1, r, crew, ['fire']), null);
-  assert.equal(chooseVoice(s, 6, r, crew, ['fire']).variation, 1);
+  assert.equal(chooseVoice(s, 6, r, crew, ['fire']).line, 'Railgun firing.');
 });
 test('g warning re-arms only after recovery and dry warning is edge-triggered', () => {
   const s = voiceState(), r = raw(), crew = m.ships[0].crew;
@@ -59,11 +59,28 @@ test('history and pick settlement remain idempotent across replay', () => {
   assert.equal(settle('skip',0),null);
   assert.equal(record(loadPicks()).n,1);
 });
-test('partial recorded packs select matching subtitle variations', () => {
+test('recorded takes rotate while the words stay identical, including extra takes', () => {
   const s = voiceState(), r = raw(), crew = m.ships[0].crew;
-  assert.equal(chooseVoice(s, 0, r, crew, ['fire'], {fire:[0,2]}).variation,0);
-  assert.equal(chooseVoice(s, 6, r, crew, ['fire'], {fire:[0,2]}).variation,2);
-  assert.equal(chooseVoice(s, 12, r, crew, ['fire'], {fire:[0,2]}).variation,0);
+  const results = [0,6,12,18].map((t) => chooseVoice(s,t,r,crew,['fire'],{fire:[0,2,12]}));
+  assert.deepEqual(results.map((v) => v.variation),[0,2,12,0]);
+  assert.deepEqual(results.map((v) => v.line),Array(4).fill('Railgun firing.'));
+});
+test('engineering calls identify a meaningful system and skip minor component chatter', () => {
+  const s = voiceState(), r = raw(), crew = m.ships[0].crew;
+  const ids = voiceRequests(s,r,crew,[{k:'part_lost',part:'railgun'}, {k:'repaired',part:'drive'}, {k:'part_lost',part:'rcs_bow_port'}]);
+  assert.deepEqual(ids,['rail_lost','drive_restored']);
+  assert.equal(chooseVoice(s,0,r,crew,ids).line,'Railgun offline.');
+});
+test('every cue has exactly one script; manifest filenames are takes of that script', () => {
+  const manifest = JSON.parse(fs.readFileSync(new URL('../docs/voice-manifest.json',import.meta.url)));
+  assert.equal(manifest.lines.length,Object.keys(VOICES).length);
+  for (const row of manifest.lines) {
+    assert.equal(row.text,VOICES[row.id].text);
+    assert.equal(VOICES[row.id].lines,undefined);
+    assert.equal(row.files.length,row.recommended_takes);
+    assert.ok(row.files.every((f,i) => f === `${row.id}_take_${String(i+1).padStart(2,'0')}.wav`));
+  }
+  assert.equal(manifest.recommended_total_takes,manifest.lines.reduce((n,r) => n+r.recommended_takes,0));
 });
 test('incoming torpedoes use current positions, not later hits', () => {
   const a = raw(), b = raw();

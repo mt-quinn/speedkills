@@ -301,6 +301,7 @@ export class Hud {
   // The result card: who won, how and when, and the fight in a few numbers each.
   showResult(t) {
     const box = $('#result');
+    if (this.liveNetwork) { box.hidden = true; return; }
     // (From the recorded end — however playback got here, live or by seeking.)
     if (this.replay || t < this.endT + 1.4) { box.hidden = true; return; }
     if (!box.hidden) return;

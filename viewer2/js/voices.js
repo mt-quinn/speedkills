@@ -1,27 +1,34 @@
 // One catalog for subtitles, optional recordings, and the recording manifest.
+// Each cue has one script. Recording indices select vocal takes, never different wording.
 export const VOICES = {
-  attack: { station: 'pilot', priority: 1, trigger: 'Enter attack run or punish', lines: ['Going in.', 'Taking the opening.', 'Closing for the shot.', 'Pressing the attack.', 'Moving in.', 'We have an opening.', 'Commit to the run.', 'Taking the fight to them.'] },
-  evade: { station: 'pilot', priority: 1, trigger: 'Enter juke', lines: ['Breaking!', 'Changing vector.', 'Hard break.', 'Rolling clear.', 'Hold on.', 'Jinking now.', 'Off their line.', 'Burning clear.'] },
-  extend: { station: 'pilot', priority: 1, trigger: 'Enter extend', lines: ['Extending.', 'Opening the range.', 'Resetting the run.', 'Pulling clear.', 'Making room.', 'Coming around.'] },
-  hold_range: { station: 'pilot', priority: 1, trigger: 'Enter Counter holding range; opposing rail has no reload opening', lines: ['Holding the range.', 'Bleeding closing speed.', 'Keeping our distance.', 'Hold here. Wait for the shot.', 'Braking the approach.', 'Keeping room to move.'] },
-  torpedo_break: { station: 'pilot', priority: 2, trigger: 'Enter torpedo break', lines: ['Torpedo — hard over!', 'Incoming. Breaking hard!', 'Torpedo inbound. Hold on.', 'Missile closing. Hard break!', 'Burning off the intercept.', 'Incoming. Changing vector!'] },
-  ram: { station: 'pilot', priority: 3, trigger: 'Enter ramming; ranged weapons exhausted', lines: ['Weapons are out. Ramming speed!', 'Ranged weapons lost. Going through them.', 'Weapons unavailable. Brace for collision.', 'Cannot fire. Taking her in.'] },
-  overcharge: { station: 'gunner', priority: 2, trigger: 'Rail enters overcharge', lines: ['Safeties off.', 'Overcharging the rail.', 'Pushing the capacitors.', 'Taking the overload shot.', 'Running the gun hot.', 'One hard shot.'] },
-  launch: { station: 'gunner', priority: 1, trigger: 'Torpedo launch; salvo grouped by cooldown', lines: ['Birds away.', 'Torpedoes away.', 'Salvo out.', 'Launch confirmed.', 'Fish in the water.', 'Tubes clear.', 'Sending the salvo.', 'Torpedoes running.'] },
-  fire: { station: 'gunner', priority: 1, trigger: 'Rail fired', lines: ['Firing.', 'Shot away.', 'Rail away.', 'Round out.', 'Taking the shot.', 'Gun fired.', 'Sending it.', 'Rail fired.'] },
-  repaired: { station: 'engineer', priority: 2, trigger: 'Destroyed component repaired', lines: ['System back online.', 'Repairs holding.', 'We have that system back.', 'Back in service.', 'Restored. Keep fighting.', 'Repair complete.'] },
-  system_lost: { station: 'engineer', priority: 2, trigger: 'Component destroyed', lines: ['System down!', 'Lost a system!', 'Damage control, on it.', 'We have a system failure.', 'That system is out.', 'Working on the damage.'] },
-  crew_lost: { station: 'ops', priority: 3, fallback: true, trigger: 'Crew killed; another conscious survivor reports', lines: ['Crew member down.', 'We lost someone.', 'Station casualty.', 'No response from that station.'] },
-  pilot_out: { station: 'ops', priority: 3, trigger: 'Pilot blacked out', lines: ['Pilot is out. Holding steady.', 'Pilot unconscious. Hold course.', 'Pilot blacked out. Stay steady.', 'No response from the pilot.'] },
-  defence_dry: { station: 'ops', priority: 2, trigger: 'All working PDC mounts exhausted, once per ship', lines: ['Point defence dry.', 'No defence rounds left.', 'PDC ammunition exhausted.', 'Defence guns are empty.'] },
-  defence_hot: { station: 'ops', priority: 2, trigger: 'All loaded working PDC mounts overheated; at least 15s between warnings', lines: ['Defence guns too hot.', 'PDCs overheated. Cooling.', 'Defence needs to cool.', 'Point defence is cooling down.', 'Defence cooling. Keep clear.', 'Hot mounts. Need a moment.'] },
-  g_limit: { station: 'pilot', priority: 2, trigger: 'Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4', lines: ['Near my limit.', 'Need to ease this burn.', 'Vision closing in.', 'Too much gee. Easing off.'] },
+  attack: { station: 'pilot', priority: 1, trigger: 'Enter attack run or punish', text: 'Going in.', delivery: 'Decisive; committing to the attack.' },
+  evade: { station: 'pilot', priority: 1, trigger: 'Enter juke', text: 'Breaking hard.', delivery: 'Sharp, focused; under physical strain.' },
+  extend: { station: 'pilot', priority: 1, trigger: 'Enter extend', text: 'Opening the range.', delivery: 'Controlled; making room for another pass.' },
+  hold_range: { station: 'pilot', priority: 1, trigger: 'Enter Counter holding range; opposing rail has no reload opening', text: 'Holding range.', delivery: 'Steady and watchful.' },
+  torpedo_break: { station: 'pilot', priority: 2, trigger: 'Enter torpedo break', text: 'Torpedo inbound. Breaking!', delivery: 'Urgent warning, then a firm action call.' },
+  ram: { station: 'pilot', priority: 3, trigger: 'Enter ramming; ranged weapons unavailable', text: 'Ramming. Brace for impact.', delivery: 'Grim resolve; clear enough for the whole crew.' },
+  overcharge: { station: 'gunner', priority: 2, trigger: 'Rail enters overcharge', text: 'Overcharging the rail.', delivery: 'Deliberate; a dangerous choice, not a celebration.' },
+  launch: { station: 'gunner', priority: 1, trigger: 'Torpedo launch; salvo grouped by cooldown', text: 'Torpedoes away.', delivery: 'Crisp launch confirmation.' },
+  fire: { station: 'gunner', priority: 1, trigger: 'Rail fired', text: 'Railgun firing.', delivery: 'Short and matter-of-fact.' },
+  rail_restored: { station: 'engineer', priority: 2, trigger: 'Railgun repaired', text: 'Railgun back online.', delivery: 'Brief relief, still working.' },
+  rail_lost: { station: 'engineer', priority: 2, trigger: 'Railgun destroyed', text: 'Railgun offline.', delivery: 'Immediate, clear damage report.' },
+  drive_restored: { station: 'engineer', priority: 2, trigger: 'Main drive repaired', text: 'Main drive back online.', delivery: 'Relieved but composed.' },
+  drive_lost: { station: 'engineer', priority: 2, trigger: 'Main drive destroyed', text: 'Main drive offline.', delivery: 'Serious; the ship has lost its thrust.' },
+  crew_lost: { station: 'ops', priority: 3, fallback: true, trigger: 'Crew killed; another conscious survivor reports', text: 'Crew member down.', delivery: 'Restrained shock; keep it intelligible.' },
+  pilot_out: { station: 'ops', priority: 3, trigger: 'Pilot blacked out', text: 'Pilot blacked out.', delivery: 'Urgent status report.' },
+  defence_dry: { station: 'ops', priority: 2, trigger: 'All working PDC mounts exhausted, once per ship', text: 'Point defence out of ammo.', delivery: 'Plain warning; no panic.' },
+  defence_hot: { station: 'ops', priority: 2, trigger: 'All loaded working PDC mounts overheated; at least 15s between warnings', text: 'Point defence overheated.', delivery: 'Tense but precise.' },
+  g_limit: { station: 'pilot', priority: 2, trigger: 'Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4', text: 'Close to blackout.', delivery: 'Strained breath; every word must remain clear.' },
 };
 export function voiceState() { return { next: -1, until: -1, priority: 0, last: {}, mode: '', over: false, dry: false, hotAt: -99, gHigh: false }; }
 export function voiceRequests(state, raw, crew, events) {
   const out = [];
   for (const e of events) {
-    const id = { torp_launch: 'launch', rail_fire: 'fire', repaired: 'repaired', part_lost: 'system_lost', crew_killed: 'crew_lost' }[e.k];
+    let id = { torp_launch: 'launch', rail_fire: 'fire', crew_killed: 'crew_lost' }[e.k];
+    if (e.k === 'repaired' || e.k === 'part_lost') {
+      const system = { railgun: 'rail', drive: 'drive' }[e.part];
+      if (system) id = `${system}_${e.k === 'repaired' ? 'restored' : 'lost'}`;
+    }
     if (id) out.push(id);
     if (e.k === 'blackout' && crew[e.crew]?.station === 'pilot') out.push('pilot_out');
   }
@@ -55,12 +62,12 @@ export function chooseVoice(state, t, raw, crew, ids, available = {}) {
     let k = crew.findIndex((c, j) => c.station === v.station && raw.crew[j][0] === 0);
     if (k < 0 && v.fallback) k = raw.crew.findIndex((c) => c[0] === 0);
     if (k < 0) continue;
-    const recorded = available[id]?.filter((i) => Number.isInteger(i) && i >= 0 && i < v.lines.length);
-    const choices = recorded?.length ? recorded : v.lines.map((_, i) => i);
+    const recorded = available[id]?.filter((i) => Number.isInteger(i) && i >= 0);
+    const choices = recorded?.length ? [...new Set(recorded)].sort((a,b) => a-b) : [0];
     const variation = choices[(choices.indexOf(state.last[id]) + 1) % choices.length];
     state.last[id] = variation; state.next = t + 6; state.until = t + 2.6; state.priority = v.priority; state.speaker = k;
     if (id === 'defence_hot') state.hotAt = t;
-    return { id, variation, line: v.lines[variation], who: crew[k], station: k };
+    return { id, variation, line: v.text, who: crew[k], station: k };
   }
   return null;
 }

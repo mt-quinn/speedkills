@@ -1,206 +1,277 @@
 # Crew comms recording manifest
 
-Record the recommended number first; the remaining scripted alternatives are optional. One reusable comms voice pack works across the roster. Separate character performances can come later.
+**18 scripts · 77 recommended recordings.** Record the exact same words for every take of a script. The takes provide vocal variation; there are no alternate-wording lists.
 
-Measured on 12 unfiltered fights (22.8 match minutes). Counts reflect emitted subtitles at 30 Hz, after radio spacing and conscious-speaker checks—not raw trigger counts. Actual display timing may change totals slightly. Rare lines still need 3 takes because their repetition is conspicuous.
+Keep one consistent character voice within each script. Change emphasis, pace, breath and the amount of strain slightly. Aim for usable performances of the same intent, rather than different impressions or exaggerated moods. One shared comms pack works across the roster; separate character packs can come later.
 
-| Cue | Speaker | Plays/fight | Plays/min | Recommended variations |
+Measured on 12 unfiltered fights (22.8 match minutes). Counts reflect emitted subtitles at 30 Hz after radio spacing and conscious-speaker checks. Frequent cues get 8 takes (3+ plays/fight) or 6 (1+); occasional cues get 4 (0.25+), and rare cues get 3. Zero observed plays means rare on this sample, not unused.
+
+| Exact script | Speaker | Plays/fight | Plays/min | Record this many takes |
 |---|---|---:|---:|---:|
-| attack | pilot | 5.33 | 2.8 | 8 |
-| evade | pilot | 1.5 | 0.79 | 6 |
-| extend | pilot | 0.42 | 0.22 | 4 |
-| hold_range | pilot | 0.5 | 0.26 | 4 |
-| torpedo_break | pilot | 0.08 | 0.04 | 3 |
-| ram | pilot | 0 | 0 | 3 |
-| overcharge | gunner | 0.83 | 0.44 | 4 |
-| launch | gunner | 3.83 | 2.01 | 8 |
-| fire | gunner | 2.08 | 1.09 | 6 |
-| repaired | engineer | 0.67 | 0.35 | 4 |
-| system_lost | engineer | 0.17 | 0.09 | 3 |
-| crew_lost | ops | 0.42 | 0.22 | 4 |
-| pilot_out | ops | 0 | 0 | 3 |
-| defence_dry | ops | 0.17 | 0.09 | 3 |
-| defence_hot | ops | 1.42 | 0.74 | 6 |
-| g_limit | pilot | 0 | 0 | 3 |
+| “Going in.” | pilot | 5.33 | 2.8 | **8** |
+| “Breaking hard.” | pilot | 1.5 | 0.79 | **6** |
+| “Opening the range.” | pilot | 0.42 | 0.22 | **4** |
+| “Holding range.” | pilot | 0.5 | 0.26 | **4** |
+| “Torpedo inbound. Breaking!” | pilot | 0.08 | 0.04 | **3** |
+| “Ramming. Brace for impact.” | pilot | 0 | 0 | **3** |
+| “Overcharging the rail.” | gunner | 0.92 | 0.48 | **4** |
+| “Torpedoes away.” | gunner | 3.92 | 2.06 | **8** |
+| “Railgun firing.” | gunner | 2.33 | 1.23 | **6** |
+| “Railgun back online.” | engineer | 0 | 0 | **3** |
+| “Railgun offline.” | engineer | 0 | 0 | **3** |
+| “Main drive back online.” | engineer | 0.08 | 0.04 | **3** |
+| “Main drive offline.” | engineer | 0 | 0 | **3** |
+| “Crew member down.” | ops | 0.33 | 0.18 | **4** |
+| “Pilot blacked out.” | ops | 0 | 0 | **3** |
+| “Point defence out of ammo.” | ops | 0.17 | 0.09 | **3** |
+| “Point defence overheated.” | ops | 1.58 | 0.83 | **6** |
+| “Close to blackout.” | pilot | 0 | 0 | **3** |
 
 ## Recording workflow
 
-Use a quiet room and keep the phone distance consistent. Record clean, dry speech; keep the originals before applying your comms treatment in Audacity. Aim for 0.5–2.5 seconds per line, with about half a second of silence between takes. Avoid saying crew or ship names: these clips are reusable, and the subtitle identifies the speaker.
+Use a quiet room and keep the phone distance consistent. Record clean speech and save the originals before applying your comms treatment in Audacity. Aim for 0.5–2.5 seconds per take, with a short pause between takes. Clarity comes first: keep urgent lines intelligible and avoid long improvised additions, crew names or ship names.
 
-Export individual mono WAV files named below. Put processed clips in `viewer2/sfx/voices/`, then run `node --experimental-default-type=module viewer2/tools/register-voices.mjs`. The player accepts WAV, MP3, OGG, Opus or M4A files that the browser can decode. Speech follows the effects toggle, stays at normal pitch during slow motion, and ducks the music. Missing recordings simply leave subtitles.
+Each numbered file is another performance of the same script. Export individual mono WAV files to `viewer2/sfx/voices/`, then run `node --experimental-default-type=module viewer2/tools/register-voices.mjs`. WAV, MP3, OGG, Opus and M4A are supported when the browser can decode them. Extra numbered takes are welcome; partial sets work too. The subtitle stays identical whichever take plays.
 
-Suggested recording order: attack, evade, fire, launch, extend, then damage and emergency cues. Deliver routine calls clearly and tightly; emergencies more strained, never long speeches. Leave system names and casualty names to the visual broadcast. Only conscious crew speak; crew-lost may be reported by any conscious survivor.
+Speech follows the effects toggle, stays at normal pitch during slow motion, and ducks the music. Missing recordings leave subtitles. Only conscious crew speak; any conscious survivor can report a crew casualty.
 
-## attack — 8 recommended variations
+Start with the frequent calls: “Going in,” “Torpedoes away,” “Railgun firing,” and “Breaking hard.” Then record the remaining scripts. Generic system-loss and repair calls have been removed: engineering speech identifies the railgun or main drive. Other component changes remain visible in the HUD.
+
+## attack — 8 takes
+
+**Say every time: “Going in.”**
+
+Delivery: Decisive; committing to the attack.
 
 Trigger: Enter attack run or punish. Observed 64 times on this card.
 
-- [ ] `attack_01.wav` — “Going in.”
-- [ ] `attack_02.wav` — “Taking the opening.”
-- [ ] `attack_03.wav` — “Closing for the shot.”
-- [ ] `attack_04.wav` — “Pressing the attack.”
-- [ ] `attack_05.wav` — “Moving in.”
-- [ ] `attack_06.wav` — “We have an opening.”
-- [ ] `attack_07.wav` — “Commit to the run.”
-- [ ] `attack_08.wav` — “Taking the fight to them.”
+- [ ] Take 1: `attack_take_01.wav`
+- [ ] Take 2: `attack_take_02.wav`
+- [ ] Take 3: `attack_take_03.wav`
+- [ ] Take 4: `attack_take_04.wav`
+- [ ] Take 5: `attack_take_05.wav`
+- [ ] Take 6: `attack_take_06.wav`
+- [ ] Take 7: `attack_take_07.wav`
+- [ ] Take 8: `attack_take_08.wav`
 
-## evade — 6 recommended variations
+## evade — 6 takes
+
+**Say every time: “Breaking hard.”**
+
+Delivery: Sharp, focused; under physical strain.
 
 Trigger: Enter juke. Observed 18 times on this card.
 
-- [ ] `evade_01.wav` — “Breaking!”
-- [ ] `evade_02.wav` — “Changing vector.”
-- [ ] `evade_03.wav` — “Hard break.”
-- [ ] `evade_04.wav` — “Rolling clear.”
-- [ ] `evade_05.wav` — “Hold on.”
-- [ ] `evade_06.wav` — “Jinking now.”
-- [ ] `evade_07.wav` — “Off their line.” (optional extra)
-- [ ] `evade_08.wav` — “Burning clear.” (optional extra)
+- [ ] Take 1: `evade_take_01.wav`
+- [ ] Take 2: `evade_take_02.wav`
+- [ ] Take 3: `evade_take_03.wav`
+- [ ] Take 4: `evade_take_04.wav`
+- [ ] Take 5: `evade_take_05.wav`
+- [ ] Take 6: `evade_take_06.wav`
 
-## extend — 4 recommended variations
+## extend — 4 takes
+
+**Say every time: “Opening the range.”**
+
+Delivery: Controlled; making room for another pass.
 
 Trigger: Enter extend. Observed 5 times on this card.
 
-- [ ] `extend_01.wav` — “Extending.”
-- [ ] `extend_02.wav` — “Opening the range.”
-- [ ] `extend_03.wav` — “Resetting the run.”
-- [ ] `extend_04.wav` — “Pulling clear.”
-- [ ] `extend_05.wav` — “Making room.” (optional extra)
-- [ ] `extend_06.wav` — “Coming around.” (optional extra)
+- [ ] Take 1: `extend_take_01.wav`
+- [ ] Take 2: `extend_take_02.wav`
+- [ ] Take 3: `extend_take_03.wav`
+- [ ] Take 4: `extend_take_04.wav`
 
-## hold_range — 4 recommended variations
+## hold_range — 4 takes
+
+**Say every time: “Holding range.”**
+
+Delivery: Steady and watchful.
 
 Trigger: Enter Counter holding range; opposing rail has no reload opening. Observed 6 times on this card.
 
-- [ ] `hold_range_01.wav` — “Holding the range.”
-- [ ] `hold_range_02.wav` — “Bleeding closing speed.”
-- [ ] `hold_range_03.wav` — “Keeping our distance.”
-- [ ] `hold_range_04.wav` — “Hold here. Wait for the shot.”
-- [ ] `hold_range_05.wav` — “Braking the approach.” (optional extra)
-- [ ] `hold_range_06.wav` — “Keeping room to move.” (optional extra)
+- [ ] Take 1: `hold_range_take_01.wav`
+- [ ] Take 2: `hold_range_take_02.wav`
+- [ ] Take 3: `hold_range_take_03.wav`
+- [ ] Take 4: `hold_range_take_04.wav`
 
-## torpedo_break — 3 recommended variations
+## torpedo_break — 3 takes
+
+**Say every time: “Torpedo inbound. Breaking!”**
+
+Delivery: Urgent warning, then a firm action call.
 
 Trigger: Enter torpedo break. Observed 1 times on this card.
 
-- [ ] `torpedo_break_01.wav` — “Torpedo — hard over!”
-- [ ] `torpedo_break_02.wav` — “Incoming. Breaking hard!”
-- [ ] `torpedo_break_03.wav` — “Torpedo inbound. Hold on.”
-- [ ] `torpedo_break_04.wav` — “Missile closing. Hard break!” (optional extra)
-- [ ] `torpedo_break_05.wav` — “Burning off the intercept.” (optional extra)
-- [ ] `torpedo_break_06.wav` — “Incoming. Changing vector!” (optional extra)
+- [ ] Take 1: `torpedo_break_take_01.wav`
+- [ ] Take 2: `torpedo_break_take_02.wav`
+- [ ] Take 3: `torpedo_break_take_03.wav`
 
-## ram — 3 recommended variations
+## ram — 3 takes
 
-Trigger: Enter ramming; ranged weapons exhausted. Observed 0 times on this card.
+**Say every time: “Ramming. Brace for impact.”**
 
-- [ ] `ram_01.wav` — “Weapons are out. Ramming speed!”
-- [ ] `ram_02.wav` — “Ranged weapons lost. Going through them.”
-- [ ] `ram_03.wav` — “Weapons unavailable. Brace for collision.”
-- [ ] `ram_04.wav` — “Cannot fire. Taking her in.” (optional extra)
+Delivery: Grim resolve; clear enough for the whole crew.
 
-## overcharge — 4 recommended variations
+Trigger: Enter ramming; ranged weapons unavailable. Observed 0 times on this card.
 
-Trigger: Rail enters overcharge. Observed 10 times on this card.
+- [ ] Take 1: `ram_take_01.wav`
+- [ ] Take 2: `ram_take_02.wav`
+- [ ] Take 3: `ram_take_03.wav`
 
-- [ ] `overcharge_01.wav` — “Safeties off.”
-- [ ] `overcharge_02.wav` — “Overcharging the rail.”
-- [ ] `overcharge_03.wav` — “Pushing the capacitors.”
-- [ ] `overcharge_04.wav` — “Taking the overload shot.”
-- [ ] `overcharge_05.wav` — “Running the gun hot.” (optional extra)
-- [ ] `overcharge_06.wav` — “One hard shot.” (optional extra)
+## overcharge — 4 takes
 
-## launch — 8 recommended variations
+**Say every time: “Overcharging the rail.”**
 
-Trigger: Torpedo launch; salvo grouped by cooldown. Observed 46 times on this card.
+Delivery: Deliberate; a dangerous choice, not a celebration.
 
-- [ ] `launch_01.wav` — “Birds away.”
-- [ ] `launch_02.wav` — “Torpedoes away.”
-- [ ] `launch_03.wav` — “Salvo out.”
-- [ ] `launch_04.wav` — “Launch confirmed.”
-- [ ] `launch_05.wav` — “Fish in the water.”
-- [ ] `launch_06.wav` — “Tubes clear.”
-- [ ] `launch_07.wav` — “Sending the salvo.”
-- [ ] `launch_08.wav` — “Torpedoes running.”
+Trigger: Rail enters overcharge. Observed 11 times on this card.
 
-## fire — 6 recommended variations
+- [ ] Take 1: `overcharge_take_01.wav`
+- [ ] Take 2: `overcharge_take_02.wav`
+- [ ] Take 3: `overcharge_take_03.wav`
+- [ ] Take 4: `overcharge_take_04.wav`
 
-Trigger: Rail fired. Observed 25 times on this card.
+## launch — 8 takes
 
-- [ ] `fire_01.wav` — “Firing.”
-- [ ] `fire_02.wav` — “Shot away.”
-- [ ] `fire_03.wav` — “Rail away.”
-- [ ] `fire_04.wav` — “Round out.”
-- [ ] `fire_05.wav` — “Taking the shot.”
-- [ ] `fire_06.wav` — “Gun fired.”
-- [ ] `fire_07.wav` — “Sending it.” (optional extra)
-- [ ] `fire_08.wav` — “Rail fired.” (optional extra)
+**Say every time: “Torpedoes away.”**
 
-## repaired — 4 recommended variations
+Delivery: Crisp launch confirmation.
 
-Trigger: Destroyed component repaired. Observed 8 times on this card.
+Trigger: Torpedo launch; salvo grouped by cooldown. Observed 47 times on this card.
 
-- [ ] `repaired_01.wav` — “System back online.”
-- [ ] `repaired_02.wav` — “Repairs holding.”
-- [ ] `repaired_03.wav` — “We have that system back.”
-- [ ] `repaired_04.wav` — “Back in service.”
-- [ ] `repaired_05.wav` — “Restored. Keep fighting.” (optional extra)
-- [ ] `repaired_06.wav` — “Repair complete.” (optional extra)
+- [ ] Take 1: `launch_take_01.wav`
+- [ ] Take 2: `launch_take_02.wav`
+- [ ] Take 3: `launch_take_03.wav`
+- [ ] Take 4: `launch_take_04.wav`
+- [ ] Take 5: `launch_take_05.wav`
+- [ ] Take 6: `launch_take_06.wav`
+- [ ] Take 7: `launch_take_07.wav`
+- [ ] Take 8: `launch_take_08.wav`
 
-## system_lost — 3 recommended variations
+## fire — 6 takes
 
-Trigger: Component destroyed. Observed 2 times on this card.
+**Say every time: “Railgun firing.”**
 
-- [ ] `system_lost_01.wav` — “System down!”
-- [ ] `system_lost_02.wav` — “Lost a system!”
-- [ ] `system_lost_03.wav` — “Damage control, on it.”
-- [ ] `system_lost_04.wav` — “We have a system failure.” (optional extra)
-- [ ] `system_lost_05.wav` — “That system is out.” (optional extra)
-- [ ] `system_lost_06.wav` — “Working on the damage.” (optional extra)
+Delivery: Short and matter-of-fact.
 
-## crew_lost — 4 recommended variations
+Trigger: Rail fired. Observed 28 times on this card.
 
-Trigger: Crew killed; another conscious survivor reports. Observed 5 times on this card.
+- [ ] Take 1: `fire_take_01.wav`
+- [ ] Take 2: `fire_take_02.wav`
+- [ ] Take 3: `fire_take_03.wav`
+- [ ] Take 4: `fire_take_04.wav`
+- [ ] Take 5: `fire_take_05.wav`
+- [ ] Take 6: `fire_take_06.wav`
 
-- [ ] `crew_lost_01.wav` — “Crew member down.”
-- [ ] `crew_lost_02.wav` — “We lost someone.”
-- [ ] `crew_lost_03.wav` — “Station casualty.”
-- [ ] `crew_lost_04.wav` — “No response from that station.”
+## rail_restored — 3 takes
 
-## pilot_out — 3 recommended variations
+**Say every time: “Railgun back online.”**
+
+Delivery: Brief relief, still working.
+
+Trigger: Railgun repaired. Observed 0 times on this card.
+
+- [ ] Take 1: `rail_restored_take_01.wav`
+- [ ] Take 2: `rail_restored_take_02.wav`
+- [ ] Take 3: `rail_restored_take_03.wav`
+
+## rail_lost — 3 takes
+
+**Say every time: “Railgun offline.”**
+
+Delivery: Immediate, clear damage report.
+
+Trigger: Railgun destroyed. Observed 0 times on this card.
+
+- [ ] Take 1: `rail_lost_take_01.wav`
+- [ ] Take 2: `rail_lost_take_02.wav`
+- [ ] Take 3: `rail_lost_take_03.wav`
+
+## drive_restored — 3 takes
+
+**Say every time: “Main drive back online.”**
+
+Delivery: Relieved but composed.
+
+Trigger: Main drive repaired. Observed 1 times on this card.
+
+- [ ] Take 1: `drive_restored_take_01.wav`
+- [ ] Take 2: `drive_restored_take_02.wav`
+- [ ] Take 3: `drive_restored_take_03.wav`
+
+## drive_lost — 3 takes
+
+**Say every time: “Main drive offline.”**
+
+Delivery: Serious; the ship has lost its thrust.
+
+Trigger: Main drive destroyed. Observed 0 times on this card.
+
+- [ ] Take 1: `drive_lost_take_01.wav`
+- [ ] Take 2: `drive_lost_take_02.wav`
+- [ ] Take 3: `drive_lost_take_03.wav`
+
+## crew_lost — 4 takes
+
+**Say every time: “Crew member down.”**
+
+Delivery: Restrained shock; keep it intelligible.
+
+Trigger: Crew killed; another conscious survivor reports. Observed 4 times on this card.
+
+- [ ] Take 1: `crew_lost_take_01.wav`
+- [ ] Take 2: `crew_lost_take_02.wav`
+- [ ] Take 3: `crew_lost_take_03.wav`
+- [ ] Take 4: `crew_lost_take_04.wav`
+
+## pilot_out — 3 takes
+
+**Say every time: “Pilot blacked out.”**
+
+Delivery: Urgent status report.
 
 Trigger: Pilot blacked out. Observed 0 times on this card.
 
-- [ ] `pilot_out_01.wav` — “Pilot is out. Holding steady.”
-- [ ] `pilot_out_02.wav` — “Pilot unconscious. Hold course.”
-- [ ] `pilot_out_03.wav` — “Pilot blacked out. Stay steady.”
-- [ ] `pilot_out_04.wav` — “No response from the pilot.” (optional extra)
+- [ ] Take 1: `pilot_out_take_01.wav`
+- [ ] Take 2: `pilot_out_take_02.wav`
+- [ ] Take 3: `pilot_out_take_03.wav`
 
-## defence_dry — 3 recommended variations
+## defence_dry — 3 takes
+
+**Say every time: “Point defence out of ammo.”**
+
+Delivery: Plain warning; no panic.
 
 Trigger: All working PDC mounts exhausted, once per ship. Observed 2 times on this card.
 
-- [ ] `defence_dry_01.wav` — “Point defence dry.”
-- [ ] `defence_dry_02.wav` — “No defence rounds left.”
-- [ ] `defence_dry_03.wav` — “PDC ammunition exhausted.”
-- [ ] `defence_dry_04.wav` — “Defence guns are empty.” (optional extra)
+- [ ] Take 1: `defence_dry_take_01.wav`
+- [ ] Take 2: `defence_dry_take_02.wav`
+- [ ] Take 3: `defence_dry_take_03.wav`
 
-## defence_hot — 6 recommended variations
+## defence_hot — 6 takes
 
-Trigger: All loaded working PDC mounts overheated; at least 15s between warnings. Observed 17 times on this card.
+**Say every time: “Point defence overheated.”**
 
-- [ ] `defence_hot_01.wav` — “Defence guns too hot.”
-- [ ] `defence_hot_02.wav` — “PDCs overheated. Cooling.”
-- [ ] `defence_hot_03.wav` — “Defence needs to cool.”
-- [ ] `defence_hot_04.wav` — “Point defence is cooling down.”
-- [ ] `defence_hot_05.wav` — “Defence cooling. Keep clear.”
-- [ ] `defence_hot_06.wav` — “Hot mounts. Need a moment.”
+Delivery: Tense but precise.
 
-## g_limit — 3 recommended variations
+Trigger: All loaded working PDC mounts overheated; at least 15s between warnings. Observed 19 times on this card.
+
+- [ ] Take 1: `defence_hot_take_01.wav`
+- [ ] Take 2: `defence_hot_take_02.wav`
+- [ ] Take 3: `defence_hot_take_03.wav`
+- [ ] Take 4: `defence_hot_take_04.wav`
+- [ ] Take 5: `defence_hot_take_05.wav`
+- [ ] Take 6: `defence_hot_take_06.wav`
+
+## g_limit — 3 takes
+
+**Say every time: “Close to blackout.”**
+
+Delivery: Strained breath; every word must remain clear.
 
 Trigger: Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4. Observed 0 times on this card.
 
-- [ ] `g_limit_01.wav` — “Near my limit.”
-- [ ] `g_limit_02.wav` — “Need to ease this burn.”
-- [ ] `g_limit_03.wav` — “Vision closing in.”
-- [ ] `g_limit_04.wav` — “Too much gee. Easing off.” (optional extra)
+- [ ] Take 1: `g_limit_take_01.wav`
+- [ ] Take 2: `g_limit_take_02.wav`
+- [ ] Take 3: `g_limit_take_03.wav`

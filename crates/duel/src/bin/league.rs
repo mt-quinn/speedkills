@@ -22,7 +22,7 @@ fn ship_json(e: &ShipEntry) -> String {
     format!(
         "{{\"name\":{},\"style\":{},\"strength\":{:.2},\"crew\":[{}]}}",
         js(e.name), js(&format!("{:?}", e.style)), strength(&e.crew),
-        e.crew.iter().enumerate().map(|(k, c)| format!("{{\"name\":{},\"station\":{},\"skill\":{:.3},\"tolerance\":{:.3}}}", js(c.name), js(stations[k]), c.skill, c.tolerance)).collect::<Vec<_>>().join(",")
+        e.crew.iter().enumerate().map(|(k, c)| format!("{{\"name\":{},\"station\":{},\"skill\":{:.17},\"tolerance\":{:.17}}}", js(c.name), js(stations[k]), c.skill, c.tolerance)).collect::<Vec<_>>().join(",")
     )
 }
 
@@ -31,6 +31,7 @@ fn main() {
     let ships = roster();
     let n = ships.len();
     match args.get(1).map(|s| s.as_str()) {
+        Some("export") => { println!("[{}]", ships.iter().map(ship_json).collect::<Vec<_>>().join(",")); }
         Some("roster") => {
             for e in &ships {
                 println!("{:9} {:10} strength {:+5.1}  {}", e.name, format!("{:?}", e.style), strength(&e.crew),

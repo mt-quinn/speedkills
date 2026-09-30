@@ -14,17 +14,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700;800&family=Saira:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="live.css">
-<link rel="stylesheet" href="hangar.css">
+
 <script type="importmap">
 { "imports": {
   "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
   "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
 } }
 </script>
+<style>body[data-screen] #controls, body[data-screen] #transport, body[data-screen] #result, body[data-screen] #prematch { display:none!important; }</style>
 </head>
-<body data-screen="hangar">
-<div id="league-shell"></div>
+<body data-screen="broadcast">
 <canvas id="view"></canvas>
 <svg id="leaders"></svg>
 <div id="tags"></div>
@@ -64,6 +63,6 @@
 <canvas id="inset" width="300" height="150"></canvas>
 <div id="transport"><span id="title"></span><span id="transport-t"></span><span class="keys">space pause · ← → seek · [ ] speed · n next · c critic</span><span id="sound">click for sound</span></div>
 <pre id="critic" hidden></pre>
-<script type="module" src="js/live/main.js"></script>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/sim", "crates/duel", "crates/wire", "crates/server", "crates/py"]
+members = ["crates/sim", "crates/duel", "crates/wire", "crates/server", "crates/py", "crates/live-sim"]
 # The Python extension is built with maturin (it needs its linker flags).
 default-members = ["crates/sim", "crates/duel", "crates/wire", "crates/server"]
 

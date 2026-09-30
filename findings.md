@@ -27,3 +27,9 @@
 - Desktop audit all12/12 after conservative framing margin. Phone all12/12 except frame fill11/12 (L51006 small for3.1% runtime); farther zoom experiments did not produce enough benefit and were reverted.
 - Full odds and fresh unfiltered card complete; source fingerprint validates cached odds. Current cardL51000–L51011, prior50000card index archived.
 - Recordings are not present; speech pipeline still needs listening validation with actual phone/Audacity clips.
+
+## Voice catalog revision
+The current manifest supersedes the earlier alternate-wording catalog:18 fixed scripts,77 recommended vocal takes. Multiple takes use identical words. Engineering speech reports railgun/main-drive outages and restorations explicitly. Current frequencies are remeasured after removing generic component chatter. Tests cover extra takes beyond the recommended count and invariant subtitles.
+
+## Live league foundation
+Existing Vercel config serves viewer2 as static output with no build step. No package or Convex configuration exists. Current Rust CLI generates real matches; viewer uses full traces and local picks. Production needs server authority and must not disclose a future fight trace/winner before betting closes.
