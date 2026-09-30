@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#070a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Speed Kills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700;800&family=Saira:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<svg id="leaders"></svg>
+<div id="tags"></div>
+<div id="legend"></div>
+<div id="dock"></div>
+<div id="tapfx"></div>
+<div id="controls" class="hidden" role="toolbar" aria-label="Playback">
+  <div class="ct-title"><span id="ct-name"></span><span id="ct-count"></span></div>
+  <div id="scrub" aria-label="Seek">
+    <div class="sc-track"><div class="sc-marks"></div><div class="sc-fill"></div><div class="sc-knob"></div></div>
+    <div class="sc-times"><span id="sc-t">0:00</span><span id="sc-d">0:00</span></div>
+  </div>
+  <div class="ct-row">
+    <button data-a="prev" aria-label="Previous fight"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+    <button data-a="back" aria-label="Back 5 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.5" text-anchor="middle" font-size="7" font-weight="700">5</text></svg></button>
+    <button data-a="play" class="big" aria-label="Play or pause"><svg class="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg><svg class="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></button>
+    <button data-a="fwd" aria-label="Forward 5 seconds"><svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.5" text-anchor="middle" font-size="7" font-weight="700">5</text></svg></button>
+    <button data-a="next" aria-label="Next fight"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+  </div>
+  <div class="ct-row small">
+    <button data-a="speed" aria-label="Playback speed"><span>1×</span></button>
+    <button data-a="sound" aria-label="Sound"><span>sound off</span></button>
+  </div>
+</div>
+<header id="scoreboard"></header>
+<div id="cards"></div>
+<div id="callouts" aria-live="polite"></div>
+<div id="chatter"></div>
+<div id="flashframe"></div>
+<div id="slowvig"></div>
+<div id="timebadge"><span class="tb-rate"></span><span class="tb-lab"></span><span class="tb-meter"><i></i></span></div>
+<section id="result" hidden></section>
+<canvas id="inset" width="300" height="150"></canvas>
+<div id="transport"><span id="title"></span><span id="transport-t"></span><span class="keys">space pause · ← → seek · [ ] speed · n next · c critic</span><span id="sound">click for sound</span></div>
+<pre id="critic" hidden></pre>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

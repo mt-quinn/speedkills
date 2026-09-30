@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed Kills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<canvas id="overlay"></canvas>
+
+<header id="scoreboard">
+  <section class="side blue" id="side0"></section>
+  <section class="middle">
+    <div class="clock" id="clock">0:00</div>
+    <div class="phase" id="phase">Match</div>
+    <div class="tug" title="Hull remaining: BLUE (left) vs RED (right)">
+      <div class="tug-blue" id="tugBlue"></div><div class="tug-red" id="tugRed"></div>
+      <div class="tug-mid"></div>
+    </div>
+    <div class="tug-label"><span>BLUE hull</span><span id="leadText">even</span><span>RED hull</span></div>
+    <div class="bcast" id="bcast" hidden></div>
+  </section>
+  <section class="side red" id="side1"></section>
+</header>
+
+<div id="banner" hidden></div>
+<div id="conn">connecting…</div>
+<aside id="feed" aria-live="polite"></aside>
+
+<aside id="legend" hidden>
+  <h3>What am I looking at?</h3>
+  <dl>
+    <dt><span class="sw icon blue"></span></dt><dd><b>Ships.</b> Icons point where the ship points; the bar under each is its hull. Faded = behind the planet. Arrows at the screen edge point to ships off screen.</dd>
+    <dt><span class="sw line blue"></span></dt><dd><b>Orbit.</b> Where the ship will coast if it doesn't burn.</dd>
+    <dt><span class="sw dash blue"></span></dt><dd><b>Missiles.</b> Bright while the motor burns (seen from anywhere), dim once it's out (dark to its target beyond 300 m). The trail is where it has been; a red dashed line means its seeker has locked on.</dd>
+    <dt><span class="sw dot red"></span><span class="sw dash red"></span></dt><dd><b>Breaking.</b> Strafing can't escape a missile. A hard main-engine turn across its path can, if it's timed early enough, and how early depends on how agile that missile is. Early breaks are safe but burn a lot of fuel.</dd>
+    <dt><span class="sw dash hot"></span></dt><dd><b>Incoming.</b> A round its target can see, predicted to pass close; the target shows a countdown.</dd>
+    <dt><span class="sw ring dark"></span></dt><dd><b>Dark rounds.</b> Rounds are invisible to their target until within 300 m. Hollow dots are rounds the target can't see yet; "UNSEEN ROUND" means one is on target and only you know.</dd>
+    <dt><span class="sw ring sense"></span></dt><dd><b>Sensing.</b> Ships see each other within 300 m (the faint ring), or at any range when the other is <b>loud</b>: engine lit, firing, glowing in the air or just hit (pulsing rings). The planet blocks the view. Strafing is quiet.</dd>
+    <dt><span class="sw icon ghost"></span></dt><dd><b>Their guess.</b> Out of sight, a ship only knows where the enemy would be if it had coasted: the hollow diamond, inside a dashed ring of how far it could have moved unseen. A dotted line shows how wrong the guess is.</dd>
+    <dt><span class="sw ring safe"></span></dt><dd><b>Safe zone.</b> Beyond it, amber and red bands burn hull. From 2:30 it shrinks.</dd>
+    <dt><span class="sw ring atmo"></span></dt><dd><b>Atmosphere.</b> Dipping in brakes the ship and heats the hull. The planet itself is lethal.</dd>
+    <dt><span class="sw dot scoop"></span></dt><dd><b>Skipping.</b> Nose into the airflow, belly to the planet, a ship skips back out and scoops propellant as it goes (the glow turns blue-white, the fuel bar pulses). Broadside or belly-up, it digs in and crashes.</dd>
+  </dl>
+  <p><b>Broadcast.</b> The Director camera runs a few seconds behind live. That lets it see the big moments coming: it slows down and zooms in for them, draws what happened (the 15 m fuze ring, how far the round passed, where a dodging ship would have been), replays kills from behind the killing round, and fast-forwards quiet stretches. The badge under the clock says what time is doing.</p>
+  <p>Missiles burst within 8 m of a hull, for less damage the farther out. Damage is the warhead, not the closing speed, so a shot into an oncoming orbit hits hardest. Every dodge costs propellant; the only way to get more is to skip off the air.</p>
+</aside>
+
+<nav id="toolbar">
+  <label>BLUE <select id="selA"><option>Lancer</option><option>Hornet</option><option selected>Warden</option></select></label>
+  <label>RED <select id="selB"><option>Lancer</option><option>Hornet</option><option selected>Warden</option></select></label>
+  <button id="btnReset" title="New match (N)">New match</button>
+  <button id="btnPause" title="Pause (P)">Pause</button>
+  <label>Speed <select id="selSpeed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+  <label>Camera <select id="selCam"><option value="director">Director (broadcast)</option><option value="follow0">Follow BLUE</option><option value="follow1">Follow RED</option><option value="pilot">Pilot</option><option value="free">Free</option></select></label>
+  <label>Fly <select id="selCtl"><option value="">Bots</option><option value="0">Fly BLUE</option><option value="1">Fly RED</option></select></label>
+  <button class="legend-btn" data-legend>What am I looking at?</button>
+</nav>
+
+<nav id="replaybar">
+  <button id="btnPlay">Pause</button>
+  <span id="replayTime">0:00</span>
+  <input type="range" id="scrub" min="0" max="1" step="0.05" value="0" aria-label="Scrub replay">
+  <label>Speed <select id="replaySpeed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+  <label>Camera <select id="selCam2"><option value="director">Director (broadcast)</option><option value="follow0">Follow BLUE</option><option value="follow1">Follow RED</option><option value="free">Free</option></select></label>
+  <button class="legend-btn" data-legend>What am I looking at?</button>
+  <span class="rtitle"><b id="replayTitle"></b> <span id="replayResult"></span></span>
+</nav>
+
+<div id="help" hidden>
+  <h3>Flying (Fly BLUE / RED)</h3>
+  <table>
+    <tr><td>W / S · A / D · Q / E</td><td>pitch · yaw · roll</td></tr>
+    <tr><td>Shift</td><td>main engine</td></tr>
+    <tr><td>Arrows · R / F</td><td>strafe · strafe fore/aft</td></tr>
+    <tr><td>Space</td><td>fire</td></tr>
+    <tr><td>C · L</td><td>camera · legend</td></tr>
+  </table>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

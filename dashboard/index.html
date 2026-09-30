@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed Kills · Training</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="brand"><span class="brand-mark">SK</span><span>Speed Kills <em>flight-test ledger</em></span></div>
+  <a class="champion" id="champion" href="#" hidden></a>
+</header>
+
+<div class="layout">
+  <aside class="rail">
+    <button class="new-run" id="btnNew">New run</button>
+    <nav id="runs" aria-label="Training runs"></nav>
+  </aside>
+
+  <main id="main">
+    <section class="empty" id="empty">
+      <h1>No runs yet.</h1>
+      <p>A run trains one policy that flies all three ship designs, against scripted bots and its own earlier generations. Every generation is kept, rated and recorded, so you can always rewind to the best one.</p>
+      <button class="primary" id="btnNewEmpty">Start the first run</button>
+    </section>
+
+    <section id="newRun" class="new-form" hidden></section>
+
+    <section id="run" hidden>
+      <div class="run-head">
+        <div>
+          <p class="lineage" id="lineage"></p>
+          <h1 id="runName"></h1>
+          <p class="notes" id="notes" contenteditable="true" data-placeholder="Add a note about this run…"></p>
+        </div>
+        <div class="run-state">
+          <div class="status-line"><span class="dot" id="statusDot"></span><span id="statusText"></span></div>
+          <div class="progress"><div id="progressFill"></div></div>
+          <p class="meta" id="progressText"></p>
+          <div class="controls" id="controls"></div>
+        </div>
+      </div>
+      <p class="error" id="runError" hidden></p>
+
+      <div class="strength">
+        <div class="strength-head">
+          <h2>Strength by generation</h2>
+          <div class="legend">
+            <span><i class="sw sw-elo"></i>Rating (Elo, bot = 1000)</span>
+            <span><i class="sw sw-bot"></i>Win rate vs bots</span>
+            <span><i class="sw sw-exc"></i>Excitement</span>
+          </div>
+        </div>
+        <div id="strengthChart" class="chart-lg"></div>
+        <div class="tape-wrap">
+          <div class="tape" id="tape" tabindex="0" role="listbox" aria-label="Generations"></div>
+          <p class="tape-hint" id="tapeHint">Click a generation (or use ← →) to inspect, replay, promote or fork it.</p>
+        </div>
+      </div>
+
+      <div class="fightstats">
+        <div class="strength-head">
+          <h2>Fight stats by generation</h2>
+          <p class="meta">Solid lines: per match (left axis) · dashed: percentages (right axis). Click a stat to show or hide it.</p>
+        </div>
+        <div class="chips" id="statChips"></div>
+        <div id="statsChart" class="chart-lg"></div>
+      </div>
+
+      <div class="split">
+        <div class="tabs-wrap">
+          <nav class="tabs" id="tabs">
+            <button data-tab="gens" class="on">Generations</button>
+            <button data-tab="health">Training health</button>
+            <button data-tab="style">Fight style</button>
+            <button data-tab="log">Log</button>
+          </nav>
+          <div id="tab-gens" class="tab"></div>
+          <div id="tab-health" class="tab grid-charts" hidden></div>
+          <div id="tab-style" class="tab grid-charts" hidden></div>
+          <div id="tab-log" class="tab" hidden><pre id="log"></pre></div>
+        </div>
+        <aside class="gen-panel" id="genPanel"></aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

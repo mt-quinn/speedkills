@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed Kills</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="labels"></div>
+
+<header id="hud-top">
+  <section class="team t0" id="team0"></section>
+  <section id="center">
+    <div id="clock">0:00</div>
+    <canvas id="spark" width="260" height="56"></canvas>
+    <div id="spark-label">hull advantage</div>
+  </section>
+  <section class="team t1" id="team1"></section>
+</header>
+
+<div id="banner" hidden></div>
+<div id="conn">connecting…</div>
+
+<aside id="feed"></aside>
+
+<nav id="toolbar">
+  <label>A <select id="selA"><option>Lancer</option><option>Hornet</option><option>Warden</option></select></label>
+  <label>B <select id="selB"><option>Lancer</option><option selected>Hornet</option><option>Warden</option></select></label>
+  <button id="btnReset" title="New match (N)">New match</button>
+  <button id="btnPause" title="Pause (P)">Pause</button>
+  <label>Speed <select id="selSpeed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+  <label>Camera <select id="selCam"><option value="director">Director</option><option value="follow0">Follow A</option><option value="follow1">Follow B</option><option value="pilot">Pilot</option><option value="free">Free</option></select></label>
+  <label>Pilot <select id="selCtl"><option value="">Bots</option><option value="0">Fly A</option><option value="1">Fly B</option></select></label>
+  <label class="chk"><input type="checkbox" id="chkGhost" checked> Ghosts</label>
+  <label class="chk"><input type="checkbox" id="chkTrail" checked> Trails</label>
+  <button id="btnHelp" title="Controls (H)">?</button>
+</nav>
+
+<div id="help" hidden>
+  <h3>Flying (Pilot → Fly A/B)</h3>
+  <table>
+    <tr><td>W / S</td><td>pitch</td></tr>
+    <tr><td>A / D</td><td>yaw</td></tr>
+    <tr><td>Q / E</td><td>roll</td></tr>
+    <tr><td>Shift</td><td>main engine (propellant is scarce)</td></tr>
+    <tr><td>Arrows</td><td>strafe left/right/up/down</td></tr>
+    <tr><td>R / F</td><td>strafe forward / back</td></tr>
+    <tr><td>Space</td><td>fire the mass driver</td></tr>
+  </table>
+  <h3>Viewing</h3>
+  <table>
+    <tr><td>C</td><td>cycle camera</td></tr>
+    <tr><td>N / P</td><td>new match / pause (live)</td></tr>
+    <tr><td>Space, ← →</td><td>play/pause, seek 5 s (replays)</td></tr>
+  </table>
+  <h3>Reading the fight</h3>
+  <p>Robot gunships around a planet, throwing slow, heavy orbital bullets. The top bar is hull, the thin
+  bar propellant, the pips rounds left. A glowing muzzle means loaded; its dotted line shows where a shot
+  fired now would fly. Every live round shows its predicted path around the planet — watch the lines
+  cross. Damage is the impact energy, so shots into an opposing orbit hit hardest. Stay inside the blue
+  shell; the planet is lethal and its thin atmosphere brakes and heats.</p>
+</div>
+
+<nav id="replaybar">
+  <button id="btnPlay">Pause</button>
+  <span id="replayTime">0:00</span>
+  <input type="range" id="scrub" min="0" max="1" step="0.05" value="0" aria-label="Scrub replay">
+  <label>Speed <select id="replaySpeed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+  <label>Camera <select id="selCam2"><option value="director">Director</option><option value="follow0">Follow A</option><option value="follow1">Follow B</option><option value="free">Free</option></select></label>
+  <span class="rtitle"><b id="replayTitle"></b> <span id="replayResult"></span></span>
+</nav>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

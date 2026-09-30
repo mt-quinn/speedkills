@@ -1,0 +1,14 @@
+target/
+.venv/
+models/
+__pycache__/
+*.egg-info/
+.DS_Store
+# Run output is local; the design logs are kept.
+runs/*
+!runs/duel/
+!runs/viewer/
+runs/duel/*
+runs/viewer/*
+!runs/duel/LOG.md
+!runs/viewer/LOG.md

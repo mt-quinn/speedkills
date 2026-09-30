@@ -1,0 +1,19 @@
+[package]
+name = "sk-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sk-sim = { path = "../sim" }
+sk-wire = { path = "../wire" }
+tungstenite = "0.24"
+tiny_http = "0.12"
+serde_json = "1"
+
+[[bin]]
+name = "sk-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "batch"
+path = "src/batch.rs"

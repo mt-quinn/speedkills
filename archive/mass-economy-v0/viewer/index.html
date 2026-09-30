@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Speed Kills</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="labels"></div>
+
+<header id="hud-top">
+  <section class="team t0" id="team0"></section>
+  <section id="center">
+    <div id="clock">0:00</div>
+    <canvas id="spark" width="260" height="56"></canvas>
+    <div id="spark-label">mass advantage</div>
+  </section>
+  <section class="team t1" id="team1"></section>
+</header>
+
+<div id="banner" hidden></div>
+<div id="conn">connecting…</div>
+
+<aside id="feed"></aside>
+
+<nav id="toolbar">
+  <label>A <select id="selA"><option>Slinger</option><option>Anchor</option><option>Skater</option></select></label>
+  <label>B <select id="selB"><option>Slinger</option><option selected>Anchor</option><option>Skater</option></select></label>
+  <button id="btnReset" title="New match (N)">New match</button>
+  <button id="btnPause" title="Pause (P)">Pause</button>
+  <label>Speed <select id="selSpeed"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option></select></label>
+  <label>Camera <select id="selCam"><option value="director">Director</option><option value="follow0">Follow A</option><option value="follow1">Follow B</option><option value="pilot">Pilot</option><option value="free">Free</option></select></label>
+  <label>Pilot <select id="selCtl"><option value="">Bots</option><option value="0">Fly A</option><option value="1">Fly B</option></select></label>
+  <label class="chk"><input type="checkbox" id="chkGhost" checked> Ghosts</label>
+  <label class="chk"><input type="checkbox" id="chkTrail" checked> Trails</label>
+  <button id="btnHelp" title="Controls (H)">?</button>
+</nav>
+
+<div id="help" hidden>
+  <h3>Flying (Pilot → Fly A/B)</h3>
+  <table>
+    <tr><td>W / S</td><td>pitch</td></tr>
+    <tr><td>A / D</td><td>yaw</td></tr>
+    <tr><td>Q / E</td><td>roll</td></tr>
+    <tr><td>Shift</td><td>main engine (burns mass)</td></tr>
+    <tr><td>Space</td><td>hold to charge a slug, release to throw</td></tr>
+    <tr><td>F</td><td>tether: fire / let go</td></tr>
+    <tr><td>R / G</td><td>reel in / pay out</td></tr>
+    <tr><td>X</td><td>toggle arms (spin inertia)</td></tr>
+    <tr><td>V / B</td><td>field pull / push</td></tr>
+  </table>
+  <h3>Viewing</h3>
+  <table>
+    <tr><td>C</td><td>cycle camera (Director / Follow A / Follow B / Free)</td></tr>
+    <tr><td>N</td><td>new match</td></tr>
+    <tr><td>P</td><td>pause</td></tr>
+  </table>
+  <h3>Reading the fight</h3>
+  <p>Size is mass is health. The bright inner ball is the core — when the shell shrinks to it, the ship dies.
+  Touch loose debris gently (&lt;14 m/s) to absorb it. Everything that hits you hard knocks mass off.
+  Dashed lines are ghost trajectories — where things go if nobody acts — with a dot per second.
+  The solid line from the nose is where the ship is <i>pointing</i>; the angle between the two is its drift.
+  The dashed ring around a ship turns with its real spin. The faint loop is its full orbit around the planet.</p>
+  <p>Stay inside the blue shell. Beyond it, the amber and red bands burn mass off you — faster the further out.
+  From 2:30 the safe zone closes in.</p>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sandbox",
+      "runtimeExecutable": "cargo",
+      "runtimeArgs": [
+        "run",
+        "--release",
+        "-p",
+        "sk-server",
+        "--bin",
+        "sk-server"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "viewer2",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "viewer2/serve.py",
+        "8095"
+      ],
+      "port": 8095
+    }
+  ]
+}

@@ -1,0 +1,576 @@
+// Broadcast furniture. Information lives where the eye already is: each ship carries a plate
+// (name, what it's doing, hull, crew, what's broken, its PDC burst, its news and its radio),
+// joined to the ship by a leader line. Scene objects are labelled in place (torpedo salvos,
+// shrapnel). The scoreboard holds the score: clock, tug, exchanges. Fight-wide news (exchange
+// results, the lead, the result) sits under the scoreboard.
+import * as THREE from 'three';
+import { TEAM_CSS } from './scene.js';
+import { PART_LABEL } from './data.js';
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+
+const PLAN = {
+  guns: 'guns up', juke: 'breaking hard', punish: 'going in', 'attack run': 'attack run', extend: 'extending',
+  salvo: 'salvo', 'torpedo break': 'torpedo break', 'closing in': 'closing', braking: 'braking', brawl: 'charging in',
+  pressing: 'pressing', '': '—',
+};
+const STYLE = { Reference: 'duelist', Knife: 'knife fighter', Counter: 'counterpuncher', Striker: 'striker', Warden: 'warden' };
+const BY = { railgun: 'by railgun', torpedo: 'by torpedo', pdc: 'by PDC fire', ram: 'in a collision', rock: 'on the rocks', g: 'by its own burn', overcharge: 'by its own gun' };
+// Systems as a viewer thinks of them: shown on the plate only when out.
+const OUTS = [['drive', [0]], ['thrusters', [1, 2, 3, 4]], ['reactor', [5]], ['gun', [11]], ['PDC', [7, 8, 9]], ['tubes', [10]], ['sensors', [6]]];
+
+export class Hud {
+  constructor(match, scene, opts = {}) {
+    this.m = match; this.scene = scene; this.opts = opts;
+    this.names = match.ships.map((s) => s.name.toUpperCase());
+    this.buildScoreboard();
+    $('#cards').innerHTML = '';
+    $('#inset').classList.remove('on');
+    this.leaders = document.querySelector('#leaders');
+    this.leaders.innerHTML = '';
+    this.leaderLines = [0, 1].map((i) => { const l = document.createElementNS('http://www.w3.org/2000/svg', 'line'); l.setAttribute('class', `ld t${i}`); this.leaders.append(l); return l; });
+    this.plates = [0, 1].map((i) => this.buildPlate(i));
+    // Portrait: the plates dock at the bottom; each ship keeps a small name tag.
+    this.dock = $('#dock'); this.dock.innerHTML = '';
+    this.shipTags = [0, 1].map((i) => { const t = el('div', `shiptag t${i}`, this.names[i]); $('#tags').append(t); return t; });
+    this.frameN = 0;
+    // Scene labels: shrapnel clouds and torpedo salvos.
+    this.shrapTags = [0, 1, 2].map(() => { const t = el('div', 'slabel shrap', 'shrapnel'); t.style.display = 'none'; $('#tags').append(t); return t; });
+    this.mLabels = [0, 1, 2].map(() => { const t = el('div', 'mlabel'); t.style.display = 'none'; $('#tags').append(t); return t; });
+    this.torpTags = [0, 1, 2, 3].map(() => { const t = el('div', 'slabel torp'); t.style.display = 'none'; $('#tags').append(t); return t; });
+    this.buildLegend();
+    this.callouts = []; // {text, t0, until, prio, key, node}
+    this.stats = { captionsShown: 0, maxSimultaneous: 0, shortest: Infinity, chars: 0 };
+    this.platePos = [null, null];
+  }
+
+  buildScoreboard() {
+    const sb = $('#scoreboard');
+    sb.innerHTML = '';
+    const side = (i) => {
+      const s = el('div', `sb-side t${i}`);
+      const style = el('div', 'sb-style', STYLE[this.m.ships[i].style] || this.m.ships[i].style);
+      const pips = el('span', 'sb-pips');
+      if (i === 0) style.prepend(pips); else style.append(pips);
+      (this.exPips ||= [])[i] = pips;
+      // Integrity: the ship's overall condition (hull, systems, crew), draining toward the
+      // centre. During an exchange, what it has lost so far is a bright chunk at the bar's end,
+      // labelled; the chunk drains once the exchange is called.
+      const bar = el('div', 'sb-bar');
+      const fill = el('i', 'fill'), chunk = el('i', 'chunk'), pct = el('span', 'sb-pct'), delta = el('span', 'sb-delta');
+      bar.append(fill, chunk, pct, delta);
+      (this.bars ||= [])[i] = { fill, chunk, pct, delta, lastLoss: 0 };
+      s.append(el('div', 'sb-name', this.names[i]), style, bar);
+      return s;
+    };
+    const mid = el('div', 'sb-mid');
+    this.clock = el('div', 'sb-clock', '0:00');
+    this.leadTxt = el('div', 'sb-lead', 'even');
+    this.barCap = el('div', 'sb-cap', 'integrity');
+    mid.append(this.clock, this.leadTxt, this.barCap);
+    sb.append(side(0), mid, side(1));
+  }
+
+  // The plate: everything about one ship, next to the ship.
+  buildPlate(i) {
+    const p = el('div', `plate t${i}`);
+    const head = el('div', 'pl-head');
+    const name = el('span', 'pl-name', this.names[i]);
+    const rail = el('span', 'pl-rail', '');
+    head.append(name, rail);
+    const plan = el('div', 'pl-plan', '');
+    const hull = el('div', 'pl-hull'); const hullFill = el('i'); const hullTxt = el('span');
+    hull.append(el('b', null, 'hull'), hullFill, hullTxt);
+    const meta = el('div', 'pl-meta');
+    const crew = el('span', 'pl-crew');
+    const dots = this.m.ships[i].crew.map(() => { const d = el('i'); crew.append(d); return d; });
+    const ammo = el('span', 'pl-ammo', '');
+    meta.append(crew, ammo);
+    const outs = el('div', 'pl-outs');
+    const acc = el('div', 'pl-acc');
+    const flag = el('div', 'pl-flag');
+    const chat = el('div', 'pl-chat');
+    p.append(head, plan, hull, meta, outs, acc, flag, chat);
+    $('#tags').append(p);
+    return { p, rail, plan, hullFill, hullTxt, dots, ammo, outs, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
+  }
+
+  // What you're looking at: the scene's visual language, for the opening seconds.
+  buildLegend() {
+    const lg = $('#legend');
+    lg.innerHTML = `
+      <span><svg viewBox="0 0 24 12"><path d="M2 6 L20 2 L16 6 L20 10 Z" fill="currentColor"/></svg>ship · flame = thrust</span>
+      <span><svg viewBox="0 0 24 12"><line x1="1" y1="6" x2="23" y2="6" stroke="currentColor" stroke-width="2"/></svg>railgun charging</span>
+      <span><svg viewBox="0 0 24 12"><path d="M4 6 L14 2 L11 6 L14 10 Z" fill="#fff"/><line x1="14" y1="6" x2="23" y2="6" stroke="currentColor" stroke-width="1.5" opacity=".6"/></svg>torpedo</span>
+      <span><svg viewBox="0 0 24 12"><g stroke="#fff" stroke-width="1.6"><line x1="1" y1="6" x2="5" y2="6"/><line x1="9" y1="6" x2="13" y2="6"/><line x1="17" y1="6" x2="21" y2="6"/></g></svg>PDC rounds</span>
+      <span><svg viewBox="0 0 24 12"><g stroke="#ffa070" stroke-width="1.4"><line x1="3" y1="3" x2="7" y2="4"/><line x1="10" y1="8" x2="14" y2="9"/><line x1="15" y1="2" x2="19" y2="3"/><line x1="6" y1="9" x2="9" y2="10"/></g></svg>shrapnel</span>
+      <span><svg viewBox="0 0 24 12"><line x1="12" y1="0" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><ellipse cx="12" cy="11" rx="5" ry="1.4" fill="none" stroke="currentColor"/></svg>height above the plane</span>
+      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="#f5a623"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: ship condition · white = lost this exchange</span>`;
+    this.legend = lg;
+  }
+
+  // Fight-wide news under the scoreboard: exchange results, the lead, the result. `text` may be
+  // a function of a count (repeats under one `key` update in place).
+  say(t, text, { prio = 1, key = null, team = null, hold = 2.2 } = {}) {
+    // (Two-line callouts: {head, sub}.)
+    if (text && typeof text === 'object') { const { head, sub } = text; text = head + '\n' + sub; }
+    const fmt = typeof text === 'function' ? text : () => text;
+    if (key) {
+      const ex = this.callouts.find((c) => c.key === key && c.until > t);
+      if (ex) { ex.n += 1; ex.text = fmt(ex.n); ex.until = t + hold; ex.node.textContent = ex.text; return; }
+    }
+    const fresh = this.callouts.filter((c) => t - c.t0 < 1.6);
+    if (prio <= 1 && fresh.length) return;
+    // Spacing: lines start at least 5 s apart; news that can't get a slot within 3 s is dropped
+    // (the result always goes through).
+    if (prio === 2 && t - (this.lastSayT ?? -99) < 5) { (this.pending ||= []).push({ t: this.pendT ?? t, text: fmt(1), opts: { prio, key, team, hold } }); return; }
+    if (this.callouts.length >= 1 && prio < 5) {
+      const old = this.callouts[0];
+      if (t - old.t0 < 1.6 && old.prio >= prio) { (this.pending ||= []).push({ t: this.pendT ?? t, text: fmt(1), opts: { prio, key, team, hold } }); return; }
+      this.callouts = [];
+      this.retire(old, t);
+    }
+    const node = el('div', `callout${team !== null && team !== undefined ? ' t' + team : ''}${prio >= 5 ? ' big' : ''}`);
+    const [l1, l2] = fmt(1).split('\n');
+    node.textContent = l1;
+    if (l2) node.append(el('small', null, l2));
+    $('#callouts').append(node);
+    const c = { text: node.textContent, t0: t, until: t + hold, prio, key, node, n: 1 };
+    this.lastSayT = t;
+    this.count(t, prio, node.textContent);
+    this.callouts.push(c);
+  }
+  count(t, prio, text) {
+    (this.stats.log ||= []).push([+t.toFixed(1), prio, text]);
+    this.stats.captionsShown++;
+    this.stats.chars += text.length;
+  }
+  retire(c, t, clearing = false) {
+    if (!clearing) this.stats.shortest = Math.min(this.stats.shortest, t - c.t0);
+    c.node.classList.add('out');
+    setTimeout(() => c.node.remove(), 400);
+  }
+
+  // News about one ship, on its plate: a death, a vital system out, the pilot out, the gun
+  // burned. One at a time per plate; a same-moment follow-up joins the line ("· DRIVE OUT");
+  // a flag under 1.6 s old is replaced only by more important news (deaths), and news that
+  // can't show within 3 s is dropped.
+  flag(t, i, text, { prio = 2, hold = 3, key = null } = {}) {
+    const P = this.plates[i], f = P.flagState;
+    const wait = () => (this.flagPending ||= []).push({ t: this.pendT ?? t, i, text, opts: { prio, hold, key } });
+    if (f && t < f.until) {
+      if (key && f.key === key) { f.text += ' · ' + text; P.flag.textContent = f.text; f.until = t + hold; return; }
+      // Never cut a fresh flag short; deaths wait for it, lesser news waits its turn.
+      if (t - f.t0 < 1.6 || prio < f.prio) { wait(); return; }
+      this.stats.shortest = Math.min(this.stats.shortest, t - f.t0);
+    }
+    // Spacing: a plate's system news starts at least 4 s apart (deaths exempt).
+    if (prio < 3 && t - (P.lastFlagT ?? -99) < 4) { wait(); return; }
+    P.lastFlagT = t;
+    P.flagState = { t0: t, until: t + hold, prio, key, text };
+    P.flag.textContent = text;
+    P.flag.classList.remove('on'); void P.flag.offsetWidth; P.flag.classList.add('on');
+    P.flag.classList.toggle('death', prio >= 3);
+    this.count(t, prio, `[${this.names[i]}] ${text}`);
+  }
+
+  onEvents(t, evs, st) {
+    const N = this.names;
+    this.endT ??= (this.m.events.find((e) => e.k === 'end') || { t: Infinity }).t;
+    for (const e of evs) {
+      this.chatterEvent(t, e);
+      switch (e.k) {
+        // Hits are shown in the scene (the ring on the ship) and on the tug; text is for
+        // consequences — what broke, who died — on the victim's plate.
+        case 'torp_hit': case 'rail_hit': case 'debris_hit': case 'pdc_hit':
+          this.lastHit = { t: e.t, victim: e.victim, kind: { rail_hit: 'railgun', debris_hit: 'shrapnel', torp_hit: 'torpedo', pdc_hit: 'PDC' }[e.k] };
+          break;
+        case 'part_lost': case 'crew_killed': {
+          // Systems lost show in the plate's outs row, which lights up (and on the radio); the
+          // flag is for deaths.
+          if (e.k === 'part_lost') break;
+          if (e.t >= this.endT - 1e-3) break;
+          if (e.k === 'part_lost' && e.part === 'railgun' && this.overT && Math.abs(this.overT[e.ship] - e.t) < 1e-3) break; // (said by the overcharge flag)
+          const lh = this.lastHit && Math.abs(this.lastHit.t - e.t) < 1e-3 && this.lastHit.victim === e.ship ? this.lastHit : null;
+          const what = e.k === 'part_lost' ? `${e.part === 'railgun' ? 'gun' : PART_LABEL[e.part] || e.part} out` : `${this.m.ships[e.ship].crew[e.crew].name} killed`;
+          this.flag(t, e.ship, lh ? `${what} · ${lh.kind}` : what, { prio: e.k === 'crew_killed' ? 3 : 2, key: 'hit' + e.t, hold: 3 });
+          break;
+        }
+        case 'blackout': {
+          const who = this.m.ships[e.ship].crew[e.crew];
+          if (who.station === 'pilot' && e.t < this.endT) this.flag(t, e.ship, 'pilot blacked out', { prio: 2, hold: 2.6 });
+          break;
+        }
+        case 'overcharge': (this.overT ||= [-1, -1])[e.ship] = e.t; if (e.burned) this.flag(t, e.ship, 'gun burned out · overcharge', { prio: 2, hold: 2.6 }); break;
+        case 'end': {
+          for (const c of this.callouts) this.retire(c, t, true);
+          this.callouts = [];
+          const w = e.winner;
+          this.say(t, w === null ? `Draw · ${e.reason}` : `${N[w]} wins · ${e.reason}`, { team: w, prio: 5, hold: 1.4 });
+          break;
+        }
+      }
+    }
+  }
+
+  // Radio chatter: short crew lines under each plate — plan changes and events, by the crew
+  // member who'd say it. Sparse by rule: one line per ship at most every 6 s, shown for 2.6 s.
+  chat(t, i, station, line, prio = 1) {
+    this.chatState ??= [{ until: -1, next: -1, prio: 0 }, { until: -1, next: -1, prio: 0 }];
+    const cs = this.chatState[i];
+    if (t < cs.next && prio <= cs.prio) return;
+    const who = this.m.ships[i].crew.find((c) => c.station === station) || this.m.ships[i].crew[0];
+    const node = this.plates[i].chat;
+    node.innerHTML = `<b>${who.name}:</b> “${line}”`;
+    node.classList.remove('on'); void node.offsetWidth; node.classList.add('on');
+    cs.until = t + 2.6; cs.next = t + 6; cs.prio = prio;
+    this.stats.chatter = (this.stats.chatter || 0) + 1;
+  }
+
+  chatterFor(t, i, r) {
+    this.lastMode ??= ['', ''];
+    const cs = this.chatState && this.chatState[i];
+    const finished = t > (this.endT ?? Infinity);
+    if ((cs && t > cs.until) || !r.alive || finished) this.plates[i].chat.classList.remove('on');
+    if (!r.alive || finished) return;
+    if (r.mode !== this.lastMode[i]) {
+      const m = r.mode;
+      if (m === 'attack run' || m === 'punish') this.chat(t, i, 'pilot', 'Going in.');
+      else if (m === 'juke') this.chat(t, i, 'pilot', 'Breaking!');
+      else if (m === 'extend') this.chat(t, i, 'pilot', 'Extending.');
+      else if (m === 'torpedo break') this.chat(t, i, 'pilot', 'Torpedo — hard over!', 2);
+      this.lastMode[i] = m;
+    }
+    const over = r.rail[4] === 1;
+    this.lastOver ??= [false, false];
+    if (over && !this.lastOver[i]) this.chat(t, i, 'gunner', 'Safeties off.', 2);
+    this.lastOver[i] = over;
+  }
+
+  chatterEvent(t, e) {
+    switch (e.k) {
+      case 'torp_launch': this.chat(t, e.ship, 'gunner', 'Birds away.'); break;
+      case 'rail_fire': this.chat(t, e.ship, 'gunner', 'Firing.'); break;
+      case 'repaired': { const L = (PART_LABEL[e.part] || e.part).replace(/^./, (c) => c.toUpperCase()); this.chat(t, e.ship, 'engineer', /s$/.test(L) ? `${L} are back.` : `${L}'s back.`, 2); break; }
+      case 'part_lost': this.chat(t, e.ship, 'engineer', `Lost the ${PART_LABEL[e.part] || e.part}!`, 2); break;
+      case 'crew_killed': {
+        const dead = this.m.ships[e.ship].crew[e.crew];
+        const by = dead.station === 'ops' ? 'pilot' : 'ops';
+        this.chat(t, e.ship, by, `${dead.name}'s gone.`, 3);
+        break;
+      }
+      case 'blackout': if (this.m.ships[e.ship].crew[e.crew].station === 'pilot') this.chat(t, e.ship, 'ops', 'Pilot’s out — holding her steady.', 3); break;
+    }
+  }
+
+  // Exchange results: announced 1.5 s after each ends (not the last one — the result card has
+  // it), and tallied as pips on the scoreboard.
+  exchanges(t) {
+    const last = this.lastExT;
+    this.lastExT = t;
+    const won = [0, 0];
+    const lead = (tt) => { const h = this.m.healthAt(tt), d = h[0] - h[1]; return Math.abs(d) < 0.03 ? null : d > 0 ? 0 : 1; };
+    for (const x of this.m.exchanges) {
+      const at = x.t1 + 1.5;
+      if (at <= t && x.winner !== null) won[x.winner]++;
+      // (Only when crossing the moment in playback: a seek doesn't replay old news.)
+      if (last === undefined || t - last > 1 || !(at > last && at <= t) || x.t1 >= this.endT - 0.5) continue;
+      const before = lead(Math.max(0, x.t0 - 0.5)), after = lead(at);
+      const swung = after !== null && after !== before;
+      // Small exchanges count on the tally but get a line only if they swung the lead.
+      if (x.dmg[0] + x.dmg[1] < 8 && !swung) continue;
+      // Stated as what each ship lost (of its whole condition), the winner first.
+      const lost = [x.dmg[1], x.dmg[0]].map((v) => Math.max(1, Math.round(v)));
+      const kind = x.kind.toUpperCase();
+      const head = x.winner === null ? `${kind} ${x.n} · even` : `${this.names[x.winner]} wins ${kind} ${x.n}`;
+      const order = x.winner === 1 ? [1, 0] : [0, 1];
+      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}%`).join(' · ') + (swung ? ` · ${this.names[after]} leads` : '');
+      this.say(t, { head, sub }, { team: x.winner, prio: 2, key: 'ex', hold: 3.4 });
+    }
+    for (let i = 0; i < 2; i++) { const s = '■'.repeat(won[i]); if (this.exPips[i].textContent !== s) this.exPips[i].textContent = s; }
+  }
+
+  // Story beat: the lead changing hands (during an exchange it's told with the exchange).
+  leadBeat(t) {
+    const h = this.m.healthAt(t);
+    const d = h[0] - h[1];
+    const now = d > 0.03 ? 0 : d < -0.03 ? 1 : this.leader ?? null;
+    if (this.leader !== undefined && this.leader !== null && now !== null && now !== this.leader && !this.m.exchangeAt(t) && t < this.endT) {
+      this.say(t, `${this.names[now]} takes the lead`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
+    }
+    if (now !== null) this.leader = now;
+  }
+
+  // The result card: who won, how and when, and the fight in a few numbers each.
+  showResult(t) {
+    const box = $('#result');
+    // (From the recorded end — however playback got here, live or by seeking.)
+    if (t < this.endT + 1.4) { box.hidden = true; return; }
+    if (!box.hidden) return;
+    const m = this.m, ev = m.events, end = ev.find((e) => e.k === 'end');
+    const w = end.winner;
+    const stat = (i) => {
+      const dealt = ev.filter((e) => e.k === 'damage' && e.ship === 1 - i && (e.hull >= 50 || e.parts >= 0.25 || e.crew > 0)).length;
+      const torps = ev.filter((e) => e.k === 'torp_hit' && e.victim === 1 - i).length;
+      const lost = ev.filter((e) => e.k === 'crew_killed' && e.ship === i).length;
+      const exw = m.exchanges.filter((x) => x.winner === i).length;
+      return [['exchanges won', `${exw}/${m.exchanges.length}`], ['hits', dealt], ['torpedoes through', torps], ['crew lost', lost]];
+    };
+    const mm = Math.floor(end.t / 60), ss = String(Math.floor(end.t % 60)).padStart(2, '0');
+    const how = { destroyed: 'destroyed', 'crew dead': 'crew lost', 'dead in space': 'dead in space', time: 'on points', 'broke off': 'broke off' }[end.reason] || end.reason;
+    const cause = m.raw.summary.finish_cause;
+    box.innerHTML = `<div class="res-head ${w === null ? '' : 't' + w}">${w === null ? 'DRAW' : this.names[w] + ' WINS'}</div>
+      <div class="res-sub">${w === null ? how : this.names[1 - w] + ' ' + how}${BY[cause] ? ' ' + BY[cause] : ''} · ${mm}:${ss}</div>
+      <div class="res-cols">${[0, 1].map((i) => `<div class="res-col t${i}"><div class="res-name">${this.names[i]}</div>${stat(i).map(([k, v]) => `<div class="res-row"><span>${k}</span><b>${v}</b></div>`).join('')}</div>`).join('')}</div>`;
+    box.hidden = false;
+  }
+
+  update(t, st, cam) {
+    this.endT ??= (this.m.events.find((e) => e.k === 'end') || { t: Infinity }).t;
+    this.leadBeat(t);
+    this.showResult(t);
+    for (const [key, fn] of [['pending', (q) => this.say(t, q.text, q.opts)], ['flagPending', (q) => this.flag(t, q.i, q.text, q.opts)]]) {
+      const p = this[key];
+      if (!p || !p.length) continue;
+      this[key] = [];
+      for (const q of p) if (t - q.t < 3) { this.pendT = q.t; fn(q); this.pendT = undefined; } // (stale news is dropped)
+    }
+    this.callouts = this.callouts.filter((c) => { if (c.until <= t) { this.retire(c, t, c.prio >= 5); return false; } return true; });
+    this.stats.maxSimultaneous = Math.max(this.stats.maxSimultaneous, this.callouts.length);
+    // Legend: the opening seconds only.
+    this.legend.style.opacity = t < 7 ? 1 : Math.max(0, 1 - (t - 7) / 0.8);
+    // Scoreboard.
+    const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+    this.clock.textContent = `${mm}:${String(ss).padStart(2, '0')}`;
+    const h = this.m.healthAt(t);
+    const d = h[0] - h[1];
+    this.exchanges(t);
+    // The live exchange (and its call, 1.5 s after it ends): each ship's loss in it so far.
+    const ex = t <= this.endT + 0.5 ? this.m.exchangeAt(t) : null;
+    const sc = ex ? this.m.exchangeScore(ex, t) : [0, 0];
+    for (let i = 0; i < 2; i++) {
+      const B = this.bars[i];
+      const hp = Math.max(0, Math.min(1, h[i])) * 100;
+      const loss = ex ? Math.min(100 - hp, sc[1 - i]) : 0; // (points dealt by the other ship)
+      B.fill.style.width = `${hp}%`;
+      B.chunk.style[i === 0 ? 'left' : 'right'] = `${hp}%`;
+      B.chunk.style.width = `${loss}%`;
+      B.chunk.classList.toggle('drain', !ex);
+      const pt = `${Math.round(hp)}%`;
+      if (B.pct.textContent !== pt) B.pct.textContent = pt;
+      const dt = loss >= 0.5 ? `−${Math.round(loss)}%` : '';
+      if (B.delta.textContent !== dt) B.delta.textContent = dt;
+    }
+    if (ex) {
+      this.leadTxt.textContent = `exchange ${ex.n}`;
+      this.leadTxt.className = 'sb-lead live';
+    } else {
+      this.leadTxt.textContent = Math.abs(d) < 0.03 ? 'even' : `${this.names[d > 0 ? 0 : 1]} ahead`;
+      this.leadTxt.className = `sb-lead ${Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
+    }
+    const ended = t > this.endT + 1e-3;
+    for (let i = 0; i < 2; i++) this.fillPlate(t, i, st.ships[i].raw, ended);
+    const portrait = document.body.classList.contains('portrait');
+    if (portrait) this.placeDocked(st, cam); else this.placePlates(st, cam);
+    if (this.frameN++ % 10 === 0 || !this.scene.stage) this.measureStage(portrait);
+    this.placeLabels(t, st, cam);
+  }
+
+  fillPlate(t, i, r, ended) {
+    const P = this.plates[i], ms = this.m.ships[i];
+    const lost = ended && this.m.raw.winner !== i && this.m.raw.winner !== null;
+    const ending = { destroyed: 'destroyed', 'dead in space': 'adrift', 'crew dead': 'crew lost' }[this.m.raw.end_reason] || 'out';
+    const g = r.g;
+    const plan = lost ? ending : ended ? (this.m.raw.winner === i ? 'victory' : 'stood down') : r.alive ? (PLAN[r.mode] ?? r.mode) : 'out';
+    // The plan line carries the g once it's hard.
+    P.plan.innerHTML = `${plan}${!ended && r.alive && g > 6 ? ` <b class="${g > 11 ? 'hot' : 'warm'}">${g.toFixed(0)} g</b>` : ''}`;
+    P.p.classList.toggle('lost', lost);
+    // Railgun: its charge, in the head.
+    const [charge, , , ammo, over] = r.rail;
+    const rtxt = ended || !r.alive || charge < 0.02 ? '' : charge >= 0.999 ? 'RAIL READY' : `RAIL ${Math.round(charge * 100)}%`;
+    if (P.rail.textContent !== rtxt) P.rail.textContent = rtxt;
+    P.rail.className = `pl-rail${charge >= 0.999 ? ' ready' : ''}${over ? ' over' : ''}`;
+    const hf = Math.max(0, r.hull / ms.hull);
+    P.hullFill.style.width = `${hf * 100}%`;
+    P.hullFill.style.background = hf < 0.3 ? '#ff3b5c' : TEAM_CSS[i];
+    P.hullTxt.textContent = `${Math.round(hf * 100)}%`;
+    r.crew.forEach(([state, health], k) => { P.dots[k].className = state === 2 ? 'dead' : state === 1 ? 'out' : health < 60 ? 'hurt' : ''; });
+    const am = `rail ${ammo} · torps ${r.torps[0]}`;
+    if (am !== P.lastAmmo) { P.ammo.textContent = am; P.lastAmmo = am; }
+    const outs = OUTS.map(([label, idx]) => {
+      const down = idx.filter((k) => r.parts[k] <= 0).length;
+      if (!down) return null;
+      return label === 'PDC' ? `PDC ${down}/3 out` : label === 'thrusters' ? (down >= 2 ? 'thrusters out' : null) : `${label} out`;
+    }).filter(Boolean).join(' · ');
+    if (outs !== P.lastOuts) {
+      // A system newly out: the row lights up for a moment.
+      const grew = outs.length > P.lastOuts.length && t > 0.5;
+      P.outs.textContent = outs; P.lastOuts = outs;
+      if (grew) { P.outs.classList.remove('fresh'); void P.outs.offsetWidth; P.outs.classList.add('fresh'); P.outsFreshUntil = t + 2.5; }
+    }
+    if (P.outsFreshUntil && t > P.outsFreshUntil) { P.outs.classList.remove('fresh'); P.outsFreshUntil = 0; }
+    // PDC burst: its running tally.
+    const b = t <= this.endT + 2 ? this.m.burstAt(i, t) : null;
+    const txt = !b ? '' : b.mode === 'ship' ? `PDC on target ${b.hits}/${b.rounds} · ${b.rounds ? Math.round((100 * b.hits) / b.rounds) : 0}%` : `PDC vs torpedoes · ${b.hits}/${b.engaged} down`;
+    if (P.acc.textContent !== txt) P.acc.textContent = txt;
+    P.acc.classList.toggle('done', !!(b && b.done));
+    const f = P.flagState;
+    if (f && t >= f.until) { P.flag.classList.remove('on'); P.flagState = null; this.stats.shortest = Math.min(this.stats.shortest, t - f.t0); }
+    this.chatterFor(t, i, r);
+  }
+
+  // The stage: the part of the screen the overlay leaves clear, which the director frames the
+  // fight into (between the scoreboard, with room for its news line, and the dock or the
+  // bottom edge).
+  measureStage(portrait) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const sb = $('#scoreboard').getBoundingClientRect();
+    // (Once the result card is up, the stage is what's left under it.)
+    const res = $('#result');
+    const top = !res.hidden && portrait ? res.getBoundingClientRect().bottom + 8 : sb.bottom + (portrait ? 44 : H < 520 ? 4 : 10);
+    const bottom = portrait ? this.dock.getBoundingClientRect().top - 40 : H - 16;
+    this.scene.stage = { top, bottom: Math.max(top + 120, bottom), left: portrait ? 8 : 0, right: portrait ? W - 8 : W };
+    window.__stage = this.scene.stage;
+  }
+
+  // Portrait: plates in the dock (moved there once), leaders hidden, name tags on the ships.
+  placeDocked(st, cam) {
+    const W = window.innerWidth, H = window.innerHeight;
+    for (let i = 0; i < 2; i++) {
+      const pl = this.plates[i].p;
+      if (pl.parentNode !== this.dock) { this.dock.append(pl); pl.style.transform = ''; pl.style.display = ''; }
+      this.leaderLines[i].style.display = 'none';
+    }
+    const P = [0, 1].map((i) => st.ships[i].pos.clone().sub(this.scene.mid).project(cam));
+    const icon = H * 0.5 * this.scene.iconFrac(st);
+    this.tagRects = [];
+    for (let i = 0; i < 2; i++) {
+      const p = P[i], o = P[1 - i], tag = this.shipTags[i];
+      const on = p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+      tag.style.display = on ? '' : 'none';
+      const x = (p.x * 0.5 + 0.5) * W, y = (-p.y * 0.5 + 0.5) * H;
+      let dx = (p.x - o.x) * W, dy = -(p.y - o.y) * H;
+      const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      const w = tag.offsetWidth || 60, h = 16;
+      let tx = x + dx * (icon + 10) + (dx >= 0 ? 0 : -w), ty = y + dy * (icon + 10) - h / 2;
+      tx = Math.max(6, Math.min(W - 6 - w, tx));
+      tag.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
+      this.tagRects.push({ x: tx + w / 2, y: ty + h / 2, w, h });
+    }
+  }
+
+  // Plates sit beside their ship, on the side away from the other ship, joined by a leader;
+  // kept on screen and clear of the scoreboard and of each other; eased so they don't jitter.
+  placePlates(st, cam) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const P = [0, 1].map((i) => st.ships[i].pos.clone().sub(this.scene.mid).project(cam));
+    const S = P.map((p) => ({ x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, on: p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 }));
+    const icon = H * 0.5 * this.scene.iconFrac(st);
+    const rects = [];
+    for (let i = 0; i < 2; i++) {
+      if (this.plates[i].p.parentNode !== $('#tags')) $('#tags').append(this.plates[i].p);
+      this.shipTags[i].style.display = 'none';
+    }
+    for (let i = 0; i < 2; i++) {
+      const pl = this.plates[i].p, s = S[i], o = S[1 - i];
+      const w = pl.offsetWidth || 190, h = pl.offsetHeight || 80;
+      let dx = s.x - o.x, dy = s.y - o.y;
+      const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      // Anchor: out from the ship, away from the other; the plate hangs off it on that side.
+      const reach = icon + 34;
+      const ax = s.x + dx * reach, ay = s.y + dy * reach;
+      let x = dx >= 0 ? ax : ax - w;
+      let y = ay - h * (0.5 - 0.5 * dy);
+      x = Math.max(16, Math.min(W - 16 - w, x));
+      y = Math.max(112, Math.min(H - 16 - h, y));
+      rects.push({ x, y, w, h });
+    }
+    // Keep the two apart (vertical push).
+    const [a, b] = rects;
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
+      const over = Math.min(a.y + a.h - b.y, b.y + b.h - a.y) / 2 + 6;
+      if (a.y < b.y) { a.y -= over; b.y += over; } else { a.y += over; b.y -= over; }
+    }
+    this.tagRects = [];
+    for (let i = 0; i < 2; i++) {
+      const r = rects[i];
+      const prev = this.platePos[i];
+      const q = prev && Math.hypot(prev.x - r.x, prev.y - r.y) < 400 ? { x: prev.x + (r.x - prev.x) * 0.25, y: prev.y + (r.y - prev.y) * 0.25 } : { x: r.x, y: r.y };
+      this.platePos[i] = q;
+      const pl = this.plates[i].p;
+      pl.style.display = S[i].on ? '' : 'none';
+      pl.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
+      this.tagRects.push({ x: q.x + r.w / 2, y: q.y + r.h / 2, w: r.w, h: r.h });
+      // Leader: from just off the ship to the plate's nearest edge.
+      const s = S[i];
+      const tx = Math.max(q.x, Math.min(q.x + r.w, s.x)), ty = Math.max(q.y, Math.min(q.y + r.h, s.y));
+      const L = Math.hypot(tx - s.x, ty - s.y) || 1;
+      const sx = s.x + ((tx - s.x) / L) * Math.min(L, icon * 0.9 + 4), sy = s.y + ((ty - s.y) / L) * Math.min(L, icon * 0.9 + 4);
+      const ln = this.leaderLines[i];
+      ln.setAttribute('x1', sx.toFixed(1)); ln.setAttribute('y1', sy.toFixed(1)); ln.setAttribute('x2', tx.toFixed(1)); ln.setAttribute('y2', ty.toFixed(1));
+      ln.style.display = S[i].on && L > icon + 6 ? '' : 'none';
+    }
+  }
+
+  // In-scene labels: torpedo salvos (per owner, torpedoes within 900 m of each other share one
+  // label: count, and range once they're close) and shrapnel clouds still closing on a ship.
+  placeLabels(t, st, cam) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const scr = (p) => { const n = p.clone().sub(this.scene.mid).project(cam); return n.z < 1 && Math.abs(n.x) < 1 && Math.abs(n.y) < 1 ? { x: (n.x * 0.5 + 0.5) * W, y: (-n.y * 0.5 + 0.5) * H } : null; };
+    const clear = (x, y, w = 110) => this.tagRects.every((r) => Math.abs(r.x - (x + w / 2)) > r.w / 2 + w / 2 || Math.abs(r.y - y) > r.h / 2 + 14);
+    // Torpedo salvos.
+    const groups = [];
+    if (t <= this.endT) {
+      for (const tp of this.m.objects(t, 'tp')) {
+        const g = groups.find((q) => q.owner === tp.owner && q.pos.distanceTo(tp.pos) < 900);
+        if (g) { g.n++; g.sum.add(tp.pos); g.pos = g.sum.clone().divideScalar(g.n); } else groups.push({ owner: tp.owner, n: 1, sum: tp.pos.clone(), pos: tp.pos.clone() });
+      }
+    }
+    const tspots = [];
+    for (const g of groups) {
+      const s = scr(g.pos);
+      if (!s || tspots.length >= this.torpTags.length) continue;
+      const range = g.pos.distanceTo(st.ships[1 - g.owner].pos);
+      const hot = range < 2500;
+      const txt = `${g.n > 1 ? g.n + ' torpedoes' : 'torpedo'}${hot ? ` · ${(range / 1000).toFixed(1)} km` : ''}`;
+      // (Flipped to the left of the salvo near the right edge.)
+      const tw = 7.2 * txt.length;
+      const x = s.x + 16 + tw > W - 6 ? s.x - 16 - tw : s.x + 16, y = s.y - 22;
+      if (!clear(x, y)) continue;
+      tspots.push({ x, y, txt, hot, owner: g.owner });
+    }
+    this.torpTags.forEach((tag, k) => {
+      const q = tspots[k];
+      tag.style.display = q ? '' : 'none';
+      if (!q) return;
+      tag.style.transform = `translate(${q.x}px, ${q.y}px)`;
+      if (tag.textContent !== q.txt) tag.textContent = q.txt;
+      tag.className = `slabel torp t${q.owner}${q.hot ? ' hot' : ''}`;
+    });
+    // Shrapnel (clouds close together share a label).
+    const spots = [];
+    for (const d of this.scene.shrapTags || []) {
+      const s = scr(d.pos);
+      if (!s) continue;
+      const x = s.x + 18 + 80 > W - 6 ? s.x - 18 - 80 : s.x + 18, y = s.y + 14;
+      if (spots.some((q) => Math.hypot(q.x - x, q.y - y) < 120) || tspots.some((q) => Math.hypot(q.x - x, q.y - y) < 60) || !clear(x, y, 80)) continue;
+      spots.push({ x, y });
+    }
+    this.shrapTags.forEach((tag, k) => {
+      const q = spots[k];
+      tag.style.display = q ? '' : 'none';
+      if (q) tag.style.transform = `translate(${q.x}px, ${q.y}px)`;
+    });
+    // Measurement labels (centred on their point).
+    const ml = this.scene.measureLabels || [];
+    this.mLabels.forEach((tag, k) => {
+      const d = ml[k], s = d && scr(d.pos);
+      tag.style.display = s ? '' : 'none';
+      if (!s) return;
+      if (tag.textContent !== d.text) tag.textContent = d.text;
+      tag.style.opacity = d.alpha.toFixed(2);
+      tag.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px) translate(-50%, -50%)`;
+    });
+  }
+}
