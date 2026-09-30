@@ -154,12 +154,21 @@ impl World {
         let mut rng = Rng::new(seed);
         let sep = rng.range(START_SEPARATION.0, START_SEPARATION.1);
         let axis = rng.unit_vec();
+        // Already under way: each ship starts moving at START_SPEED, headed within
+        // START_HEADING of the other and nose within START_FACING of it — squared up, but not
+        // mirror images.
+        let off = |dir: Vec3, max: f64, rng: &mut Rng| {
+            let r = rng.unit_vec();
+            let perp = (r - dir * r.dot(dir)).normalized_or(dir.any_perp());
+            let ang = rng.range(0.0, max);
+            (dir * ang.cos() + perp * ang.sin()).normalized_or(dir)
+        };
         let mk = |side: usize, rng: &mut Rng| {
             let pos = axis * (if side == 0 { -0.5 } else { 0.5 } * sep);
             let face = (-pos).normalized();
-            let jitter = rng.unit_vec() * 0.25;
-            let vel = rng.unit_vec() * rng.range(0.0, 40.0);
-            Ship::new(side, classes[side], pos, vel, Quat::from_to(Vec3::Z, (face + jitter).normalized()), rng)
+            let vel = off(face, START_HEADING, rng) * rng.range(START_SPEED.0, START_SPEED.1);
+            let nose = off(face, START_FACING, rng);
+            Ship::new(side, classes[side], pos, vel, Quat::from_to(Vec3::Z, nose), rng)
         };
         let a = mk(0, &mut rng);
         let b = mk(1, &mut rng);

@@ -217,3 +217,10 @@ Measured by `python3 python/duel/sync.py`: the share of one ship's salvos (±3 s
   - endings: destroyed 1,783 / dead in space 15 / crew dead 2; killing blows railgun 37%, PDC 36%, torpedo 26%, ram 1%;
   - G1–G6 all PASS; railgun hits 63%; crew killed mid-fight in 78% of fights, systems lost in 90%.
 - Card re-recorded; the viewer shows RAMMING! on the plate with a radio line, and a "both disabled" result.
+
+
+## I25 fast starts (user: matches start slowly; start with velocity and random but vaguely facing vectors)
+- Ships start 120–320 m/s, velocity within 45° of the line to the other ship, nose within 30° (START_SPEED / START_HEADING / START_FACING). They were nearly at rest (0–40 m/s) with noses within ~15°.
+- First salvo median 13.1 → 7.8 s (10th–90th percentile 8.6–21.0 → 4.8–16.6). First damage median 25.4 → 19.2 s (90th percentile 50.5 → 25.3).
+- 300 per pairing: G1–G6 all PASS (median 85 s, 95th percentile 193 s, all fights end, max 379 s). Railgun hit 61%; salvos 2.26× chance; crew killed mid-fight in 78% of fights, systems lost in 87%.
+- Card re-recorded.

@@ -5,6 +5,11 @@ pub const G: f64 = 9.81;
 
 /// Arena: ships start this far apart; leaving the engagement sphere forfeits.
 pub const START_SEPARATION: (f64, f64) = (8000.0, 10000.0);
+/// Starting speed (m/s), and how far off the line to the other ship the velocity and the nose
+/// may start (rad).
+pub const START_SPEED: (f64, f64) = (120.0, 320.0);
+pub const START_HEADING: f64 = 45.0 * std::f64::consts::PI / 180.0;
+pub const START_FACING: f64 = 30.0 * std::f64::consts::PI / 180.0;
 /// No walls: space is open. A fight is broken off when the ships stay more than this far apart
 /// for DISENGAGE_TIME; the side that was burning away from the other forfeits.
 pub const DISENGAGE_RANGE: f64 = 15000.0;

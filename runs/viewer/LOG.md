@@ -191,6 +191,9 @@ The storyboard review uses these questions: can a viewer tell who is where in de
 - **Endings:** the plate shows RAMMING! with a radio line ("Guns are dry. Ramming speed!"); the result card reads "by ramming" or "both disabled · decided on condition".
 - **Audit, new card:** V1 10/12 (worst: both-in 96.8%; along-axis 2%), V4 11/12 (2.0% too close), V9 11/12, the rest 12/12. These fights are new; none of the three misses involves a ram.
 
+## Round 9: no slow motion on the kill (user: it's a spoiler)
+- Slow motion started on a low ship gave the ending away. The kill window is gone, and no other window may end within 3 s of the killing blow. On the card the closest now ends 5.8 s before the kill; kills play at full speed. The flash, flash frame and result card still mark the end.
+
 ## Next
 - V9: ships looking small in some frames (3–5% in three fights), during fast convergence.
 - Watching full fights live, not just stills.

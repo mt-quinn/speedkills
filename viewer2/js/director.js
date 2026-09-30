@@ -56,13 +56,10 @@ export class Director {
     }
     // The killing blow always gets one.
     const end = ev.find((e) => e.k === 'end');
-    const lastDmg = [...ev].reverse().find((e) => e.k === 'damage' && end && e.t <= end.t + 1e-6);
+    // No slow motion on the killing blow, nor on anything in the last 3 s before it: time
+    // slowing down on a ship that's low would give the ending away.
     const picked = [];
-    if (lastDmg && end && end.winner !== null) {
-      const fire = [...ev].reverse().find((e) => e.k === 'rail_fire' && e.t <= lastDmg.t && e.t > lastDmg.t - 3);
-      // (At most 1.2 s of lead-in: a long flight to the killing blow would eat a short fight's budget.)
-      picked.push({ t0: Math.max((fire ? fire.t : lastDmg.t - 0.6) - 0.1, lastDmg.t - 1.2), t1: end.t + 0.8, at: lastDmg.t, weight: 1e9, kill: true });
-    }
+    if (end) for (let k = cands.length - 1; k >= 0; k--) if (cands[k].t1 > end.t - 3) cands.splice(k, 1);
     cands.sort((a, b) => b.weight - a.weight);
     // Budget in watching time: slowed play at 1/3 speed costs three seconds per match second.
     // Keep slowed play to ≤10% of the broadcast's running time.
