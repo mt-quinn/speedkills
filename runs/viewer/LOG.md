@@ -196,7 +196,7 @@ The storyboard review uses these questions: can a viewer tell who is where in de
 
 ## Round 10: one line between the ships, not four (user: PDC, railgun aim and torpedo trails all drew the same line)
 - **Railgun:** the gap-spanning charge line becomes a short barrel stub at the nose that fills with charge (12% of the range, at least 7% of screen height, at most 35% of the range). When the gun bears on the target (charged over 30%), four corner brackets lock onto it and close in as the charge builds: white while charging, pulsing threat red when ready.
-- **PDC:** each mount's stream bows out on its own side in a kinetic arc (height 16% of the range, up to 260 m, parabolic) and comes down on the aim point, so the three mounts fan round the line. Stylised (the impact point is exact; past it the round runs straight). Fire at the ship is at 55% brightness; fire at torpedoes is full.
+- **PDC:** each mount's stream bows out on its own side in a kinetic arc (height 8% of the range, up to 130 m, parabolic; halved from 16%/260 m at the user's request) and comes down on the aim point, so the three mounts fan round the line. Stylised (the impact point is exact; past it the round runs straight). Fire at the ship is at 55% brightness; fire at torpedoes is full.
 - **Torpedo trails:** 3 s → 0.8 s, a comet tail.
 - **Railgun round:** the one long bright streak (4 px, 6 overcharged; 220 m or 8% of screen minimum).
 - The legend updated to match. Sound: desktop starts audio on load (resumed on the first click or key where the browser holds it); a "click / tap for sound" hint shows whenever sound is wanted but not audible (on phones centred above the dock), unless the viewer switched it off.

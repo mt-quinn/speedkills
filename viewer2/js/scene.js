@@ -924,7 +924,7 @@ export class Scene {
             nw.sub(dir.clone().multiplyScalar(nw.dot(dir)));
             if (nw.lengthSq() < 1e-6) nw.copy(dir.clone().cross(this.up)); 
             nw.normalize();
-            const H = Math.min(0.16 * d0, 260);
+            const H = Math.min(0.08 * d0, 130);
             const at = (a) => { const u = Math.min(1, (a * V) / Math.max(1, d0)); return from.clone().addScaledVector(vel, a).addScaledVector(nw, H * 4 * u * (1 - u)); };
             const head = at(age);
             const len = Math.min(age * V, Math.max(18, this.screenScale(head, 0.008, 1)));
