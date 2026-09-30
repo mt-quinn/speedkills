@@ -40,8 +40,9 @@ pub const ROT_ACCEL: f64 = 1.5;
 
 // ---- torpedoes ----
 pub const TORPEDOES: u32 = 12;
-/// Three tubes fire together as a salvo; the tubes reload together.
-pub const TORP_TUBES: u32 = 3;
+/// Four tubes, each reloading on its own: a salvo is any number of loaded tubes, all at once or
+/// rippled.
+pub const TORP_TUBES: u32 = 4;
 pub const TORP_RELOAD: f64 = 12.0;
 /// A salvo flies spread apart (m off the line of sight, so one burst's shrapnel can't take two)
 /// and closes up before entering PDC range, so all of it arrives together, at full speed.

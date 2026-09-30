@@ -117,6 +117,36 @@ pub struct Pilot {
     /// Last time either ship lost hull (to spot a stalled fight), and the hulls then.
     last_change: f64,
     last_health: [f64; 2],
+    /// Temperament: this pilot's own habits, so a mirror match pairs two different people.
+    pub temper: Temper,
+    /// When the salvo conditions first held (the gunner's reaction runs from here).
+    salvo_since: Option<f64>,
+    /// Why the last salvo was the size it was (diagnostics).
+    pub salvo_why: &'static str,
+    /// When this pilot last launched (a follow-up waits for the first to draw their fire).
+    last_salvo_t: f64,
+    /// When the range entered the salvo band.
+    band_since: Option<f64>,
+}
+
+/// A pilot's habits, drawn once per pilot (seeded).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Temper {
+    /// Where in the doctrine's salvo band they like to launch: 0 = as soon as in range (long),
+    /// 1 = wait for the near edge.
+    pub launch_depth: f64,
+    /// Salvo size habit: −1 thrifty, 0, +1 heavy.
+    pub salvo_bias: i32,
+    /// How readily they ripple a salvo rather than send it at once (shifts the heat/ammo
+    /// thresholds that call for it).
+    pub ripple_lean: f64,
+    /// The gunner's reaction: seconds between the salvo being on and the launch.
+    pub reaction: f64,
+    /// Railgun patience: added to the odds a shot needs.
+    pub odds_shift: f64,
+    /// How long they'll hold a loaded salvo waiting for the target to turn a weak side to them
+    /// (fewer PDC mounts bearing), before sending it anyway (s).
+    pub patience: f64,
 }
 
 impl Pilot {
@@ -142,7 +172,30 @@ impl Pilot {
             extending: false,
             last_change: 0.0,
             last_health: [f64::MAX, f64::MAX],
-        }
+            temper: Temper::default(),
+            salvo_since: None,
+            salvo_why: "",
+            last_salvo_t: -99.0,
+            band_since: None,
+        }.with_temper(seed)
+    }
+
+    fn with_temper(mut self, seed: u64) -> Pilot {
+        // (Its own stream, so the temperament doesn't shift the pilot's juke sequence.)
+        let mut r = Rng::new(seed.wrapping_mul(0x2545_F491_4F6C_DD1D) ^ 0xA5A5_5A5A);
+        self.temper = if std::env::var("TEMPER").map_or(false, |v| v == "off") {
+            Temper::default()
+        } else {
+            Temper {
+                launch_depth: r.f64(),
+                salvo_bias: (r.f64() * 3.0) as i32 - 1,
+                ripple_lean: r.range(-0.2, 0.2),
+                reaction: r.range(0.1, 1.6),
+                odds_shift: r.range(-0.08, 0.08),
+                patience: r.range(1.0, 7.0),
+            }
+        };
+        self
     }
 
     pub fn act(&mut self, w: &World, me: usize) -> Input {
@@ -272,7 +325,7 @@ impl Pilot {
         let desperate = lead_by < -0.15;
         let ahead = lead_by > 0.06;
         let doc = self.style.doctrine();
-        self.fire_odds = if behind { (doc.odds - 0.1).max(0.2) } else if ahead { doc.odds + 0.15 } else { doc.odds };
+        self.fire_odds = (if behind { (doc.odds - 0.1).max(0.2) } else if ahead { doc.odds + 0.15 } else { doc.odds }) + self.temper.odds_shift;
         // The shot clock: a fight where nothing has landed for 15 s is stalled (both waiting on
         // the other). Whoever isn't ahead has the most to gain from action: stop dodging, aim,
         // and take any real chance.
@@ -367,10 +420,67 @@ impl Pilot {
         let incoming_run = doc.screen > 0.0 && closing > 200.0 && (2500.0..6000.0).contains(&dist);
         let want_salvo = if last_salvo { window || lead_by < -0.2 } else { !ahead || their_pdcs <= 1 || incoming_run };
         let salvo_range = if incoming_run { 2500.0..8000.0 } else { salvo_range };
-        if self.torps && want_salvo && salvo_range.contains(&dist) && s.torpedoes > 0 && s.torp_reload <= 0.0 && s.part(Part::Launcher) > 0.0 {
+        // This pilot's launch habit: a preferred range within the band (20–80% of the way in),
+        // launching within ±700 m of it — so two pilots crossing the band together (closing or
+        // opening) reach their windows at different moments.
+        let span = salvo_range.end - salvo_range.start;
+        let pref = salvo_range.start + (0.2 + 0.6 * self.temper.launch_depth) * span.min(3000.0);
+        // (A ship that lingers in the band past its patience takes any range in it.)
+        let in_band = salvo_range.contains(&dist);
+        if !in_band { self.band_since = None; }
+        let lingered = in_band && w.t - *self.band_since.get_or_insert(w.t) > self.temper.patience;
+        let salvo_range = if lingered { salvo_range } else { (pref - 700.0).max(salvo_range.start)..(pref + 700.0).min(salvo_range.end) };
+        // How many, and how: each PDC mount takes one torpedo at a time, so saturation is one
+        // more torpedo than they have working mounts; against a thin or dry screen one or two
+        // is enough; behind badly, empty the tubes; ahead, thrifty. Mounts running hot or low on
+        // ammunition are better beaten by a ripple — torpedoes arriving one after another keep
+        // them firing — than by one simultaneous punch.
+        let ready = s.tubes.iter().filter(|&&r| r <= 0.0).count() as u32;
+        let hot: f64 = e.pdcs.iter().map(|p| p.heat).sum::<f64>() / e.pdcs.len().max(1) as f64;
+        // (Mounts that can bear on torpedoes coming from us: working, loaded, not overheated, and
+        // with our bearing inside their arc — which depends on how the target is turned.)
+        let from_us = (s.pos - e.pos).normalized_or(Vec3::Z);
+        let cover = (0..PDC_MOUNTS).filter(|&m| e.part(Part::pdc(m)) > 0.0 && e.pdcs[m].ammo > 0.0 && !e.pdcs[m].overheated && e.orient.rotate(pdc_normal(m)).dot(from_us) > PDC_ARC_COS).count() as i32;
+        // Salvo doctrine by temperament: thrifty pilots probe (1–2: taxing their point defence
+        // cheaply, heating it for the next), balanced ones match the mounts bearing, heavy ones
+        // saturate. A screen already hot gets everything loaded, rippled.
+        // (Punishing a hot screen is a follow-up: only when our own torpedoes heated it, i.e. we
+        // launched in the last 12 s — not when both screens are hot from a PDC brawl.)
+        let my_heat = hot > 0.5 && w.t - self.last_salvo_t < 12.0;
+        let mut want_n: i32 = if their_ammo < 20.0 { 1 } else if my_heat { ready as i32 } else {
+            match self.temper.salvo_bias { -1 => if cover >= 3 { 2 } else { 1 }, 0 => cover, _ => cover + 1 }
+        };
+        let mut why = if their_ammo < 20.0 { "dry" } else if my_heat { "hot" } else { ["thrifty", "balanced", "heavy"][(self.temper.salvo_bias + 1) as usize] };
+        if lead_by < -0.2 { want_n = ready as i32; why = "behind"; } else if ahead { want_n -= 1; }
+        let want_n = (want_n.max(1) as u32).min(s.class.tubes).min(s.torpedoes.max(1));
+        // Ripple when torpedoes arriving one after another beat a punch: their screen is hot or
+        // short of ammunition (keep it firing), this is a follow-up to our own salvo (stream in
+        // behind it while their mounts are busy), or — for pilots who lean that way — a long shot,
+        // whose flight gives a stream time to spread.
+        let follow_up = w.t - self.last_salvo_t < 12.0;
+        let ripple = hot > 0.35 - self.temper.ripple_lean || (their_ammo < 45.0 + 60.0 * self.temper.ripple_lean && their_ammo >= 20.0)
+            || follow_up || (self.temper.ripple_lean > 0.05 && dist > 6000.0);
+        let loaded = ready >= want_n || (ready > 0 && (lead_by < -0.2 || s.torpedoes <= ready));
+        // A follow-up salvo waits 4–8 s (by temperament) for the last to draw their fire: a
+        // probe's torpedoes keep their mounts busy and hot when the next arrive.
+        let spaced = w.t - self.last_salvo_t > 4.0 + 4.0 * self.temper.launch_depth || lead_by < -0.2;
+        let on = spaced && self.torps && want_salvo && salvo_range.contains(&dist) && s.torpedoes > 0 && loaded && s.launch_queue.is_empty() && s.part(Part::Launcher) > 0.0;
+        if !on { self.salvo_since = None; }
+        // (While waiting for the moment the pilot keeps fighting — guns mode below keeps the nose
+        // on them; the salvo takes over only to launch.)
+        let fire_now = on && {
+            let since = *self.salvo_since.get_or_insert(w.t);
+            let good_moment = cover < 3 || w.t - since >= self.temper.patience || lead_by < -0.2;
+            w.t - since >= self.temper.reaction && good_moment
+        };
+        if fire_now {
             self.mode = "salvo";
             inp.rate = turn_toward(s, to_enemy);
             inp.fire_torpedo = s.forward().dot(to_enemy) > 0.95;
+            if inp.fire_torpedo { self.last_salvo_t = w.t; }
+            inp.torp_count = want_n.min(ready);
+            self.salvo_why = why;
+            inp.torp_ripple = if ripple && want_n > 1 { 0.55 + 0.4 * (dist / 7500.0) } else { 0.0 };
             return;
         }
 

@@ -181,7 +181,11 @@ pub struct Ship {
     pub crew: Vec<Crew>,
     pub pdcs: Vec<Pdc>,
     pub torpedoes: u32,
+    /// Time until the next tube is loaded (for the trace); each tube's own reload is in `tubes`.
     pub torp_reload: f64,
+    pub tubes: Vec<f64>,
+    /// Launches of a rippled salvo still to go: (when, index in salvo, salvo size, ring turn).
+    pub launch_queue: Vec<(f64, u32, u32, f64)>,
     pub rail_ammo: u32,
     /// 0..1 while charging (1 = ready); cooldown after a shot.
     pub rail_charge: f64,
@@ -230,6 +234,8 @@ impl Ship {
             pdcs: (0..PDC_MOUNTS).map(|_| Pdc { ammo: class.pdc_ammo, heat: 0.0, overheated: false, target: None, at_ship: false }).collect(),
             torpedoes: class.torpedoes,
             torp_reload: 0.0,
+            tubes: vec![0.0; class.tubes as usize],
+            launch_queue: Vec::new(),
             rail_ammo: class.rail_ammo,
             rail_charge: 0.0,
             rail_cooldown: 0.0,

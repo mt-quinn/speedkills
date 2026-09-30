@@ -75,6 +75,10 @@ pub struct SideDiag {
     pub pdc_mounts_left: u32,
     /// When each salvo went out (s).
     pub salvo_times: Vec<f64>,
+    /// Each salvo: (first launch, torpedoes, rippled), and the last launch time (to group a
+    /// ripple's launches into one salvo).
+    pub salvos: Vec<(f64, u32, bool, &'static str)>,
+    pub last_launch: f64,
     pub rail_left: u32,
     pub first_damage_dealt_t: Option<f64>,
     /// Meaningful hits taken (≥50 hull, a quarter of a part, or a crew member), by cause.
@@ -127,7 +131,7 @@ impl MatchDiag {
     pub fn to_json(&self) -> String {
         let side = |s: &SideDiag| {
             format!(
-                "{{\"style\":\"{}\",\"class\":\"{}\",\"torps_fired\":{},\"torps_downed\":{},\"torps_hit\":{},\"debris_hits\":{},\"debris_share\":{:.2},\"rail_fired\":{},\"rail_hits\":{},\"rail_vents\":{},\"overcharges\":{},\"overcharge_burns\":{},\"rail_ranges\":[{}],\"shots\":[{}],\"pdc_hits_dealt\":{},\"parts_lost\":[{}],\"repairs\":{},\"crew_killed_by_hits\":{},\"crew_killed_by_g\":{},\"blackouts\":{},\"blackout_log\":[{}],\"peak_g\":{:.2},\"time_over_8g\":{:.2},\"time_over_12g\":{:.2},\"max_speed\":{:.1},\"max_radius\":{:.0},\"final_hull\":{:.1},\"final_parts_mean\":{:.3},\"crew_alive\":{},\"torps_left\":{},\"pdc_ammo_left\":{:.1},\"pdc_mounts_left\":{},\"salvo_times\":[{}],\"rail_left\":{},\"first_damage_dealt_t\":{},\"hits_taken\":{{{}}},\"damage_taken\":{{{}}},\"time_over_14g\":{:.2},\"over14_by_mode\":{{{}}},\"min_tolerance\":{:.3},\"mode_time\":{{{}}},\"part_loss_t\":[{}],\"crew_hit_death_t\":[{}],\"parts_damage\":{:.3}}}",
+                "{{\"style\":\"{}\",\"class\":\"{}\",\"torps_fired\":{},\"torps_downed\":{},\"torps_hit\":{},\"debris_hits\":{},\"debris_share\":{:.2},\"rail_fired\":{},\"rail_hits\":{},\"rail_vents\":{},\"overcharges\":{},\"overcharge_burns\":{},\"rail_ranges\":[{}],\"shots\":[{}],\"pdc_hits_dealt\":{},\"parts_lost\":[{}],\"repairs\":{},\"crew_killed_by_hits\":{},\"crew_killed_by_g\":{},\"blackouts\":{},\"blackout_log\":[{}],\"peak_g\":{:.2},\"time_over_8g\":{:.2},\"time_over_12g\":{:.2},\"max_speed\":{:.1},\"max_radius\":{:.0},\"final_hull\":{:.1},\"final_parts_mean\":{:.3},\"crew_alive\":{},\"torps_left\":{},\"pdc_ammo_left\":{:.1},\"pdc_mounts_left\":{},\"salvo_times\":[{}],\"rail_left\":{},\"first_damage_dealt_t\":{},\"hits_taken\":{{{}}},\"damage_taken\":{{{}}},\"time_over_14g\":{:.2},\"over14_by_mode\":{{{}}},\"min_tolerance\":{:.3},\"mode_time\":{{{}}},\"part_loss_t\":[{}],\"crew_hit_death_t\":[{}],\"parts_damage\":{:.3},\"salvos\":[{}]}}",
                 s.style, s.class, s.torps_fired, s.torps_downed, s.torps_hit, s.debris_hits, s.debris_share, s.rail_fired, s.rail_hits, s.rail_vents, s.overcharges, s.overcharge_burns, s.rail_ranges.iter().map(|r| format!("{r:.0}")).collect::<Vec<_>>().join(","),
                 s.shots.iter().map(|x| format!("{{\"t\":{:.2},\"range\":{:.0},\"aim_miss\":{:.1},\"escape\":{:.1},\"p_est\":{:.2},\"target_lateral\":{:.1},\"closest\":{:.1},\"hit\":{},\"flight\":{:.3},\"target_mode\":\"{}\",\"target_g\":{:.1}}}", x.t, x.range, x.aim_miss.min(9999.0), x.escape, x.p_est, x.target_lateral, x.closest, x.hit, x.flight, x.target_mode, x.target_g)).collect::<Vec<_>>().join(","), s.pdc_hits_dealt,
                 s.parts_lost.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join(","),
@@ -143,6 +147,7 @@ impl MatchDiag {
                 s.part_loss_t.iter().map(|t| format!("{t:.1}")).collect::<Vec<_>>().join(","),
                 s.crew_hit_death_t.iter().map(|t| format!("{t:.1}")).collect::<Vec<_>>().join(","),
                 s.parts_damage,
+                s.salvos.iter().map(|(t, n, r, y)| format!("[{t:.1},{n},{},\"{y}\"]", *r as u8)).collect::<Vec<_>>().join(","),
             )
         };
         format!(
@@ -201,6 +206,7 @@ pub fn run_classes(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipCl
         // Fire control's view at the moment of decision (the step fires on this state).
         let pre = [shot(&w.ships[0], &w.ships[1]), shot(&w.ships[1], &w.ships[0])];
         let modes = [p[0].mode, p[1].mode];
+        let why = [p[0].salvo_why, p[1].salvo_why];
         let gs = [w.ships[0].g, w.ships[1].g];
         for i in 0..2 {
             *d.sides[i].mode_time.entry(modes[i].to_string()).or_insert(0.0) += DT;
@@ -281,9 +287,17 @@ pub fn run_classes(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipCl
                 Event::TorpedoLaunched { ship, id } => {
                     d.sides[ship].torps_fired += 1;
                     owner.insert(id, ship);
-                    if d.sides[ship].salvo_times.last().map_or(true, |&l| t - l > 1.0) {
-                        d.sides[ship].salvo_times.push(t);
+                    let sd = &mut d.sides[ship];
+                    let same = sd.salvos.last().map_or(false, |sv| t - sv.0 <= 5.0) && t - sd.last_launch <= 1.6;
+                    if same {
+                        let sv = sd.salvos.last_mut().unwrap();
+                        sv.1 += 1;
+                        if t - sv.0 > 0.15 { sv.2 = true; }
+                    } else {
+                        sd.salvos.push((t, 1, false, why[ship]));
+                        sd.salvo_times.push(t);
                     }
+                    sd.last_launch = t;
                 }
                 Event::TorpedoDown { id, .. } => { if let Some(&o) = owner.get(&id) { d.sides[o].torps_downed += 1; } }
                 Event::DebrisHit { victim, share, .. } => { d.sides[1 - victim].debris_hits += 1; d.sides[1 - victim].debris_share += share; }

@@ -14,6 +14,10 @@ pub struct Input {
     /// Desired body rotation rates (rad/s): x pitch, y yaw, z roll.
     pub rate: Vec3,
     pub fire_torpedo: bool,
+    /// How many torpedoes to send (1..tubes; 0 = as many as are loaded), and the gap between
+    /// launches (s; 0 = all at once, a ripple otherwise).
+    pub torp_count: u32,
+    pub torp_ripple: f64,
     /// Charge the railgun (hold); fire when charged.
     pub charge_rail: bool,
     pub fire_rail: bool,
@@ -273,24 +277,54 @@ impl World {
         if !s.alive {
             return;
         }
-        s.torp_reload = (s.torp_reload - dt * pace).max(0.0);
+        for tube in s.tubes.iter_mut() {
+            *tube = (*tube - dt * pace).max(0.0);
+        }
         s.rail_cooldown = (s.rail_cooldown - dt).max(0.0);
-        if inp.fire_torpedo && s.torpedoes > 0 && s.torp_reload <= 0.0 && s.part(Part::Launcher) > 0.0 && powered {
-            let n = s.torpedoes.min(s.class.tubes);
+        let ready = s.tubes.iter().filter(|&&r| r <= 0.0).count() as u32;
+        s.torp_reload = s.tubes.iter().cloned().fold(f64::MAX, f64::min);
+        // A salvo: n loaded tubes, all at once or rippled; each tube then reloads on its own.
+        if inp.fire_torpedo && s.launch_queue.is_empty() && s.torpedoes > 0 && ready > 0 && s.part(Part::Launcher) > 0.0 && powered {
+            let want = if inp.torp_count == 0 { ready } else { inp.torp_count };
+            let n = want.min(ready).min(s.torpedoes);
             s.torpedoes -= n;
-            s.torp_reload = s.class.torp_reload;
-            let (pos, vel, fwd) = (s.to_world(Part::Launcher.pos()), s.vel, s.forward());
-            let los = (self.ships[1 - i].pos - pos).normalized_or(fwd);
-            let (a, b) = (los.any_perp(), los.cross(los.any_perp()));
+            let mut left = n;
+            for tube in s.tubes.iter_mut() {
+                if left > 0 && *tube <= 0.0 { *tube = s.class.torp_reload; left -= 1; }
+            }
             let turn = self.rng.f64() * std::f64::consts::TAU;
+            let gap = inp.torp_ripple.max(0.0);
+            let s = &mut self.ships[i];
             for k in 0..n {
-                let ang = turn + k as f64 * std::f64::consts::TAU / n as f64;
-                let side = a * ang.cos() + b * ang.sin();
-                let bias = if n > 1 { side * TORP_SPREAD } else { Vec3::ZERO };
-                let id = self.id();
-                let v = vel + (fwd + side * 0.3).normalized() * TORP_EJECT;
-                self.torps.push(Torpedo { id, owner: i, pos, vel: v, dv: TORP_DV, acc: Vec3::ZERO, bias, born: self.t, alive: true });
-                self.events.push(Event::TorpedoLaunched { ship: i, id });
+                s.launch_queue.push((self.t + k as f64 * gap, k, n, turn));
+            }
+        }
+        // Launch what's due (a ripple leaves from wherever the ship is at the moment).
+        let s = &self.ships[i];
+        if !s.launch_queue.is_empty() {
+            if s.part(Part::Launcher) <= 0.0 || !powered {
+                // Launcher lost mid-ripple: the rest stay in the magazine.
+                let back = s.launch_queue.len() as u32;
+                let s = &mut self.ships[i];
+                s.torpedoes += back;
+                s.launch_queue.clear();
+            } else {
+                let now = self.t;
+                let due: Vec<(f64, u32, u32, f64)> = s.launch_queue.iter().cloned().filter(|q| q.0 <= now + 1e-9).collect();
+                self.ships[i].launch_queue.retain(|q| q.0 > now + 1e-9);
+                for (_, k, n, turn) in due {
+                    let s = &self.ships[i];
+                    let (pos, vel, fwd) = (s.to_world(Part::Launcher.pos()), s.vel, s.forward());
+                    let los = (self.ships[1 - i].pos - pos).normalized_or(fwd);
+                    let (a, b) = (los.any_perp(), los.cross(los.any_perp()));
+                    let ang = turn + k as f64 * std::f64::consts::TAU / n as f64;
+                    let side = a * ang.cos() + b * ang.sin();
+                    let bias = if n > 1 { side * TORP_SPREAD } else { Vec3::ZERO };
+                    let id = self.id();
+                    let v = vel + (fwd + side * 0.3).normalized() * TORP_EJECT;
+                    self.torps.push(Torpedo { id, owner: i, pos, vel: v, dv: TORP_DV, acc: Vec3::ZERO, bias, born: self.t, alive: true });
+                    self.events.push(Event::TorpedoLaunched { ship: i, id });
+                }
             }
         }
         let s = &mut self.ships[i];

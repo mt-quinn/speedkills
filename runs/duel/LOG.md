@@ -145,3 +145,37 @@ New diagnostics per side: `part_loss_t`, `crew_hit_death_t` and `parts_damage`, 
   - losses by part: drive 38%, sensors 14%, bow thrusters 14%, reactor 5%, railgun 4%, …;
   - G1 89 s, G2 PASS (49 / 52 / 48), G3 61%, G4 PDC 33 / railgun 32 / torpedo 27, G5 15; G6 1% (was already failing at 2%).
 - The railgun test now states the new rule: a round straight through a component knocks it out (the engineer can repair it).
+
+
+## I22 desynchronising the mirror (user: both AIs do about the same thing at the same time; torpedoes always in threes, always together)
+Measured by `python3 python/duel/sync.py`: the share of one ship's salvos (±3 s) and railgun shots (±1.5 s) matched by the other's, against a control that shifts the other ship's timeline circularly by a random offset.
+- **Baseline:** salvos 4.07× chance (72% vs 18%); first salvos within 1 s in 96% of fights (median gap 0.0 s); railgun 1.44×; every salvo a simultaneous three.
+- **Cause:** identical rules on a shared variable. Both see the same range, so both cross the salvo band on the same tick; tubes reloaded together, so the two stayed phase-locked.
+- **Launcher:** four tubes, each reloading on its own. The pilot chooses how many (`torp_count`) and the gap between launches (`torp_ripple`; a ripple leaves from wherever the ship is at each launch).
+- **Salvo policy:**
+  - size from the target's point defence: mounts that can bear on our bearing (arc against orientation) plus a salvo doctrine;
+  - a screen our own torpedoes heated gets everything loaded, rippled;
+  - dry PDCs get singles;
+  - badly behind: empty the tubes.
+- **Ripple** when their screen is hot or short of ammunition, when it's a follow-up to our own salvo within 12 s, or on a long shot for pilots who lean that way.
+- **Temperament per pilot** (seeded; `TEMPER=off` for the control):
+  - a preferred launch range in the band (fire within ±700 m of it, or anywhere once lingering past patience);
+  - salvo doctrine: thrifty (probes of 1–2) / balanced / heavy;
+  - ripple lean;
+  - gunner's reaction (0.1–1.6 s);
+  - patience for a weak side (1–7 s);
+  - railgun odds ±0.08;
+  - a 4–8 s gap before a follow-up.
+- **Findings along the way:**
+  - My launcher rewrite first dropped the railgun cooldown countdown (one shot per fight); fixed.
+  - Arc coverage rarely varies because railgun ships face each other, so the salvo doctrine carries the size variety.
+  - Thrifty salvos first merged into fours: the other tubes fired on the next frame. The follow-up gap fixed it.
+  - "Hot screen" salvos synced when both screens heated in a PDC brawl; now only our own torpedoes' heat counts.
+  - A narrow launch window halved torpedo use (4.2 fired); the lingering rule restored it.
+  - A 16-torpedo magazine didn't bind (6 of 16 used), so it stays at 12.
+- **Result, 300 per pairing:**
+  - salvos 2.49× chance (37% vs 15%); first salvos within 1 s in 17% of fights (median gap 3.7 s); railgun 1.45× (mostly return fire, a duel beat — left alone);
+  - salvo sizes 1: 38%, 2: 27%, 3: 18%, 4: 16%; rippled 29%; 2.7 salvos and 5.7 torpedoes per ship;
+  - G1 100 s (time-outs at the 10% line), G2–G5 pass (G3 65%), G6 fails as before;
+  - crew killed mid-fight in 88% of fights, systems lost in 98%.
+- **Residual salvo sync** is structural: every launch rule keys on the one shared range, which the circular-shift control ignores. Card re-recorded; viewer audit 12/12 on every criterion.
