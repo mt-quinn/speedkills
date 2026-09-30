@@ -304,9 +304,10 @@ fn matches_end_on_destruction_crew_death_or_time() {
     }
     w.step();
     assert!(w.finished && w.winner == Some(1) && w.end_reason == "crew dead");
+    // No clock: two idle ships 5 km apart are still fighting after ten minutes.
     let mut w = duel(5000.0);
-    run(&mut w, TIME_LIMIT + 1.0);
-    assert!(w.finished && w.end_reason == "time");
+    run(&mut w, 600.0);
+    assert!(!w.finished, "no time-out ending ({})", w.end_reason);
 }
 
 #[test]

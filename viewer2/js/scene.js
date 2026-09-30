@@ -586,7 +586,7 @@ export class Scene {
       g.position.copy(s.pos);
       g.quaternion.copy(s.quat);
       this.deathT ??= [null, null];
-      const dead = !s.raw.alive || (this.match.raw.end_reason !== 'time' && this.match.raw.end_reason !== 'broke off' && t >= this.match.duration - 1e-3 && this.match.raw.winner !== i);
+      const dead = !s.raw.alive || (!['time', 'broke off', 'both disabled'].includes(this.match.raw.end_reason) && t >= this.match.duration - 1e-3 && this.match.raw.winner !== i);
       if (dead) {
         this.deathT[i] ??= t;
         const k = t - this.deathT[i];

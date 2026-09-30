@@ -220,7 +220,10 @@ export class Director {
     const maxRate = (out ? 0.8 : 0.35) * cur;
     const d = this.dist.step(Math.min(cur + maxRate, Math.max(cur - maxRate, want)), dt);
     const look = this.look.step(centre, dt);
-    cam.position.copy(look).addScaledVector(dir, d);
+    // The viewer's hand on the camera (orbit/zoom offsets), applied last: the director's own
+    // framing above never sees it.
+    const v = this.user ? this.user.apply(dir, d, up) : { dir, d };
+    cam.position.copy(look).addScaledVector(v.dir, v.d);
     cam.up.copy(up);
     cam.lookAt(look);
     this.timeScale = this.scaleAt(t);

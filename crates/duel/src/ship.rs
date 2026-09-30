@@ -271,6 +271,22 @@ impl Ship {
     pub fn scale(&self) -> f64 {
         self.class.radius / SHIP_RADIUS
     }
+    /// A broken part can come back while there's a live engineer (repairs run at any g).
+    pub fn fixable(&self, p: Part) -> bool {
+        self.part(p) > 0.0 || self.crew_at(Station::Engineer).alive()
+    }
+    /// Has a ranged weapon it can still use: railgun rounds, or torpedoes (with a launcher).
+    pub fn has_ranged(&self) -> bool {
+        (self.rail_ammo > 0 && self.fixable(Part::Railgun)) || ((self.torpedoes > 0 || !self.launch_queue.is_empty()) && self.fixable(Part::Launcher))
+    }
+    /// Can still hurt the enemy at all: a ranged weapon, PDC ammunition on a mount, or a ship
+    /// that can still steer itself into them.
+    pub fn can_hurt(&self) -> bool {
+        if !self.alive { return false; }
+        let pdc = (0..PDC_MOUNTS).any(|m| self.pdcs[m].ammo > 0.0 && self.fixable(Part::pdc(m)));
+        let ram = self.fixable(Part::Drive) && self.fixable(Part::Reactor) && self.crew_at(Station::Pilot).alive();
+        self.has_ranged() || pdc || ram
+    }
     /// The railgun's aim scatter right now (rad, per axis): see `rail_disp_*`.
     pub fn rail_sigma(&self) -> f64 {
         let f = self.forward();

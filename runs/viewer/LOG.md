@@ -181,6 +181,16 @@ The storyboard review uses these questions: can a viewer tell who is where in de
 - **Observation:** the railgun hits 88% of shots on this card (107/121), so misses are rare (14; 13–55 m). Pilots only fire when a hit is likely. Worth a design look if misses should be part of the show.
 - **Audit:** landscape V1–V8 12/12, V9 10/12; portrait V1 11/12, V9 9/12, the rest 12/12 (unchanged).
 
+## Round 8: hybrid camera; the new endings
+- **Hybrid camera** (`viewer2/js/camctl.js`): the viewer's input becomes offsets on the director's view (azimuth and elevation around its look point, clamped −80° to +84°; a factor on its distance, 0.3–3×), applied last in `Director.update`, so the director's framing never sees them.
+  - 2.5 s after the last input the offsets ease back (0.9 s time constant) and the director has the shot again.
+  - Desktop: drag to orbit (0.0045 rad/px), wheel or trackpad pinch to zoom (ctrl+wheel; gesture events on Safari), double-click to hand back at once.
+  - Touch: one finger orbits, two fingers pinch-zoom and orbit by their midpoint. An 8 px threshold separates a drag from a tap, so tap-for-controls and double-tap-to-skip still work.
+  - A "FREE CAMERA · DIRECTOR IN n S" pill with a Director button (≥44 px on touch) shows while the viewer has the camera. Inactive in audit and storyboard.
+  - Tested with synthetic pointer and wheel events: drag orbits without toggling the controls, a tap still shows them, a two-finger spread zooms in, and the offsets return after the hold.
+- **Endings:** the plate shows RAMMING! with a radio line ("Guns are dry. Ramming speed!"); the result card reads "by ramming" or "both disabled · decided on condition".
+- **Audit, new card:** V1 10/12 (worst: both-in 96.8%; along-axis 2%), V4 11/12 (2.0% too close), V9 11/12, the rest 12/12. These fights are new; none of the three misses involves a ram.
+
 ## Next
 - V9: ships looking small in some frames (3–5% in three fights), during fast convergence.
 - Watching full fights live, not just stills.

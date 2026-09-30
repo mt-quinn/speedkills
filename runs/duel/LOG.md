@@ -197,3 +197,23 @@ Measured by `python3 python/duel/sync.py`: the share of one ship's salvos (±3 s
   - crew killed mid-fight in 76% of fights, systems lost in 89%;
   - railgun shots coincide 1.86× chance (more return fire), salvos 2.37×.
 - Test `rail_shot` turns the scatter off (`World::rail_scatter`): it tests hit geometry, not gunnery.
+
+
+## I24 no time limit; ramming; both disabled (user: remove the time-out ending; ships out of ammo ram; end only if both are truly disabled)
+- The time limit is gone (`time_limit()` is a knob, unbounded by default). The batch harness has a 1-hour watchdog that records "unfinished" (G1 now wants none).
+- **Measured first, with a 20-min cap:** 35 of 600 fights (6%) were still going. None were out of ammo: all had railgun rounds. It was a behavioural deadlock, 1,000+ s of one ship in "guns" and the other in "juke":
+  - the juker kept evading while the enemy gun was merely *able* to fire (charge 0), and timed its own charge to the enemy's, so it waited;
+  - the shooter only charged against an exposed target, and a juking one never is;
+  - the stall-commit rule lowered the shooter's odds but not its charge condition.
+  - (Frequent crew deaths — pilots and gunners — made the slow cycles likelier.)
+- **Fixes:**
+  - a juke ends when the enemy's charge is >2.5 s from ready and nothing is in flight;
+  - a committing ship charges whatever the target is doing.
+- **Ramming:** a ship with no usable ranged weapon (rail rounds on a fixable gun, or torpedoes on a fixable launcher; fixable = working or a live engineer) intercepts on lead pursuit at up to 12 g with RCS nulling the miss, no collision avoidance, all PDC ammunition free.
+  - Prow-first strikes are asymmetric (rammer 0.5×, rammed 1.5×; head-on or glancing 1×).
+- **Both disabled:** if neither ship can hurt the other (no ranged weapon, no PDC ammunition on a fixable mount, no fixable drive, reactor and live pilot to ram with), the match ends, decided on condition (a draw within 0.05).
+- **Result, 300 per pairing, unbounded:**
+  - every fight ends; median 87 s, 95th percentile 187 s, max 371 s;
+  - endings: destroyed 1,783 / dead in space 15 / crew dead 2; killing blows railgun 37%, PDC 36%, torpedo 26%, ram 1%;
+  - G1–G6 all PASS; railgun hits 63%; crew killed mid-fight in 78% of fights, systems lost in 90%.
+- Card re-recorded; the viewer shows RAMMING! on the plate with a radio line, and a "both disabled" result.

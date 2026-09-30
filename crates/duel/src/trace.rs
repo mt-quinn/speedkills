@@ -91,7 +91,7 @@ pub fn record(seed: u64, styles: [Style; 2], classes: [ShipClass; 2], summary: &
     let mut nframes = 0;
     let every = 120 / TRACE_HZ;
     loop {
-        let finished = w.finished;
+        let finished = w.finished || w.t >= 3600.0; // (watchdog, as in diag)
         if w.tick % every == 0 || finished {
             if nframes > 0 {
                 frames.push(',');
@@ -182,7 +182,7 @@ pub fn record(seed: u64, styles: [Style; 2], classes: [ShipClass; 2], summary: &
     let _ = write!(
         o,
         "],\"params\":{{\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"blackout\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
-        RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, BLACKOUT, DRIVE_MAX_G, TIME_LIMIT, DISENGAGE_RANGE
+        RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, BLACKOUT, DRIVE_MAX_G, if time_limit().is_finite() { format!("{}", time_limit()) } else { "null".into() }, DISENGAGE_RANGE
     );
     let _ = write!(o, "\"winner\":{},\"end_reason\":{},", w.winner.map_or("null".into(), |x| x.to_string()), js(w.end_reason));
     let _ = write!(o, "\"summary\":{},", summary.to_json());

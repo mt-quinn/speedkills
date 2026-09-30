@@ -10,9 +10,12 @@ def check(name, ok, detail): res.append((name, ok, detail))
 dur = sorted(m['duration'] for m in ms)
 med = dur[n // 2]
 short = sum(d < 40 for d in dur) / n
-timeout = sum(m['reason'] == 'time' for m in ms) / n
-check("G1 length", 60 <= med <= 150 and short < 0.10 and timeout < 0.10,
-      f"median {med:.0f}s, <40s {pct(short)}, time-outs {pct(timeout)}  (want 60–150, <10%, <10%)")
+# (No time limit since I24: a fight runs until someone wins; "unfinished" = still going at the
+# harness's 1-hour watchdog, i.e. a stalemate.)
+timeout = sum(m['reason'] in ('time', 'unfinished') for m in ms) / n
+p95 = dur[int(0.95 * (n - 1))]
+check("G1 length", 60 <= med <= 150 and short < 0.10 and timeout == 0,
+      f"median {med:.0f}s, 95th percentile {p95:.0f}s, <40s {pct(short)}, unfinished {pct(timeout)}  (want 60–150, <10%, none)")
 
 # G2: no dominant tactic.
 styles = sorted({s['style'] for m in ms for s in m['sides']})

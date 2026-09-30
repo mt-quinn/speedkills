@@ -360,3 +360,13 @@ body.portrait #legend span:last-child { grid-column: 1 / -1; }
 .sb-mid { gap: 4px; }
 body.portrait .sb-range { font-size: 12px; } body.portrait .sb-range i { font-size: 10px; margin-left: 3px; }
 @media (max-height: 520px) and (orientation: landscape) { .sb-range { font-size: 12px; } .sb-range i { font-size: 10px; } }
+
+/* Hybrid camera: grab cursor; a pill while the viewer has the camera */
+#view { cursor: grab; } #view.grabbing { cursor: grabbing; }
+#camhud { position: fixed; right: 16px; top: calc(118px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; padding: 4px 4px 4px 12px;
+  background: rgba(7, 10, 18, 0.82); border: 1px solid var(--rule); font-family: 'Saira Condensed', sans-serif; font-size: 13px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink); opacity: 0; transform: translateY(-4px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 15; }
+#camhud.on { opacity: 1; transform: none; pointer-events: auto; }
+#camhud button { min-height: 36px; padding: 0 14px; border: 0; background: var(--ink); color: #070a12; font: inherit; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; }
+body.touch #camhud button { min-height: 44px; }
+body.portrait #camhud { top: calc(124px + env(safe-area-inset-top)); right: 8px; }

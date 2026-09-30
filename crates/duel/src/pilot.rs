@@ -239,6 +239,10 @@ impl Pilot {
                 }
                 self.gun(&mut inp, s, e);
             }
+            Style::Reference | Style::Knife | Style::Counter | Style::Striker | Style::Warden if !s.has_ranged() => {
+                // Out of ranged weapons: the ship itself is the weapon.
+                self.ram(w, me, &mut inp);
+            }
             Style::Reference | Style::Knife | Style::Counter | Style::Striker | Style::Warden => {
                 self.reference(w, me, &mut inp);
                 inp.overcharge = self.overcharge;
@@ -255,6 +259,28 @@ impl Pilot {
             }
         }
         inp
+    }
+
+    /// Ramming: lead the target (where it will be when we get there), burn hard, nose on the
+    /// intercept, RCS pushing the miss distance to zero; PDCs fire everything they have on the
+    /// way in. No collision avoidance.
+    fn ram(&mut self, w: &World, me: usize, inp: &mut Input) {
+        let s = &w.ships[me];
+        let e = &w.ships[1 - me];
+        self.mode = "ramming";
+        let rel = e.pos - s.pos;
+        let rv = e.vel - s.vel;
+        let dist = rel.len();
+        let closing = -rv.dot(rel.normalized_or(s.forward()));
+        let t_go = (dist / closing.max(150.0)).min(20.0);
+        let aim = (rel + rv * t_go).normalized_or(rel.normalized_or(s.forward()));
+        inp.rate = turn_toward(s, aim);
+        inp.thrust_g = if s.forward().dot(aim) > 0.8 { g_budget(s, 3.0).min(12.0) } else { 0.0 };
+        // (Closest-approach miss if nothing changes: strafe to close it.)
+        let tca = (-rel.dot(rv) / rv.len_sq().max(1e-6)).clamp(0.0, 20.0);
+        let miss = rel + rv * tca;
+        inp.strafe = s.orient.inv_rotate(miss.normalized_or(Vec3::ZERO));
+        inp.pdc_hold = false;
     }
 
     fn reference(&mut self, w: &World, me: usize, inp: &mut Input) {
@@ -367,7 +393,10 @@ impl Pilot {
         // the round arrives (after the crew sees the flash). Closer than that it's a gunfight.
         let tr = (dist / RAIL_SPEED - FLASH_REACTION).max(0.0);
         let juke_works = 0.5 * (s.class.rcs_accel + 8.0 * G) * tr * tr > 1.5 * s.class.radius;
-        if self.juking && (!their_gun_up && !incoming || our_move || !juke_works) {
+        // (Stop when there's nothing to dodge: their charge is more than 2.5 s from ready and no
+        // round is in flight — juking against a gun that isn't coming up locked both ships into
+        // waiting for each other.)
+        if self.juking && ((!their_gun_up || their_ready_in > 2.5) && !incoming || our_move || !juke_works) {
             self.juking = false;
         } else if !self.juking && exposed && !our_move && juke_works && !commit {
             self.juking = true;
@@ -643,7 +672,8 @@ impl Pilot {
     fn gun(&mut self, inp: &mut Input, s: &Ship, e: &Ship) {
         let err = s.forward().dot(lead(s, e, RAIL_SPEED));
         let sh = shot(s, e);
-        inp.charge_rail = err > 0.9 && sh.p_env > 0.15;
+        // (A ship committing to break a stalled fight charges whatever the target is doing.)
+        inp.charge_rail = err > 0.9 && (sh.p_env > 0.15 || self.fire_odds <= 0.15);
         let settled = sh.aim_miss < e.class.radius * 0.35 || sh.aim_miss >= self.last_aim_miss;
         // With the capacitors about to vent, take whatever chance there is.
         // (A counterpuncher would rather vent than give away a poor first shot.)

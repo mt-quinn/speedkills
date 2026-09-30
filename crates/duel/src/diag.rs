@@ -199,7 +199,9 @@ pub fn run_classes(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipCl
     let mut last_cause: [&str; 2] = ["", ""];
     let mut recent: [Vec<(f64, &str, f64)>; 2] = [Vec::new(), Vec::new()];
     let mut slug_of: std::collections::HashMap<u32, (usize, usize)> = std::collections::HashMap::new();
-    while !w.finished {
+    // (A batch-run watchdog, not a game rule: a fight still going after an hour is recorded as
+    // unfinished so the gate sees it, rather than hanging the run.)
+    while !w.finished && w.t < 3600.0 {
         for i in 0..2 {
             w.inputs[i] = p[i].act(&w, i);
         }
@@ -383,7 +385,7 @@ pub fn run_classes(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipCl
         }
         lead = now;
     }
-    d.reason = w.end_reason.into();
+    d.reason = if w.finished { w.end_reason.into() } else { "unfinished".into() };
     d.duration = w.t;
     for i in 0..2 {
         let s = &w.ships[i];

@@ -630,8 +630,13 @@ impl World {
             if rel > 0.0 {
                 let mid = (a.pos + b.pos) * 0.5;
                 self.events.push(Event::Ram { speed: rel });
-                self.damage(0, mid, rel * 2.0, 10.0, rel * 2.0, "ram");
-                self.damage(1, mid, rel * 2.0, 10.0, rel * 2.0, "ram");
+                // Striking prow-first into the other's flank: the rammer's nose takes the blow
+                // along its length, the rammed ship across its side (half and one and a half).
+                // Head-on (both prows) or glancing, it's even.
+                let prow = [a.forward().dot(n) > 0.8, b.forward().dot(-n) > 0.8];
+                let k = match prow { [true, false] => [0.5, 1.5], [false, true] => [1.5, 0.5], _ => [1.0, 1.0] };
+                self.damage(0, mid, rel * 2.0 * k[0], 10.0, rel * 2.0 * k[0], "ram");
+                self.damage(1, mid, rel * 2.0 * k[1], 10.0, rel * 2.0 * k[1], "ram");
                 self.ships[0].vel -= n * rel;
                 self.ships[1].vel += n * rel;
             }
@@ -747,6 +752,16 @@ impl World {
             }
         };
         let mut l = [lost(&self.ships[0]), lost(&self.ships[1])];
+        // Both disabled: neither can hurt the other any more (no weapon with ammunition, no way
+        // to ram). Decided on condition, as a draw if it's close.
+        if l == [None, None] && !self.ships[0].can_hurt() && !self.ships[1].can_hurt() {
+            let (a, b) = (self.ships[0].health_index(), self.ships[1].health_index());
+            self.finished = true;
+            self.winner = if (a - b).abs() < 0.05 { None } else if a > b { Some(0) } else { Some(1) };
+            self.end_reason = "both disabled";
+            self.events.push(Event::End { winner: self.winner, reason: "both disabled" });
+            return;
+        }
         // Broken off: too far apart for too long. Whoever was burning away forfeits; if both
         // were (or neither clearly), nobody wins.
         let sep = self.ships[1].pos - self.ships[0].pos;
@@ -775,7 +790,7 @@ impl World {
             [Some(r), None] => (Some(1), r),
             [None, Some(r)] => (Some(0), r),
             [Some(r), Some(_)] => (None, r),
-            [None, None] if self.t >= TIME_LIMIT => {
+            [None, None] if self.t >= time_limit() => {
                 let score = |s: &Ship| s.hull / s.class.hull + s.crew.iter().filter(|c| c.alive()).count() as f64 / 4.0 + s.parts.iter().sum::<f64>() / 12.0;
                 let (a, b) = (score(&self.ships[0]), score(&self.ships[1]));
                 (if (a - b).abs() < 0.05 { None } else if a > b { Some(0) } else { Some(1) }, "time")

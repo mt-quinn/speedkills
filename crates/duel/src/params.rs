@@ -11,7 +11,9 @@ pub const DISENGAGE_RANGE: f64 = 15000.0;
 pub const DISENGAGE_TIME: f64 = 10.0;
 /// Memory (s) of who has been burning away from whom, for deciding who broke it off.
 pub const DISENGAGE_MEMORY: f64 = 30.0;
-pub const TIME_LIMIT: f64 = 180.0;
+/// No time limit: a fight runs until a ship is destroyed, dead in space, loses its crew or breaks
+/// off. (An experiment knob for measurement; unbounded by default.)
+pub fn time_limit() -> f64 { tune("TIME_LIMIT", f64::INFINITY) }
 
 // ---- the ship (one design, one loadout) ----
 /// Drawn and collided as a sphere of this radius; components sit inside it (ship frame:

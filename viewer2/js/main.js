@@ -6,6 +6,7 @@ import { Director } from './director.js';
 import { Hud } from './hud.js';
 import { Critic } from './critic.js';
 import { Audio } from './audio.js';
+import { CamControl } from './camctl.js';
 
 const Q = new URLSearchParams(location.search);
 const opt = {
@@ -24,6 +25,9 @@ window.__opt = opt;
 const state = { t: 0, speed: opt.speed, paused: opt.paused, lastWall: null, idx: 0 };
 let app = null;
 let sound = null;
+// The viewer's hand on the camera (live playback only).
+const live = !opt.audit && !opt.story && !opt.auditall;
+const camctl = live ? new CamControl(document.querySelector('#view')) : null;
 
 function stateAt(m, t) { return { ships: [m.ship(t, 0), m.ship(t, 1)] }; }
 
@@ -35,6 +39,7 @@ class App {
     document.querySelector('#callouts').innerHTML = '';
     this.scene = new Scene(document.querySelector('#view'), match);
     this.dir = new Director(match, this.scene);
+    this.dir.user = camctl;
     this.hud = new Hud(match, this.scene);
     this.critic = new Critic(match, this.scene);
     // One audio engine for the session; it follows whichever fight is open.
@@ -134,6 +139,7 @@ class App {
     for (const f of this.scene.fx) this.scene.root.remove(f.obj);
     this.scene.fx = [];
     this.dir = new Director(this.m, this.scene);
+    this.dir.user = camctl;
     this.t = 0;
     const wasPaused = state.paused;
     state.paused = false;
@@ -286,6 +292,7 @@ function loop(now) {
   const w = now / 1000;
   const dt = state.lastWall === null ? 1 / 60 : Math.min(0.1, w - state.lastWall);
   state.lastWall = w;
+  if (camctl) camctl.frame(dt);
   app.step(dt, w, true);
   ctl.frame();
   document.querySelector('#transport-t').textContent = `${app.t.toFixed(1)}s ×${(state.speed * app.dir.timeScale).toFixed(2)}${state.paused ? ' ❚❚' : ''}`;
@@ -394,7 +401,9 @@ ctl.el.addEventListener('click', (e) => { const b = e.target.closest('button'); 
 // Taps on the picture: one shows or hides the controls; a double tap on the left or right third
 // skips back or forward 5 s (with the same buttons in the controls, so nothing is gesture-only).
 window.addEventListener('pointerup', (e) => {
-  if (!app || e.target.closest('#controls')) return;
+  if (!app || e.target.closest('#controls') || e.target.closest('#camhud')) return;
+  // (A camera drag or pinch isn't a tap.)
+  if (camctl && camctl.dragged) { ctl.lastTap = null; return; }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   const now = performance.now(), W = window.innerWidth;
   const zone = e.clientX < W / 3 ? 'back' : e.clientX > (2 * W) / 3 ? 'fwd' : 'mid';

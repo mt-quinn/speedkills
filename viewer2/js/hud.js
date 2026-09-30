@@ -13,10 +13,10 @@ const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) 
 const PLAN = {
   guns: 'guns up', juke: 'breaking hard', punish: 'going in', 'attack run': 'attack run', extend: 'extending',
   salvo: 'salvo', 'torpedo break': 'torpedo break', 'closing in': 'closing', braking: 'braking', brawl: 'charging in',
-  pressing: 'pressing', '': '—',
+  pressing: 'pressing', ramming: 'ramming!', '': '—',
 };
 const STYLE = { Reference: 'duelist', Knife: 'knife fighter', Counter: 'counterpuncher', Striker: 'striker', Warden: 'warden' };
-const BY = { railgun: 'by railgun', torpedo: 'by torpedo', pdc: 'by PDC fire', ram: 'in a collision', rock: 'on the rocks', g: 'by its own burn', overcharge: 'by its own gun' };
+const BY = { railgun: 'by railgun', torpedo: 'by torpedo', pdc: 'by PDC fire', ram: 'by ramming', 'mutual ram': 'in a collision', rock: 'on the rocks', g: 'by its own burn', overcharge: 'by its own gun' };
 // Systems as a viewer thinks of them: shown on the plate only when out.
 const OUTS = [['drive', [0]], ['thrusters', [1, 2, 3, 4]], ['reactor', [5]], ['gun', [11]], ['PDC', [7, 8, 9]], ['tubes', [10]], ['sensors', [6]]];
 
@@ -242,6 +242,7 @@ export class Hud {
       else if (m === 'juke') this.chat(t, i, 'pilot', 'Breaking!');
       else if (m === 'extend') this.chat(t, i, 'pilot', 'Extending.');
       else if (m === 'torpedo break') this.chat(t, i, 'pilot', 'Torpedo — hard over!', 2);
+      else if (m === 'ramming') this.chat(t, i, 'pilot', 'Guns are dry. Ramming speed!', 3);
       this.lastMode[i] = m;
     }
     const over = r.rail[4] === 1;
@@ -320,7 +321,7 @@ export class Hud {
       return [['exchanges won', `${exw}/${m.exchanges.length}`], ['hits', dealt], ['torpedoes through', torps], ['crew lost', lost]];
     };
     const mm = Math.floor(end.t / 60), ss = String(Math.floor(end.t % 60)).padStart(2, '0');
-    const how = { destroyed: 'destroyed', 'crew dead': 'crew lost', 'dead in space': 'dead in space', time: 'on points', 'broke off': 'broke off' }[end.reason] || end.reason;
+    const how = { destroyed: 'destroyed', 'crew dead': 'crew lost', 'dead in space': 'dead in space', time: 'on points', 'broke off': 'broke off', 'both disabled': 'both disabled · decided on condition' }[end.reason] || end.reason;
     const cause = m.raw.summary.finish_cause;
     box.innerHTML = `<div class="res-head ${w === null ? '' : 't' + w}">${w === null ? 'DRAW' : this.names[w] + ' WINS'}</div>
       <div class="res-sub">${w === null ? how : this.names[1 - w] + ' ' + how}${BY[cause] ? ' ' + BY[cause] : ''} · ${mm}:${ss}</div>
@@ -391,7 +392,7 @@ export class Hud {
   fillPlate(t, i, r, ended) {
     const P = this.plates[i], ms = this.m.ships[i];
     const lost = ended && this.m.raw.winner !== i && this.m.raw.winner !== null;
-    const ending = { destroyed: 'destroyed', 'dead in space': 'adrift', 'crew dead': 'crew lost' }[this.m.raw.end_reason] || 'out';
+    const ending = { destroyed: 'destroyed', 'dead in space': 'adrift', 'crew dead': 'crew lost', 'both disabled': 'disabled' }[this.m.raw.end_reason] || 'out';
     const g = r.g;
     const plan = lost ? ending : ended ? (this.m.raw.winner === i ? 'victory' : 'stood down') : r.alive ? (PLAN[r.mode] ?? r.mode) : 'out';
     // The plan line carries the g once it's hard.
