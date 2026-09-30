@@ -1,4 +1,4 @@
-// Speed Kills broadcast viewer: plays back recorded duels.
+// Hard Burn broadcast viewer: plays back recorded duels.
 import * as THREE from 'three';
 import { loadIndex, loadMatch } from './data.js';
 import { Scene, TEAM, THREAT } from './scene.js';
