@@ -40,6 +40,9 @@ export class Audio {
   constructor(match, scene) {
     this.m = match; this.scene = scene;
     this.enabled = false; this.ready = false;
+    let mix = null;
+    try { mix = JSON.parse(localStorage.getItem('sk-audio') || 'null'); } catch (e) { /* none */ }
+    this.musicOn = mix ? !!mix.music : true; this.sfxOn = mix ? !!mix.sfx : true;
     this.lastLaunch = [-1, -1];
     this.nextPdc = [0, 0];
     this.prevG = [0, 0]; this.onset = [0, 0];
@@ -49,6 +52,16 @@ export class Audio {
   }
 
   // Browsers only start audio after a user gesture.
+  // Music / effects on or off (remembered on this device).
+  setMix({ music = this.musicOn, sfx = this.sfxOn } = {}) {
+    this.musicOn = music; this.sfxOn = sfx;
+    try { localStorage.setItem('sk-audio', JSON.stringify({ music, sfx })); } catch (e) { /* private mode */ }
+    if (!this.ready) return;
+    const now = this.ctx.currentTime;
+    this.sfxGate.gain.setTargetAtTime(sfx ? 1 : 0, now, 0.08);
+    this.bgmGate.gain.setTargetAtTime(music ? 1 : 0, now, 0.15);
+  }
+
   async enable() {
     if (this.ready) { this.enabled = true; this.ctx.resume(); this.master.gain.setTargetAtTime(0.9, this.ctx.currentTime, 0.1); return; }
     this.enabled = true;
@@ -60,8 +73,11 @@ export class Audio {
     // Effects bus: a low-pass that closes in slow motion.
     this.sfx = ctx.createGain();
     this.sfxFilter = ctx.createBiquadFilter(); this.sfxFilter.type = 'lowpass'; this.sfxFilter.frequency.value = 20000;
-    this.sfx.connect(this.sfxFilter).connect(this.master);
-    this.bgmBus = ctx.createGain(); this.bgmBus.gain.value = 0; this.bgmBus.connect(this.master);
+    // Music and effects each pass a gate the viewer switches (two toggles in the controls).
+    this.sfxGate = ctx.createGain(); this.sfxGate.gain.value = this.sfxOn ? 1 : 0;
+    this.bgmGate = ctx.createGain(); this.bgmGate.gain.value = this.musicOn ? 1 : 0;
+    this.sfx.connect(this.sfxFilter).connect(this.sfxGate).connect(this.master);
+    this.bgmBus = ctx.createGain(); this.bgmBus.gain.value = 0; this.bgmBus.connect(this.bgmGate).connect(this.master);
     this.buf = {}; this.norm = {};
     await Promise.all(FILES.map(async (f) => {
       for (const ext of ['opus', 'm4a']) {

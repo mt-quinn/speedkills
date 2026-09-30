@@ -325,7 +325,11 @@ export class Hud {
     const cause = m.raw.summary.finish_cause;
     box.innerHTML = `<div class="res-head ${w === null ? '' : 't' + w}">${w === null ? 'DRAW' : this.names[w] + ' WINS'}</div>
       <div class="res-sub">${w === null ? how : this.names[1 - w] + ' ' + how}${BY[cause] ? ' ' + BY[cause] : ''} · ${mm}:${ss}</div>
-      <div class="res-cols">${[0, 1].map((i) => `<div class="res-col t${i}"><div class="res-name">${this.names[i]}</div>${stat(i).map(([k, v]) => `<div class="res-row"><span>${k}</span><b>${v}</b></div>`).join('')}</div>`).join('')}</div>`;
+      <div class="res-cols">${[0, 1].map((i) => `<div class="res-col t${i}"><div class="res-name">${this.names[i]}</div>${stat(i).map(([k, v]) => `<div class="res-row"><span>${k}</span><b>${v}</b></div>`).join('')}</div>`).join('')}</div>
+      <div class="res-actions">
+        <button type="button" data-a="replay"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>Replay</button>
+        <button type="button" data-a="next" class="primary">Next fight<small>${this.fightLabel || ''}</small><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7z"/></svg></button>
+      </div>`;
     box.hidden = false;
   }
 
@@ -352,7 +356,7 @@ export class Hud {
       const [a, b] = st.ships;
       const sep = b.pos.clone().sub(a.pos), r = sep.length();
       const rate = -b.vel.clone().sub(a.vel).dot(sep) / Math.max(1, r); // >0 closing
-      const dist = r < 1000 ? `${Math.round(r / 10) * 10} m` : `${(r / 1000).toFixed(1)} km`;
+      const dist = r < 995 ? `${Math.round(r / 10) * 10} m` : `${(r / 1000).toFixed(1)} km`;
       const rt = Math.abs(rate) < 20 ? '' : ` <i class="${rate > 0 ? 'cl' : 'op'}">${rate > 0 ? '▼' : '▲'} ${Math.round(Math.abs(rate) / 10) * 10} m/s</i>`;
       const html = `${dist}${rt}`;
       if (html !== this.lastRange) { this.rangeTxt.innerHTML = html; this.lastRange = html; }

@@ -41,6 +41,7 @@ class App {
     this.dir = new Director(match, this.scene);
     this.dir.user = camctl;
     this.hud = new Hud(match, this.scene);
+    this.hud.fightLabel = `${idx + 2 > index.length ? 1 : idx + 2} of ${index.length}`;
     this.critic = new Critic(match, this.scene);
     // One audio engine for the session; it follows whichever fight is open.
     if (!opt.audit && !opt.story && !opt.auditall) {
@@ -307,21 +308,42 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === ']') state.speed = Math.min(8, state.speed * 2);
   else if (e.key === '[') state.speed = Math.max(0.125, state.speed / 2);
   else if (e.key === 'n') open(app.idx + 1);
+  else if (e.key === 'Enter' && !document.querySelector('#result').hidden) act('next');
+  else if (e.key === 'r') act('replay');
   else if (e.key === 'p') open(app.idx - 1);
   else if (e.key === 'c') { opt.critic = !opt.critic; document.querySelector('#critic').hidden = !opt.critic; }
 });
 
 // Sound starts on the first click or key (browsers require a gesture); M toggles it.
+// Sound: M mutes or unmutes everything; the controls have separate music and effects toggles.
 function toggleSound(force) {
   if (!sound) return;
   const on = force ?? !sound.enabled;
+  if (on && !sound.musicOn && !sound.sfxOn) sound.setMix({ music: true, sfx: true });
   if (on) sound.enable(); else sound.disable();
-  document.querySelector('#sound').textContent = on ? 'sound on · m' : 'sound off · m';
-  document.querySelector('#controls [data-a=sound] span').textContent = on ? 'sound on' : 'sound off';
+  soundUI();
+}
+function toggleMix(which) {
+  if (!sound) return;
+  // (The buttons show what's actually playing: with audio not running both read "off", so a
+  // tap turns that one on and leaves the other off.)
+  if (!sound.enabled) sound.setMix({ music: which === 'music', sfx: which === 'sfx' });
+  else sound.setMix({ [which]: !sound[which === 'music' ? 'musicOn' : 'sfxOn'] });
+  // (Either on needs the audio running; both off is the same as muted.)
+  if (sound.musicOn || sound.sfxOn) sound.enable(); else sound.disable();
+  soundUI();
+}
+function soundUI() {
+  const live = sound && sound.enabled;
+  const m = live && sound.musicOn, f = live && sound.sfxOn;
+  document.querySelector('#sound').textContent = live ? 'sound on · m' : 'sound off · m';
+  const bm = document.querySelector('#controls [data-a=music]'), bf = document.querySelector('#controls [data-a=sfx]');
+  bm.querySelector('span').textContent = m ? 'music on' : 'music off'; bm.classList.toggle('on', m); bm.setAttribute('aria-pressed', m);
+  bf.querySelector('span').textContent = f ? 'effects on' : 'effects off'; bf.classList.toggle('on', f); bf.setAttribute('aria-pressed', f);
 }
 const firstGesture = (e) => {
   window.removeEventListener('pointerdown', firstGesture); window.removeEventListener('keydown', firstGesture);
-  if (sound && !sound.enabled && !(e.key === 'm') && !(e.target && e.target.closest && e.target.closest('[data-a=sound]'))) toggleSound(true);
+  if (sound && !sound.enabled && !(e.key === 'm') && !(e.target && e.target.closest && e.target.closest('[data-a=music], [data-a=sfx]')) && (sound.musicOn || sound.sfxOn)) { sound.enable(); soundUI(); }
 };
 window.addEventListener('pointerdown', firstGesture); window.addEventListener('keydown', firstGesture);
 
@@ -338,7 +360,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 50));
 
 const ctl = {
   el: document.querySelector('#controls'), shown: false, hideAt: 0, dragging: false, lastTap: null, single: null,
-  show() { this.el.classList.remove('hidden'); document.body.classList.add('ctl-open'); this.shown = true; this.poke(); this.build(); },
+  show() { soundUI(); this.el.classList.remove('hidden'); document.body.classList.add('ctl-open'); this.shown = true; this.poke(); this.build(); },
   hide() { this.el.classList.add('hidden'); document.body.classList.remove('ctl-open'); this.shown = false; },
   poke() { this.hideAt = performance.now() + 4000; },
   // The scrubber's marks: each exchange as a block in its winner's colour, and the kill.
@@ -382,11 +404,15 @@ function act(a) {
   else if (a === 'fwd') app.seek(app.t + 5);
   else if (a === 'next') { ctl.builtFor = null; open(app.idx + 1); }
   else if (a === 'prev') { ctl.builtFor = null; open(app.idx - 1); }
+  else if (a === 'replay') { app.seek(0); state.paused = false; }
   else if (a === 'speed') { const S = [1, 2, 4, 0.5]; state.speed = S[(S.indexOf(state.speed) + 1) % S.length] ?? 1; }
   else if (a === 'sound') toggleSound();
+  else if (a === 'music' || a === 'sfx') toggleMix(a);
   if (state.paused && app.audio) app.audio.hush();
 }
 window.__ctl = ctl; window.__act = act;
+// The result card's buttons: next fight, replay.
+document.querySelector('#result').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); act(b.dataset.a); } });
 ctl.el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { e.stopPropagation(); act(b.dataset.a); } });
 // Scrubbing: the knob follows the finger; the seek happens on release (a seek replays the
 // director from the start, too heavy to run on every move).
@@ -401,7 +427,7 @@ ctl.el.addEventListener('click', (e) => { const b = e.target.closest('button'); 
 // Taps on the picture: one shows or hides the controls; a double tap on the left or right third
 // skips back or forward 5 s (with the same buttons in the controls, so nothing is gesture-only).
 window.addEventListener('pointerup', (e) => {
-  if (!app || e.target.closest('#controls') || e.target.closest('#camhud')) return;
+  if (!app || e.target.closest('#controls') || e.target.closest('#camhud') || e.target.closest('#result')) return;
   // (A camera drag or pinch isn't a tap.)
   if (camctl && camctl.dragged) { ctl.lastTap = null; return; }
   if (e.pointerType === 'mouse' && e.button !== 0) return;

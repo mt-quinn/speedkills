@@ -370,3 +370,22 @@ body.portrait .sb-range { font-size: 12px; } body.portrait .sb-range i { font-si
 #camhud button { min-height: 36px; padding: 0 14px; border: 0; background: var(--ink); color: #070a12; font: inherit; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; }
 body.touch #camhud button { min-height: 44px; }
 body.portrait #camhud { top: calc(124px + env(safe-area-inset-top)); right: 8px; }
+
+/* Result card actions */
+.res-actions { display: flex; gap: 10px; margin-top: 16px; }
+.res-actions button { flex: 1; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--rule);
+  background: rgba(255, 255, 255, 0.05); color: var(--ink); font-family: 'Saira Condensed', sans-serif; font-size: 17px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; cursor: pointer; }
+.res-actions button svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+.res-actions button small { font-size: 12px; font-weight: 500; letter-spacing: 0.06em; opacity: 0.7; margin-left: 2px; }
+.res-actions button.primary { flex: 1.6; background: var(--ink); color: #070a12; border-color: var(--ink); }
+.res-actions button:hover { filter: brightness(1.1); } .res-actions button:active { transform: translateY(1px); }
+.res-actions button:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+body.portrait .res-actions { margin-top: 12px; } body.portrait .res-actions button { font-size: 15px; }
+@media (max-height: 520px) and (orientation: landscape) { .res-actions { margin-top: 8px; } .res-actions button { min-height: 40px; font-size: 14px; } }
+
+/* Music / effects toggles */
+.ct-row.small button { display: flex; align-items: center; gap: 7px; }
+.ct-row.small button svg { width: 18px; height: 18px; fill: currentColor; opacity: 0.5; }
+.ct-row.small button.on { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+.ct-row.small button.on svg { opacity: 1; }
