@@ -50,3 +50,8 @@
 - Zero balances receive an automatic 50 cr stipend after unsettled wagers are resolved, at most once per hour. Settlement, reconnect and the minute watchdog check eligibility.
 - Development cloud economy verification passed cap boundaries, owner exemption, unsettled-bet protection, first refill and hourly interval.
 - Convex production functions/schema deployed successfully. Updated Vercel project from direct viewer2 hosting to the root build and configured the production Convex URL.
+
+### Chat name save feedback
+- Fixed live-combat rendering leaving the chat profile summary stale after a successful name save.
+- Added saving/saved feedback, preserved the open profile form through updates, and cleared the saved indicator when editing again.
+- Verified against the cloud development backend using an isolated localhost browser account during combat; the updated name appeared immediately and persisted after reload. No chat messages were sent.

@@ -15,7 +15,7 @@ async function start() {
   const stations = { pilot:'Pilot', gunner:'Gunner', engineer:'Engineer', ops:'Ops' };
   const skills = { pilot:'Handling', gunner:'Gunnery', engineer:'Engineering', ops:'Defence' };
   const doctrines = { Reference:'Duelist', Knife:'Knife fighter', Counter:'Counterpuncher' };
-  let dockScene, sceneLoading=false;
+  let dockScene, sceneLoading=false, profileSaving=false, profileSaved=false, profileOpen=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
   let chatShown = localStorage.getItem('hb-chat-visible') === null ? matchMedia('(min-width:761px)').matches : localStorage.getItem('hb-chat-visible') !== 'false';
   let mountedFight, mounting, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
@@ -77,7 +77,7 @@ async function start() {
     const f = data.fight, p = phase(f);
     return `<main class="hb-broadcast"><div id="hb-stage" class="${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" allow="autoplay"></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="sound">Toggle sound</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
-  function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile"><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button>Save name</button></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
+  function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile" ${profileOpen?'open':''}><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button ${profileSaving?'disabled':''}>${profileSaving?'Saving…':'Save name'}</button><p id="hb-profile-status" role="status">${profileSaved?'Name saved.':''}</p></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
   function archivePage() { return `<main class="hb-archive"><div class="hb-page-title"><span class="hb-eyebrow">LEAGUE RECORD</span><h1>Finished fights.</h1><p>Completed matches and combat statistics.</p></div>${archive.length ? archive.map(f=>`<details class="hb-archive-entry"><summary><span>#${String(f.sequence).padStart(4,'0')}</span><b>${esc(f.ships.map(s=>s.name).join(' vs '))}</b><strong>${f.winner===null?'Draw':esc(f.ships[f.winner].name)+' won'}</strong></summary>${results(f)}</details>`).join('') : '<p>Completed fights will appear here.</p>'}</main>`; }
   function render(force = false) {
     if (!data) return;
@@ -108,6 +108,7 @@ async function start() {
   }
   function saveDraft() { sessionStorage.setItem('hb-wager-draft',JSON.stringify(draft)); }
   function countdown() {
+    syncProfile();
     const f = data?.fight; const p = phase(f);
     const end = p==='betting'?f.startsAt:p==='results'?f.nextAt:0;
     const seconds = Math.max(0,Math.ceil((end-now())/1000));
@@ -115,6 +116,14 @@ async function start() {
     const button = shell.querySelector('[data-do="place-bet"]'); if (button) button.disabled = p!=='betting'||draft?.side==null||busy||!service?.connected()||!Number.isInteger(Number(draft?.amount))||Number(draft?.amount)<1||Number(draft?.amount)*100>data.player.maxBet;
     const disconnected = service && !service.connected(); const connection = document.querySelector('#hb-connection'); if (connection) connection.hidden=!disconnected;
     if (p==='preparing' && data?.status==='recovering') { const el=shell.querySelector('.hb-preparing p'); if(el)el.textContent='The live broadcast is reconnecting. Your balance and pending decisions are saved.'; }
+  }
+  function syncProfile() {
+    const profile=shell.querySelector('.hb-chat-profile');if(!profile)return;
+    const summary=profile.querySelector('summary'),label=`${data.player.name} · edit name`;
+    if(summary.textContent!==label)summary.textContent=label;
+    const button=profile.querySelector('button');button.disabled=profileSaving||busy;
+    button.textContent=profileSaving?'Saving…':'Save name';
+    profile.querySelector('#hb-profile-status').textContent=profileSaved?'Name saved.':'';
   }
   function renderChat(force = false) {
     if (!chatShown || screen!=='broadcast') return;
@@ -148,9 +157,10 @@ async function start() {
       document.querySelector('#broadcast-loading')?.setAttribute('hidden','');
     } catch(e){error(e);}finally{mounting=null;}
   }
+  shell.addEventListener('toggle',e=>{if(e.target.isConnected&&e.target.matches('.hb-chat-profile'))profileOpen=e.target.open;},true);
   shell.addEventListener('input',e=>{
     if(e.target.id==='stake'){draft.amount=e.target.value;saveDraft();const p=draft.side==null?null:data.fight.odds[draft.side],stake=Math.round(Number(draft.amount)*100);document.querySelector('#profit').textContent=p==null?'Choose a ship':credits(Math.round(stake*.95*(1-p)/p/100)*100)+' cr';document.querySelector('#after-stake').textContent='Balance after placing: '+credits(data.player.balance-stake)+' cr';}
-    if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;if(e.target.id==='viewer-name')drafts.viewer=e.target.value;
+    if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;if(e.target.id==='viewer-name'){drafts.viewer=e.target.value;profileSaved=false;syncProfile();}
   });
   shell.addEventListener('click',async e=>{
     const b=e.target.closest('button,[data-do]');if(!b)return;e.stopPropagation();
@@ -176,7 +186,11 @@ async function start() {
     e.preventDefault();const form=e.target,fields=new FormData(form);
     if(form.dataset.form==='wager'){await mutation('game:wager',{fight:draft.fight,side:draft.side,stake:Math.round(Number(fields.get('stake'))*100)});}
     if(form.dataset.form==='rename'){await mutation('game:rename',{name:String(fields.get('name'))});if(!notice)renaming=false;render(true);}
-    if(form.dataset.form==='profile')await mutation('game:profile',{name:String(fields.get('name'))});
+    if(form.dataset.form==='profile') {
+      profileSaving=true;profileSaved=false;profileOpen=true;syncProfile();
+      try { if(await mutation('game:profile',{name:String(fields.get('name'))})){drafts.viewer='';profileSaved=true;} }
+      finally { profileSaving=false;render(true); }
+    }
     if(form.dataset.form==='chat'){await mutation('chat:send',{body:String(fields.get('body'))});if(!notice){drafts.message='';form.reset();}}
   });
   shell.innerHTML='<main class="hb-connecting"><span class="hb-eyebrow">HARD BURN / LEAGUE DOCK</span><h1>Connecting…</h1><p>Connecting to the live league…</p></main>';
