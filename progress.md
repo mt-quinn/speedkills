@@ -55,3 +55,9 @@
 - Fixed live-combat rendering leaving the chat profile summary stale after a successful name save.
 - Added saving/saved feedback, preserved the open profile form through updates, and cleared the saved indicator when editing again.
 - Verified against the cloud development backend using an isolated localhost browser account during combat; the updated name appeared immediately and persisted after reload. No chat messages were sent.
+
+### Betting-to-broadcast transition
+- Preserve the current match's iframe during cloud updates, including while it is still joining. Previously updates could detach the iframe while a load promise was pending and leave the mount permanently blocked.
+- Added an origin/source-checked readiness and mounted acknowledgement protocol. The parent no longer treats the initial about:blank document as viewer readiness or hides loading before the renderer starts.
+- Mount attempts are tied to their iframe and fight, discarded after navigation/phase changes, and safely retried. Duplicate mount requests acknowledge without rebuilding the renderer.
+- Removed both unplaced-draft expiry notifications; stale draft selections clear silently.

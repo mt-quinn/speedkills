@@ -525,13 +525,24 @@ export function stopBroadcast() {
 export function muteBroadcast(muted) { if (sound) toggleSound(!muted); }
 
 // Parent league shell owns phase timing; this frame only renders the active broadcast.
-if (networkLive) window.addEventListener('message', e => {
-  if (e.origin !== location.origin || e.source !== parent) return;
-  const message = e.data;
-  if (message?.kind === 'mount-live') {
-    const epoch = message.startsAt, serverOffset = message.offset;
-    mountBroadcast(message.raw, () => (Date.now() + serverOffset - epoch) / 1000);
-  }
-  if (message?.kind === 'resume-live') resumeBroadcast();
-  if (message?.kind === 'sound-live') muteBroadcast(message.muted);
-});
+if (networkLive) {
+  let mountedNetworkFight;
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || e.source !== parent) return;
+    const message = e.data;
+    if (message?.kind === 'broadcast-ping') parent.postMessage({kind:'broadcast-ready'},location.origin);
+    if (message?.kind === 'mount-live') {
+      try {
+        if(!app||mountedNetworkFight!==message.fight){
+          const epoch=message.startsAt,serverOffset=message.offset;
+          mountBroadcast(message.raw,()=> (Date.now()+serverOffset-epoch)/1000);
+          mountedNetworkFight=message.fight;
+        }
+        parent.postMessage({kind:'broadcast-mounted',fight:message.fight},location.origin);
+      }catch{parent.postMessage({kind:'broadcast-error',fight:message.fight},location.origin);}
+    }
+    if (message?.kind === 'resume-live') resumeBroadcast();
+    if (message?.kind === 'sound-live') muteBroadcast(message.muted);
+  });
+  if(parent!==window)parent.postMessage({kind:'broadcast-ready'},location.origin);
+}

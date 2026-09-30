@@ -18,7 +18,8 @@ async function start() {
   let dockScene, sceneLoading=false, profileSaving=false, profileSaved=false, profileOpen=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
   let chatShown = localStorage.getItem('hb-chat-visible') === null ? matchMedia('(min-width:761px)').matches : localStorage.getItem('hb-chat-visible') !== 'false';
-  let mountedFight, mounting, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
+  let mountedFight, mounting, preparedMount, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
+  const readyFrames=new WeakSet();
   let draft; try { draft = JSON.parse(sessionStorage.getItem('hb-wager-draft') || 'null'); } catch {}
   const drafts = { rename:'', message:'', viewer:'' };
   const now = () => Date.now() + offset;
@@ -75,16 +76,16 @@ async function start() {
   }
   function viewer() {
     const f = data.fight, p = phase(f);
-    return `<main class="hb-broadcast"><div id="hb-stage" class="${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" allow="autoplay"></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="sound">Toggle sound</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
+    return `<main class="hb-broadcast"><div id="hb-stage" class="${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay"></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="sound">Toggle sound</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
   function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile" ${profileOpen?'open':''}><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button ${profileSaving?'disabled':''}>${profileSaving?'Saving…':'Save name'}</button><p id="hb-profile-status" role="status">${profileSaved?'Name saved.':''}</p></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
   function archivePage() { return `<main class="hb-archive"><div class="hb-page-title"><span class="hb-eyebrow">LEAGUE RECORD</span><h1>Finished fights.</h1><p>Completed matches and combat statistics.</p></div>${archive.length ? archive.map(f=>`<details class="hb-archive-entry"><summary><span>#${String(f.sequence).padStart(4,'0')}</span><b>${esc(f.ships.map(s=>s.name).join(' vs '))}</b><strong>${f.winner===null?'Draw':esc(f.ships[f.winner].name)+' won'}</strong></summary>${results(f)}</details>`).join('') : '<p>Completed fights will appear here.</p>'}</main>`; }
   function render(force = false) {
     if (!data) return;
-    if (draft && phase(data.fight) !== 'betting' && !data.wager && draft.side != null) { draft=null;saveDraft();notice='Betting closed before your draft was placed. No credits were spent.'; }
+    if (draft && phase(data.fight) !== 'betting' && !data.wager && draft.side != null) { draft=null;saveDraft(); }
     const key = JSON.stringify([screen,phase(data.fight),data,station,renaming,chatShown,archive]);
     if (!force && key===lastKey) { countdown(); return; } lastKey=key;
-    const continuing = screen === 'broadcast' && phase(data.fight) === 'combat' && document.body.dataset.screen === 'broadcast' && document.querySelector('#hb-stage.combat') && mountedFight === data.fight.id;
+    const continuing = screen === 'broadcast' && phase(data.fight) === 'combat' && document.body.dataset.screen === 'broadcast' && document.querySelector('#hb-stage.combat') && document.querySelector('#hb-feed')?.dataset.fight === data.fight.id;
     if (continuing) {
       document.body.classList.toggle('hb-chat-open', chatShown);
       document.querySelector('#hb-chat').hidden = !chatShown;
@@ -93,7 +94,7 @@ async function start() {
       const n = document.querySelector('#hb-notice'); n.hidden=!notice; if(notice)n.firstChild.textContent=notice;
       renderChat(true); countdown(); return;
     }
-    if (feedElement) { feedElement=null; mountedFight=null; }
+    if (feedElement) { feedElement=null; mountedFight=null; preparedMount=null; }
     const active = document.activeElement, focusId = active?.id, selection = active?.selectionStart;
     document.body.dataset.screen = screen; document.body.classList.toggle('hb-chat-open',screen==='broadcast'&&chatShown);
     shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
@@ -140,22 +141,39 @@ async function start() {
   function error(e) { notice=typeof e.data==='string'?e.data:(e.message||String(e)).replace(/^.*Uncaught ConvexError: /,'').split('\n')[0];render(true); }
   async function mutation(name,args={}) { if(busy)return;busy=true;countdown();try {await service.call(name,args);notice='';return true;}catch(e){error(e);return false;}finally{busy=false;render(true);} }
   function navigate(to) { screen=to;notice='';lastKey='';render();subscribeChat();if(to==='broadcast')feedElement?.contentWindow?.postMessage({kind:'resume-live'},location.origin);else feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:true},location.origin); }
+  // Readiness comes from the viewer module, not the iframe's initial about:blank document.
+  window.addEventListener('message',e=>{
+    const frame=document.querySelector('#hb-feed');
+    if(e.origin!==location.origin||!frame||e.source!==frame.contentWindow)return;
+    if(e.data?.kind==='broadcast-ready'){readyFrames.add(frame);syncBroadcast();}
+    if(e.data?.kind==='broadcast-mounted'&&e.data.fight===data?.fight?.id&&frame.dataset.fight===e.data.fight){
+      mountedFight=e.data.fight;preparedMount=null;document.querySelector('#broadcast-loading')?.setAttribute('hidden','');
+    }
+    if(e.data?.kind==='broadcast-error'&&e.data.fight===data?.fight?.id){preparedMount=null;error(new Error('Could not start the live broadcast. Retrying…'));}
+  });
+  function sendPreparedMount() {
+    const pending=preparedMount;
+    if(!pending||!pending.frame.isConnected||screen!=='broadcast'||phase(data?.fight)!=='combat'||data.fight.id!==pending.fight)return;
+    if(pending.sentAt&&Date.now()-pending.sentAt<1000)return;
+    pending.sentAt=Date.now();
+    pending.frame.contentWindow.postMessage({kind:'mount-live',fight:pending.fight,raw:pending.raw,startsAt:pending.startsAt,offset},location.origin);
+  }
   async function syncBroadcast() {
-    const f=data?.fight,p=phase(f);
-    if(!f||p==='betting'||p==='preparing') { if(mountedFight){mountedFight=null;feedElement?.remove();feedElement=null;} return; }
-    if(p !== 'combat') return;
-    if(screen!=='broadcast'||mountedFight===f.id||mounting===f.id)return;
-    const id=f.id; mounting=id;
+    const f=data?.fight;
+    if(!f||phase(f)!=='combat'||screen!=='broadcast')return;
+    const frame=document.querySelector('#hb-feed');if(!frame||frame.dataset.fight!==f.id)return;
+    feedElement=frame;
+    if(mountedFight===f.id)return;
+    if(!readyFrames.has(frame)){frame.contentWindow?.postMessage({kind:'broadcast-ping'},location.origin);return;}
+    if(preparedMount?.frame===frame&&preparedMount.fight===f.id){sendPreparedMount();return;}
+    if(mounting?.frame===frame&&mounting.fight===f.id)return;
+    const attempt={frame,fight:f.id};mounting=attempt;
     try {
-      const url=traceUrl || await service.query('game:trace',{fight:id}); if(!url)return;
+      const url=traceUrl||await service.query('game:trace',{fight:f.id});if(!url)return;
       const raw=await fetch(url).then(r=>{if(!r.ok)throw new Error('Could not join the live fight.');return r.json();});
-      if(data.fight?.id!==id||screen!=='broadcast'||phase(data.fight)==='betting')return;
-      feedElement ??= document.querySelector('#hb-feed');
-      if (!feedElement) return;
-      if (feedElement.contentDocument?.readyState !== 'complete') await new Promise(resolve=>feedElement.addEventListener('load',resolve,{once:true}));
-      feedElement.contentWindow.postMessage({kind:'mount-live',raw,startsAt:f.startsAt,offset},location.origin);mountedFight=id;
-      document.querySelector('#broadcast-loading')?.setAttribute('hidden','');
-    } catch(e){error(e);}finally{mounting=null;}
+      if(!frame.isConnected||document.querySelector('#hb-feed')!==frame||data.fight?.id!==f.id||screen!=='broadcast'||phase(data.fight)!=='combat')return;
+      preparedMount={frame,fight:f.id,raw,startsAt:f.startsAt,sentAt:0};sendPreparedMount();
+    }catch(e){if(frame.isConnected)error(e);}finally{if(mounting===attempt)mounting=null;}
   }
   shell.addEventListener('toggle',e=>{if(e.target.isConnected&&e.target.matches('.hb-chat-profile'))profileOpen=e.target.open;},true);
   shell.addEventListener('input',e=>{
@@ -198,7 +216,7 @@ async function start() {
     service=await connect();
     service.subscribe('game:home',{},d=>{
       const old=data?.fight?.id, newCandidate=!data?.player.candidate&&d.player.candidate; data=d;
-      if(old!==d.fight?.id){ traceSubscription?.();traceUrl=null; if(draft&&draft.fight!==d.fight?.id){notice='Your unplaced bet draft expired with the previous matchup.';draft=null;saveDraft();}if(d.fight)traceSubscription=service.publicSubscribe('game:trace',{fight:d.fight.id},url=>{traceUrl=url;syncBroadcast();},error); }
+      if(old!==d.fight?.id){ traceSubscription?.();traceUrl=null; if(draft&&draft.fight!==d.fight?.id){draft=null;saveDraft();}if(d.fight)traceSubscription=service.publicSubscribe('game:trace',{fight:d.fight.id},url=>{traceUrl=url;syncBroadcast();},error); }
       render();
       if(newCandidate&&screen==='hangar') requestAnimationFrame(()=>document.querySelector('.dock-inline-candidate')?.scrollIntoView({block:'nearest',behavior:'smooth'}));
     },error);
