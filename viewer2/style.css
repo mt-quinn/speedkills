@@ -352,3 +352,11 @@ body.portrait #dock .plate.t1 .pl-hull b { right: auto; left: calc(100% + 5px); 
 
 body.portrait #legend span:last-child { grid-column: 1 / -1; }
 #legend { flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); }
+
+/* Range between the ships (scoreboard centre) */
+.sb-range { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; color: var(--ink); line-height: 1; white-space: nowrap; }
+.sb-range i { font-style: normal; font-weight: 600; font-size: 12px; margin-left: 4px; color: var(--dim); }
+.sb-range i.cl { color: #ffb03b; }
+.sb-mid { gap: 4px; }
+body.portrait .sb-range { font-size: 12px; } body.portrait .sb-range i { font-size: 10px; margin-left: 3px; }
+@media (max-height: 520px) and (orientation: landscape) { .sb-range { font-size: 12px; } .sb-range i { font-size: 10px; } }

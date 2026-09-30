@@ -629,7 +629,11 @@ pub fn shot(s: &Ship, e: &Ship) -> Shot {
     let p_env = (radius / escape.max(radius)).powi(2);
     // Aim error eats into the target: what's left of the ship's width against the envelope.
     let r_eff = (radius - aim_miss).max(0.0);
-    let p_hit = if r_eff <= 0.0 { 0.0 } else { (r_eff / escape.max(r_eff)).powi(2) };
+    // Our own scatter at this range: the chance the round lands within what's left of the ship
+    // (a 2-D normal), on top of the target's escape envelope.
+    let sd = s.rail_sigma() * rel.len();
+    let p_scatter = 1.0 - (-(r_eff * r_eff) / (2.0 * sd * sd).max(1e-9)).exp();
+    let p_hit = if r_eff <= 0.0 { 0.0 } else { (r_eff / escape.max(r_eff)).powi(2) * p_scatter };
     Shot { aim_miss, escape, p_hit, p_env }
 }
 

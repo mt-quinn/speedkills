@@ -271,6 +271,14 @@ impl Ship {
     pub fn scale(&self) -> f64 {
         self.class.radius / SHIP_RADIUS
     }
+    /// The railgun's aim scatter right now (rad, per axis): see `rail_disp_*`.
+    pub fn rail_sigma(&self) -> f64 {
+        let f = self.forward();
+        let lat = (self.accel - f * self.accel.dot(f)).len() / G;
+        let sensors = if self.part(Part::Sensors) <= 0.0 { 2.0 } else { 1.0 };
+        let gunner = if self.crew_at(Station::Gunner).working() { 1.0 } else { 1.5 };
+        (rail_disp_base() + rail_disp_rate() * self.rate.len() + rail_disp_lat() * lat) * sensors * gunner
+    }
     pub fn powered(&self) -> bool {
         self.part(Part::Reactor) > 0.0
     }

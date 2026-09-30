@@ -162,7 +162,7 @@ export class Audio {
     // Music: ducks under slow motion, swells for the result.
     // (It also sits back while a railgun charges, so the spin-up is heard.)
     const maxCharge = ended ? 0 : Math.max(...st.ships.map((s) => (s.raw.alive ? s.raw.rail[0] : 0)));
-    const bgm = t > endT + 1.2 ? 0.45 : slow ? 0.16 : 0.32 * (1 - 0.45 * Math.min(1, maxCharge / 0.4));
+    const bgm = t > endT + 1.2 ? 0.45 : slow ? 0.16 : 0.32 * (1 - 0.25 * Math.min(1, maxCharge / 0.4));
     this.bgmBus.gain.setTargetAtTime(bgm, now, 0.4);
 
     // ---- events ----
@@ -241,9 +241,9 @@ export class Audio {
       if (rise > 0) this.onset[i] = Math.min(1, this.onset[i] + (rise / 5) * (dt / 0.25));
       this.onset[i] *= Math.exp(-dt / 0.6);
       this.prevG[i] += (g - this.prevG[i]) * Math.min(1, dt / 0.25);
-      eng[i] = g > 0.3 ? (0.03 + 0.14 * (1 - Math.exp(-g / 6)) + 0.4 * this.onset[i]) * att : 0;
+      eng[i] = g > 0.3 ? (0.08 + 0.34 * (1 - Math.exp(-g / 6)) + 0.6 * this.onset[i]) * att : 0;
       if (L.engine) {
-        L.engine.filt.frequency.setTargetAtTime(Math.min(6000, 280 + 260 * g), now, 0.12);
+        L.engine.filt.frequency.setTargetAtTime(Math.min(7000, 450 + 350 * g), now, 0.12);
         L.engine.pan.pan.setTargetAtTime(pan, now, 0.1);
         L.engine.src.playbackRate.setTargetAtTime((0.92 + 0.012 * Math.min(g, 16)) * this.slowRate, now, 0.2);
       }
@@ -252,8 +252,8 @@ export class Audio {
         const [charge] = s.raw.rail;
         const on = alive && charge > 0.02;
         const full = charge >= 0.999;
-        L.charge.gain.gain.setTargetAtTime(on ? (full ? 0.75 : 0.3 + 0.5 * charge) * att : 0, now, 0.05);
-        L.charge.lfoDepth.gain.setTargetAtTime(on && full ? 0.08 : 0, now, 0.1);
+        L.charge.gain.gain.setTargetAtTime(on ? (full ? 0.38 : 0.15 + 0.25 * charge) * att : 0, now, 0.05);
+        L.charge.lfoDepth.gain.setTargetAtTime(on && full ? 0.04 : 0, now, 0.1);
         L.charge.src.playbackRate.setTargetAtTime((0.85 + 0.45 * charge) * this.slowRate, now, 0.05);
         L.charge.pan.pan.setTargetAtTime(pan, now, 0.1);
       }

@@ -111,9 +111,15 @@ pub const RAIL_AMMO: u32 = 11;
 pub const RAIL_SPEED: f64 = 2400.0;
 /// A crew sees the muzzle flash and reverses their jink after this long.
 pub const FLASH_REACTION: f64 = 0.25;
-pub const RAIL_HULL: f64 = 100.0;
+pub const RAIL_HULL: f64 = 135.0;
 /// Everything within this distance of the round's path through the ship takes this damage.
 pub const RAIL_PEN: (f64, f64) = (120.0, 1.5);
+/// Fire-control dispersion (rad, per axis): a spinal gun is aimed by pointing the whole ship, so
+/// the shot scatters with the shooter's own rotation (per rad/s) and sideways acceleration (per
+/// g), on top of a base; doubled with the sensors out, 1.5× without a working gunner.
+pub fn rail_disp_base() -> f64 { tune("RAIL_DISP_BASE", 0.001) }
+pub fn rail_disp_rate() -> f64 { tune("RAIL_DISP_RATE", 0.02) }
+pub fn rail_disp_lat() -> f64 { tune("RAIL_DISP_LAT", 0.002) }
 /// Spall: a round through the hull throws fragments, so what it wrecks widens behind the entry
 /// hole — the damage radius grows by this much per metre travelled inside the ship.
 pub fn rail_spall() -> f64 { tune("RAIL_SPALL", 0.0) }

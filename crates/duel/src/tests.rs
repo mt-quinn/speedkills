@@ -182,6 +182,7 @@ fn a_lost_mount_leaves_a_blind_arc() {
 
 fn rail_shot(offset: f64) -> (bool, World) {
     let mut w = duel(2000.0);
+    w.rail_scatter = false; // (geometry of the hit, not the gunnery)
     w.ships[1].pos.y = offset;
     w.inputs[0] = Input { charge_rail: true, ..Default::default() };
     run(&mut w, RAIL_CHARGE + 0.1);

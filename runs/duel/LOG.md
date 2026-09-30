@@ -179,3 +179,21 @@ Measured by `python3 python/duel/sync.py`: the share of one ship's salvos (±3 s
   - G1 100 s (time-outs at the 10% line), G2–G5 pass (G3 65%), G6 fails as before;
   - crew killed mid-fight in 88% of fights, systems lost in 98%.
 - **Residual salvo sync** is structural: every launch rule keys on the one shared range, which the circular-shift control ignores. Card re-recorded; viewer audit 12/12 on every criterion.
+
+
+## I23 the railgun misses (user: shots almost never miss)
+- **Diagnosis** (`python3 python/duel/rail.py`): 90% of shots hit. The median shot is at 1.7 km with 0.67 s of flight, so a target on RCS can drift ~3 m against a 12 m radius. 82% of shots were rated ≥0.9 and hit 97%. Nothing modelled aim error: the gun was perfect at fighting range.
+- **Mechanism: fire-control dispersion.** A spinal gun is aimed by pointing the ship, so the round scatters (per axis) by 1 mrad base + 0.02 per rad/s of the shooter's rotation + 0.002 per g of its sideways acceleration; ×2 with the sensors out, ×1.5 without a working gunner (`Ship::rail_sigma`).
+- **Fire control's estimate includes it** (a 2-D normal against what's left of the ship's width), so shot selection stays honest, and firing while manoeuvring is a real trade.
+- **Sweep, at 100 fights per pairing:**
+  - 1/0.02/0.002: hit 67%, time-outs 13% (G1 fails);
+  - 2/0.04/0.004: 62%;
+  - 4/…: 54% and G2 fails.
+- **Pace:** fewer hits slowed fights. To keep expected rail damage per shot (100 × 0.90 / 0.67 ≈ 134), RAIL_HULL goes 100 → 135. Ammo doesn't bind (4.7 of 11 fired).
+- **Result, 300 per pairing:**
+  - hit 65%; calibration: rated 0.6–0.9 → 75% hit, ≥0.9 → 96%;
+  - by range: <1.5 km 77%, 1.5–3 km 49%, 3–4.5 km 31%;
+  - G1–G6 all PASS (G6 6%, first pass since I15);
+  - crew killed mid-fight in 76% of fights, systems lost in 89%;
+  - railgun shots coincide 1.86× chance (more return fire), salvos 2.37×.
+- Test `rail_shot` turns the scatter off (`World::rail_scatter`): it tests hit geometry, not gunnery.

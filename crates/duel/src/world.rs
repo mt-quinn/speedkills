@@ -113,6 +113,8 @@ pub struct World {
     pub rng: Rng,
     /// The disengagement rule is on (off only in tests).
     pub bounded: bool,
+    /// Fire-control dispersion on (tests of pure geometry turn it off).
+    pub rail_scatter: bool,
     /// Seconds the ships have been beyond DISENGAGE_RANGE (0 when inside).
     pub disengage: f64,
     /// Each ship's recent burning away from the other (m/s, decaying over DISENGAGE_MEMORY).
@@ -167,7 +169,7 @@ impl World {
             let off = rng.unit_vec() * rng.range(300.0, 2500.0);
             rocks.push(Rock { pos: axis * along + off, radius: rng.range(30.0, 140.0) });
         }
-        World { ships: [a, b], inputs: [Input::default(); 2], torps: Vec::new(), debris: Vec::new(), slugs: Vec::new(), rocks, t: 0.0, tick: 0, events: Vec::new(), finished: false, winner: None, end_reason: "", rng, bounded: true, disengage: 0.0, opening: [0.0; 2], next_id: 1 }
+        World { ships: [a, b], inputs: [Input::default(); 2], torps: Vec::new(), debris: Vec::new(), slugs: Vec::new(), rocks, t: 0.0, tick: 0, events: Vec::new(), finished: false, winner: None, end_reason: "", rng, bounded: true, rail_scatter: true, disengage: 0.0, opening: [0.0; 2], next_id: 1 }
     }
 
     fn id(&mut self) -> u32 {
@@ -353,7 +355,17 @@ impl World {
                 s.rail_held = 0.0;
                 s.rail_cooldown = s.class.rail_cooldown;
                 s.rail_ammo -= 1;
-                let (pos, vel) = (s.to_world(Vec3::Z * (s.class.radius + 1.0)), s.vel + s.forward() * RAIL_SPEED);
+                // (The round leaves along the nose, scattered by fire-control dispersion.)
+                let sigma = if self.rail_scatter { s.rail_sigma() } else { 0.0 };
+                let f = s.forward();
+                let (u, v) = (f.any_perp(), f.cross(f.any_perp()));
+                // (Box–Muller: two independent normals.)
+                let (ra, rb) = (self.rng.f64().max(1e-12), self.rng.f64());
+                let rr = (-2.0 * ra.ln()).sqrt();
+                let (g1, g2) = (rr * (std::f64::consts::TAU * rb).cos(), rr * (std::f64::consts::TAU * rb).sin());
+                let s = &mut self.ships[i];
+                let dir = (f + u * (g1 * sigma) + v * (g2 * sigma)).normalized_or(f);
+                let (pos, vel) = (s.to_world(Vec3::Z * (s.class.radius + 1.0)), s.vel + dir * RAIL_SPEED);
                 let power = if s.rail_overcharged { RAIL_OVERCHARGE_POWER } else { 1.0 };
                 let was_over = s.rail_overcharged;
                 s.rail_overcharged = false;

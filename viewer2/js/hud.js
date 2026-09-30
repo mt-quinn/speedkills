@@ -68,7 +68,9 @@ export class Hud {
     this.clock = el('div', 'sb-clock', '0:00');
     this.leadTxt = el('div', 'sb-lead', 'even');
     this.barCap = el('div', 'sb-cap', 'integrity');
-    mid.append(this.clock, this.leadTxt, this.barCap);
+    // Range between the ships, and whether it's closing or opening.
+    this.rangeTxt = el('div', 'sb-range');
+    mid.append(this.clock, this.rangeTxt, this.leadTxt, this.barCap);
     sb.append(side(0), mid, side(1));
   }
 
@@ -345,6 +347,15 @@ export class Hud {
     this.clock.textContent = `${mm}:${String(ss).padStart(2, '0')}`;
     const h = this.m.healthAt(t);
     const d = h[0] - h[1];
+    {
+      const [a, b] = st.ships;
+      const sep = b.pos.clone().sub(a.pos), r = sep.length();
+      const rate = -b.vel.clone().sub(a.vel).dot(sep) / Math.max(1, r); // >0 closing
+      const dist = r < 1000 ? `${Math.round(r / 10) * 10} m` : `${(r / 1000).toFixed(1)} km`;
+      const rt = Math.abs(rate) < 20 ? '' : ` <i class="${rate > 0 ? 'cl' : 'op'}">${rate > 0 ? '▼' : '▲'} ${Math.round(Math.abs(rate) / 10) * 10} m/s</i>`;
+      const html = `${dist}${rt}`;
+      if (html !== this.lastRange) { this.rangeTxt.innerHTML = html; this.lastRange = html; }
+    }
     this.exchanges(t);
     // The live exchange (and its call, 1.5 s after it ends): each ship's loss in it so far.
     const ex = t <= this.endT + 0.5 ? this.m.exchangeAt(t) : null;
@@ -465,7 +476,9 @@ export class Hud {
   placePlates(st, cam) {
     const W = window.innerWidth, H = window.innerHeight;
     const P = [0, 1].map((i) => st.ships[i].pos.clone().sub(this.scene.mid).project(cam));
-    const S = P.map((p) => ({ x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, on: p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 }));
+    // (Before the camera is placed a projection can be non-finite: hide until it's valid.)
+    const S = P.map((p) => ({ x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, on: Number.isFinite(p.x) && Number.isFinite(p.y) && p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 }));
+    if (!S.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y))) { for (let i = 0; i < 2; i++) { this.plates[i].p.style.display = 'none'; this.leaderLines[i].style.display = 'none'; } this.tagRects = []; return; }
     const icon = H * 0.5 * this.scene.iconFrac(st);
     const rects = [];
     for (let i = 0; i < 2; i++) {
