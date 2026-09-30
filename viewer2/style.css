@@ -389,3 +389,14 @@ body.portrait .res-actions { margin-top: 12px; } body.portrait .res-actions butt
 .ct-row.small button svg { width: 18px; height: 18px; fill: currentColor; opacity: 0.5; }
 .ct-row.small button.on { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
 .ct-row.small button.on svg { opacity: 1; }
+
+/* Shown only while the browser holds the audio until a first click or key */
+#soundhint { position: fixed; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(7, 10, 18, 0.82);
+  border: 1px solid var(--rule); font-family: 'Saira Condensed', sans-serif; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+  opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 14; }
+#soundhint svg { width: 16px; height: 16px; fill: currentColor; }
+#soundhint.on { opacity: 0.9; }
+/* Phones: centred just above the team panels (clear of the radio lines, which sit at the sides) */
+body.portrait #soundhint { left: 50%; bottom: auto; top: calc(var(--dock-top, 100vh) - 84px); transform: translateX(-50%); font-size: 14px; padding: 8px 14px; }
+body.portrait #soundhint.on { opacity: 1; animation: hintpulse 2.4s ease-in-out infinite; }
+@keyframes hintpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }

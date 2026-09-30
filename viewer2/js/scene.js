@@ -197,6 +197,11 @@ export class Scene {
     this.plane = this.makePlane();
     this.ships = [0, 1].map((i) => { const m = shipModel(i); this.root.add(m); return m; });
     this.chargeLines = [0, 1].map((i) => { const l = line2(TEAM[i], 2.0, 0); this.root.add(l); return l; });
+    this.chargeBg = [0, 1].map((i) => { const l = line2(TEAM[i], 2.2, 0); this.root.add(l); return l; });
+    this.lockBatch = segBatch(64, 2.2);
+    this.root.add(this.lockBatch);
+    this._lp = new Float32Array(64 * 6); this._lc = new Float32Array(64 * 6);
+    this.lockOn = [];
     this.stalks = [0, 1].map((i) => { const l = line2(TEAM[i], 1.5, 0.55); this.root.add(l); return l; });
     this.feet = [0, 1].map((i) => { const m = new THREE.LineLoop(ringGeometry(1), new THREE.LineBasicMaterial({ color: TEAM[i], transparent: true, opacity: 0.8 })); this.root.add(m); return m; });
     this.velLines = [0, 1].map((i) => { const l = line2(TEAM[i], 1.2, 0.35, true); this.root.add(l); return l; });
@@ -553,6 +558,7 @@ export class Scene {
     this.ended = t > this.match.duration + 1e-3;
     const m = this.match;
     this.resetPools();
+    this.lockOn = [];
     this.camWorld = this.camera.position.clone().add(this.mid);
     // Floating origin at the fight's middle.
     this.mid.copy(st.ships[0].pos).add(st.ships[1].pos).multiplyScalar(0.5);
@@ -653,34 +659,42 @@ export class Scene {
       // Velocity cue (dashed), 4 s ahead relative to the fight's middle.
       const rel = s.vel.clone().sub(st.ships[0].vel.clone().add(st.ships[1].vel).multiplyScalar(0.5));
       this.velLines[i].visible = false;
-      // Railgun charge line: along the nose, brightening with charge; the threat colour once full
-      // and on target.
+      // Railgun: a short barrel stub at the nose that fills with charge (never a line across the
+      // gap — that's where PDC fire and torpedoes fly), and a lock-on reticle on the target when
+      // the gun bears: white while charging, pulsing threat red when it's ready to fire.
       const r = s.raw.rail; // [charge, held, cooldown, ammo, overcharged]
-      const cl = this.chargeLines[i];
+      const cl = this.chargeLines[i], cb = this.chargeBg[i];
       const e = st.ships[1 - i];
       if (alive && !this.ended && r[0] > 0.02) {
         const toE = e.pos.clone().sub(s.pos);
-        const len = Math.max(400, toE.length() * 1.15);
-        setLine(cl, [s.pos.clone().addScaledVector(fwd, 14 * sc), s.pos.clone().addScaledVector(fwd, len)]);
+        const dist = toE.length();
+        const L = Math.min(0.35 * dist, Math.max(this.screenScale(s.pos, 0.07, 1), 0.12 * dist));
+        const base = s.pos.clone().addScaledVector(fwd, 14 * sc);
+        const full = r[0] >= 0.999;
+        setLine(cb, [base, base.clone().addScaledVector(fwd, L)]);
+        cb.material.color.copy(TEAM[i]); cb.material.opacity = 0.25; cb.visible = true;
+        setLine(cl, [base, base.clone().addScaledVector(fwd, Math.max(1, L * r[0]))]);
         const along = toE.dot(fwd);
         const miss = toE.clone().sub(fwd.clone().multiplyScalar(along)).length();
-        const onTarget = along > 0 && miss < 60;
-        const full = r[0] >= 0.999;
-        const pulse = full ? 0.75 + 0.25 * Math.sin(now * 14) : 1;
-        cl.material.color.copy(full && onTarget ? THREAT : TEAM[i]);
-        cl.material.opacity = (0.15 + 0.75 * r[0]) * pulse;
-        cl.material.linewidth = full ? 2.6 : 1.4;
+        const onTarget = along > 0 && miss < Math.max(60, 0.02 * dist);
+        const pulse = full ? 0.7 + 0.3 * Math.sin(now * 14) : 1;
+        cl.material.color.copy(full ? (onTarget ? THREAT : TEAM[i].clone().lerp(WHITE, 0.5)) : TEAM[i]);
+        cl.material.opacity = (0.5 + 0.5 * r[0]) * pulse;
+        cl.material.linewidth = full ? 3.2 : 2.2;
         cl.visible = true;
-      } else cl.visible = false;
+        if (onTarget && r[0] > 0.3) this.lockOn.push({ at: e.pos, ship: 1 - i, full, k: r[0], pulse });
+      } else { cl.visible = false; cb.visible = false; }
     }
 
-    // Railgun rounds: bright streaks.
+    this.drawLocks(st);
+
+    // Railgun rounds: the one long, bright, solid streak on the screen.
     for (const sl of m.objects(t, 'sl')) {
-      const l = this.get('slug', () => line2(WHITE, 3.0, 1));
+      const l = this.get('slug', () => line2(WHITE, 4.0, 1));
       const dir = sl.vel.clone().normalize();
-      setLine(l, [sl.pos.clone().addScaledVector(dir, -Math.max(150, this.screenScale(sl.pos, 0.05, 1))), sl.pos]);
-      l.material.color.copy(TEAM[sl.owner]).lerp(WHITE, 0.6);
-      l.material.linewidth = sl.extra > 1.01 ? 4.5 : 3.0;
+      setLine(l, [sl.pos.clone().addScaledVector(dir, -Math.max(220, this.screenScale(sl.pos, 0.08, 1))), sl.pos]);
+      l.material.color.copy(TEAM[sl.owner]).lerp(WHITE, 0.75);
+      l.material.linewidth = sl.extra > 1.01 ? 6.0 : 4.0;
     }
 
     // Torpedoes: motes with ribbon trails; red when close and inbound.
@@ -689,7 +703,7 @@ export class Scene {
       seen.add(tp.id);
       const tr = this.trails.get(tp.id) || [];
       if (!tr.length || tr[tr.length - 1].t < t - 0.05) tr.push({ t, p: tp.pos.clone() });
-      while (tr.length && tr[0].t < t - 3.0) tr.shift();
+      while (tr.length && tr[0].t < t - 0.8) tr.shift(); // (a short comet tail, not a line)
       this.trails.set(tp.id, tr);
       const target = st.ships[1 - tp.owner];
       const range = tp.pos.distanceTo(target.pos);
@@ -797,6 +811,30 @@ export class Scene {
     writeSegs(this.measureBatch, pos, col, n);
   }
 
+  // Lock-on reticle: four corner brackets round the target, facing the camera; they close in as
+  // the charge builds.
+  drawLocks(st) {
+    const pos = this._lp, col = this._lc;
+    let n = 0;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+    for (const L of this.lockOn) {
+      const R = this.ships[L.ship].scale.x * 13 * (1.6 - 0.4 * L.k);
+      const arm = R * 0.38;
+      const c = L.full ? THREAT : WHITE, f = (L.full ? 1 : 0.55 + 0.35 * L.k) * L.pulse;
+      for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        const corner = L.at.clone().addScaledVector(right, sx * R).addScaledVector(up, sy * R);
+        for (const d of [right.clone().multiplyScalar(-sx * arm), up.clone().multiplyScalar(-sy * arm)]) {
+          if (n >= 64) break;
+          const b = corner.clone().add(d);
+          pos.set([corner.x, corner.y, corner.z, b.x, b.y, b.z], n * 6);
+          col.set([c.r * f, c.g * f, c.b * f, c.r * f, c.g * f, c.b * f], n * 6);
+          n++;
+        }
+      }
+    }
+    writeSegs(this.lockBatch, pos, col, n);
+  }
+
   drawShrapnel(t, st, now) {
     const m = this.match;
     const clouds = m.objects(t, 'db');
@@ -878,12 +916,23 @@ export class Scene {
             const reach = Math.min(RANGE, d0 * 1.15 + 100);
             if (age * V > reach) continue;
             const vel = dir.clone().multiplyScalar(V).add(new THREE.Vector3(...S.v));
-            const head = from.clone().addScaledVector(vel, age);
+            // A kinetic arc: each mount's stream bows out on its own side (the mount's outward
+            // normal, square to the line of fire) and comes down on the aim point, so the three
+            // mounts fan round the line between the ships instead of drawing on it. (Stylised:
+            // the impact point is exact; past it the round runs straight.)
+            const nw = new THREE.Vector3(...normals[j]).applyQuaternion(q);
+            nw.sub(dir.clone().multiplyScalar(nw.dot(dir)));
+            if (nw.lengthSq() < 1e-6) nw.copy(dir.clone().cross(this.up)); 
+            nw.normalize();
+            const H = Math.min(0.16 * d0, 260);
+            const at = (a) => { const u = Math.min(1, (a * V) / Math.max(1, d0)); return from.clone().addScaledVector(vel, a).addScaledVector(nw, H * 4 * u * (1 - u)); };
+            const head = at(age);
             const len = Math.min(age * V, Math.max(18, this.screenScale(head, 0.008, 1)));
-            const tail = head.clone().addScaledVector(dir, -len);
+            const tail = at(Math.max(0, age - len / V));
             pos.set([tail.x, tail.y, tail.z, head.x, head.y, head.z], n * 6);
-            // Bright head, team-tinted tail; fading over the last part of the reach.
-            const f = Math.min(1, (reach - age * V) / 250);
+            // Bright head, team-tinted tail; fading over the last part of the reach. Fire at the
+            // other ship is dimmer than fire at torpedoes (shooting down a torpedo is the event).
+            const f = Math.min(1, (reach - age * V) / 250) * (atShip ? 0.55 : 1);
             const c = TEAM[i];
             col.set([c.r * 0.35 * f, c.g * 0.35 * f, c.b * 0.35 * f, (0.55 + 0.45 * c.r) * f, (0.55 + 0.45 * c.g) * f, (0.55 + 0.45 * c.b) * f], n * 6);
             n++;

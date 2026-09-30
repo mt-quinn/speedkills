@@ -103,9 +103,9 @@ export class Hud {
     const lg = $('#legend');
     lg.innerHTML = `
       <span><svg viewBox="0 0 24 12"><path d="M2 6 L20 2 L16 6 L20 10 Z" fill="currentColor"/></svg>ship · flame = thrust</span>
-      <span><svg viewBox="0 0 24 12"><line x1="1" y1="6" x2="23" y2="6" stroke="currentColor" stroke-width="2"/></svg>railgun charging</span>
+      <span><svg viewBox="0 0 24 12"><line x1="1" y1="6" x2="9" y2="6" stroke="currentColor" stroke-width="2.4"/><path d="M15 2h-2v2M21 2h2v2M15 10h-2v-2M21 10h2v-2" fill="none" stroke="#ff3b5c" stroke-width="1.4"/></svg>railgun charge · lock</span>
       <span><svg viewBox="0 0 24 12"><path d="M4 6 L14 2 L11 6 L14 10 Z" fill="#fff"/><line x1="14" y1="6" x2="23" y2="6" stroke="currentColor" stroke-width="1.5" opacity=".6"/></svg>torpedo</span>
-      <span><svg viewBox="0 0 24 12"><g stroke="#fff" stroke-width="1.6"><line x1="1" y1="6" x2="5" y2="6"/><line x1="9" y1="6" x2="13" y2="6"/><line x1="17" y1="6" x2="21" y2="6"/></g></svg>PDC rounds</span>
+      <span><svg viewBox="0 0 24 12"><path d="M1 10 Q12 -3 23 10" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3"/></svg>PDC rounds</span>
       <span><svg viewBox="0 0 24 12"><g stroke="#ffa070" stroke-width="1.4"><line x1="3" y1="3" x2="7" y2="4"/><line x1="10" y1="8" x2="14" y2="9"/><line x1="15" y1="2" x2="19" y2="3"/><line x1="6" y1="9" x2="9" y2="10"/></g></svg>shrapnel</span>
       <span><svg viewBox="0 0 24 12"><line x1="12" y1="0" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><ellipse cx="12" cy="11" rx="5" ry="1.4" fill="none" stroke="currentColor"/></svg>height above the plane</span>
       <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="#f5a623"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: ship condition · white = lost this exchange</span>`;
@@ -447,6 +447,8 @@ export class Hud {
     const top = !res.hidden && portrait ? res.getBoundingClientRect().bottom + 8 : sb.bottom + (portrait ? 44 : H < 520 ? 4 : 10);
     const bottom = portrait ? this.dock.getBoundingClientRect().top - 40 : H - 16;
     this.scene.stage = { top, bottom: Math.max(top + 120, bottom), left: portrait ? 8 : 0, right: portrait ? W - 8 : W };
+    // (The dock's top, for things that sit just above it.)
+    document.documentElement.style.setProperty('--dock-top', portrait ? `${this.dock.getBoundingClientRect().top}px` : `${H}px`);
     window.__stage = this.scene.stage;
   }
 

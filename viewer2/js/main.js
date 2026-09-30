@@ -46,7 +46,14 @@ class App {
     // One audio engine for the session; it follows whichever fight is open.
     if (!opt.audit && !opt.story && !opt.auditall) {
       if (sound) { sound.m = match; sound.scene = this.scene; sound.hush(); }
-      else sound = new Audio(match, this.scene);
+      else {
+        sound = new Audio(match, this.scene);
+        sound.onState = () => soundUI();
+        // Desktop: start the audio right away (it plays where the browser allows autoplay; where
+        // it doesn't, the first click or key resumes it). Phones wait for the first tap.
+        if (matchMedia('(pointer: fine)').matches && (sound.musicOn || sound.sfxOn)) sound.enable();
+        setTimeout(soundUI, 0);
+      }
       this.audio = sound;
     }
     this.t = 0;
@@ -318,32 +325,43 @@ window.addEventListener('keydown', (e) => {
 // Sound: M mutes or unmutes everything; the controls have separate music and effects toggles.
 function toggleSound(force) {
   if (!sound) return;
-  const on = force ?? !sound.enabled;
+  const on = force ?? !sound.playing;
   if (on && !sound.musicOn && !sound.sfxOn) sound.setMix({ music: true, sfx: true });
   if (on) sound.enable(); else sound.disable();
+  sound.userOff = !on;
   soundUI();
 }
 function toggleMix(which) {
   if (!sound) return;
   // (The buttons show what's actually playing: with audio not running both read "off", so a
   // tap turns that one on and leaves the other off.)
-  if (!sound.enabled) sound.setMix({ music: which === 'music', sfx: which === 'sfx' });
+  if (!sound.playing) sound.setMix({ music: which === 'music', sfx: which === 'sfx' });
   else sound.setMix({ [which]: !sound[which === 'music' ? 'musicOn' : 'sfxOn'] });
   // (Either on needs the audio running; both off is the same as muted.)
   if (sound.musicOn || sound.sfxOn) sound.enable(); else sound.disable();
+  sound.userOff = !(sound.musicOn || sound.sfxOn);
   soundUI();
 }
 function soundUI() {
-  const live = sound && sound.enabled;
+  if (!sound) return;
+  const live = sound.playing;
+  // (The hint shows whenever sound is wanted but not yet audible — held by the browser, or on a
+  // phone before the first tap — unless the viewer switched it off themselves.)
+  const blocked = !live && (sound.musicOn || sound.sfxOn) && !sound.userOff;
   const m = live && sound.musicOn, f = live && sound.sfxOn;
-  document.querySelector('#sound').textContent = live ? 'sound on · m' : 'sound off · m';
+  document.querySelector('#sound').textContent = live ? 'sound on · m' : blocked ? 'click for sound' : 'sound off · m';
+  const hint = document.querySelector('#soundhint');
+  hint.classList.toggle('on', blocked);
+  const ht = matchMedia('(pointer: coarse)').matches ? 'tap for sound' : 'click anywhere for sound';
+  if (hint.lastChild.textContent !== ht) hint.lastChild.textContent = ht;
   const bm = document.querySelector('#controls [data-a=music]'), bf = document.querySelector('#controls [data-a=sfx]');
   bm.querySelector('span').textContent = m ? 'music on' : 'music off'; bm.classList.toggle('on', m); bm.setAttribute('aria-pressed', m);
   bf.querySelector('span').textContent = f ? 'effects on' : 'effects off'; bf.classList.toggle('on', f); bf.setAttribute('aria-pressed', f);
 }
 const firstGesture = (e) => {
   window.removeEventListener('pointerdown', firstGesture); window.removeEventListener('keydown', firstGesture);
-  if (sound && !sound.enabled && !(e.key === 'm') && !(e.target && e.target.closest && e.target.closest('[data-a=music], [data-a=sfx]')) && (sound.musicOn || sound.sfxOn)) { sound.enable(); soundUI(); }
+  // (Starts the audio, or resumes it where the browser held an early start suspended.)
+  if (sound && !sound.playing && !(e.key === 'm') && !(e.target && e.target.closest && e.target.closest('[data-a=music], [data-a=sfx]')) && (sound.musicOn || sound.sfxOn)) { sound.enable(); soundUI(); }
 };
 window.addEventListener('pointerdown', firstGesture); window.addEventListener('keydown', firstGesture);
 

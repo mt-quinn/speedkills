@@ -51,7 +51,10 @@ export class Audio {
     this.log = []; this.tNow = 0;
   }
 
-  // Browsers only start audio after a user gesture.
+  // Actually audible: switched on, and the browser has let the audio context run (most
+  // browsers hold it suspended until the first click or key press).
+  get playing() { return this.enabled && !!this.ctx && this.ctx.state === 'running'; }
+
   // Music / effects on or off (remembered on this device).
   setMix({ music = this.musicOn, sfx = this.sfxOn } = {}) {
     this.musicOn = music; this.sfxOn = sfx;
@@ -66,6 +69,7 @@ export class Audio {
     if (this.ready) { this.enabled = true; this.ctx.resume(); this.master.gain.setTargetAtTime(0.9, this.ctx.currentTime, 0.1); return; }
     this.enabled = true;
     const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.onstatechange = () => this.onState && this.onState();
     this.master = ctx.createGain(); this.master.gain.value = 0.9;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
