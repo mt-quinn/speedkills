@@ -61,3 +61,6 @@
 - Added an origin/source-checked readiness and mounted acknowledgement protocol. The parent no longer treats the initial about:blank document as viewer readiness or hides loading before the renderer starts.
 - Mount attempts are tied to their iframe and fight, discarded after navigation/phase changes, and safely retried. Duplicate mount requests acknowledge without rebuilding the renderer.
 - Removed both unplaced-draft expiry notifications; stale draft selections clear silently.
+- End-to-end transition verification exposed a second cause: the time-gated trace query had cached null during betting and had no database write at combat start to invalidate it. Added an idempotent scheduled start mutation (with watchdog recovery) that updates the current fight and refreshes trace/home subscriptions at startsAt.
+- Deployed the start event to development and production and scheduled it for existing current matches.
+- Verified cloud match 27 with a locked one-credit test wager in an isolated account: betting changed to the live renderer without reload, loading was hidden only after mount acknowledgement, and no expiry notice appeared.

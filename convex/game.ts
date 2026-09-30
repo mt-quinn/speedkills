@@ -122,6 +122,17 @@ export const home = query({ args: tokenArg, handler: async (ctx, { token }) => {
     fight: publicFight(f, Date.now()), wager: wager ?? null, transactions, shipActivity, lastOwnerIncome, upcoming, economy: ECONOMY,
     status: ch?.error ? 'recovering' : ch?.current ? 'ready' : 'preparing' };
 }});
+// A scheduled write makes time-gated trace/home queries reactive at combat start.
+export const startBroadcast = internalMutation({args:{fight:v.id('fights')},handler:async(ctx,{fight})=>{
+  const ch=await channel(ctx),f=await ctx.db.get(fight);
+  if(ch?.current!==fight||!f||f.liveStarted)return;
+  if(Date.now()<f.startsAt!){await ctx.scheduler.runAt(f.startsAt!,internal.game.startBroadcast,{fight});return;}
+  await ctx.db.patch(fight,{liveStarted:true});
+}});
+export const scheduleBroadcastStart = internalMutation({args:{},handler:async ctx=>{
+  const ch=await channel(ctx),f=ch?.current&&await ctx.db.get(ch.current);
+  if(f&&!f.liveStarted)await ctx.scheduler.runAt(Math.max(Date.now(),f.startsAt!),internal.game.startBroadcast,{fight:f._id});
+}});
 export const trace = query({ args: { fight: v.id('fights') }, handler: async (ctx, { fight }) => {
   const ch = await channel(ctx); const f = await ctx.db.get(fight);
   if (!f || ch?.current !== fight || Date.now() < f.startsAt! || Date.now() >= f.nextAt!) return null;
@@ -240,6 +251,7 @@ export const promote = internalMutation({ args: {}, handler: async ctx => {
   for (const s of f.ships) await ctx.db.patch(s.id, { lastFight: f.sequence });
   await ctx.db.patch(ch._id, { current: f._id, pending: undefined, fallback: undefined, queue: (ch.queue ?? []).slice(1), generation: ch.generation + 1, preparing: false });
   await ctx.scheduler.runAfter(0, internal.game.begin, { fight: f._id, generation: ch.generation + 1 });
+  await ctx.scheduler.runAt(startsAt, internal.game.startBroadcast, { fight: f._id });
   await ctx.scheduler.runAt(endsAt, internal.game.finish, { fight: f._id });
   await ctx.scheduler.runAt(nextAt, internal.game.promote, {});
 }});
@@ -276,6 +288,7 @@ export const watchdog = internalMutation({ args: {}, handler: async ctx => {
   for(const p of await ctx.db.query('players').withIndex('balance',q=>q.eq('balance',0)).collect())await grantStipend(ctx,p);
   const ch = await channel(ctx); if (!ch) return;
   const f = ch.current && await ctx.db.get(ch.current);
+  if (f && Date.now() >= f.startsAt! && !f.liveStarted) await ctx.scheduler.runAfter(0, internal.game.startBroadcast, { fight: f._id });
   if (f && Date.now() >= f.endsAt! && !f.settled) await ctx.scheduler.runAfter(0, internal.game.finish, { fight: f._id });
   if (!f || Date.now() >= f.nextAt!) await ctx.scheduler.runAfter(0, internal.game.promote, {});
   if (f && Date.now() >= f.startsAt! && !ch.pending && !ch.preparing) await ctx.scheduler.runAfter(0, internal.game.begin, { fight: f._id, generation: ch.generation });
