@@ -1,5 +1,6 @@
 // The 3D broadcast scene: ships, weapons, the fight plane and its drop lines.
 import * as THREE from 'three';
+import { CameraFocusPass } from './camera-focus.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -133,7 +134,7 @@ function shipModel(team) {
   const tip = new THREE.Mesh(new THREE.SphereGeometry(1.3, 10, 8), new THREE.MeshBasicMaterial({ color: WHITE }));
   tip.position.set(0, 0.2, 14.2);
   g.add(tip);
-  const plume = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1, 10, 1, true), new THREE.MeshBasicMaterial({ color: c.clone().lerp(WHITE, 0.35), transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  const plume = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1, 10, 1, true), new THREE.MeshBasicMaterial({ color: c.clone().lerp(WHITE, 0.35), transparent: true, opacity: 0.8, depthWrite: true, side: THREE.DoubleSide }));
   plume.rotation.x = -Math.PI / 2;
   g.add(plume);
   // Shards for a breakup: each facet of the dart as its own piece (hidden until destroyed).
@@ -176,6 +177,7 @@ export class Scene {
     // this line weight); desktop 2.
     const phone = Math.min(window.innerWidth, window.innerHeight) < 700 && matchMedia('(pointer: coarse)').matches;
     this.renderer.setPixelRatio(story ? 1 : Math.min(phone ? 1.5 : 2, window.devicePixelRatio));
+    this.renderer.info.autoReset = false;
     this.phone = phone;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
@@ -231,9 +233,17 @@ export class Scene {
 
     // Post: bloom.
     this.composer = new EffectComposer(this.renderer);
+    // RenderPass writes depth alongside colour. Both ping-pong targets need depth
+    // textures because the compositor changes its read buffer each frame.
+    this.depthFocusSupported = this.renderer.capabilities.isWebGL2 || this.renderer.extensions.has('WEBGL_depth_texture');
+    for (const target of this.depthFocusSupported ? [this.composer.renderTarget1, this.composer.renderTarget2] : []) {
+      target.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
+    }
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.3, 0.55);
     this.composer.addPass(this.bloom);
+    this.focusPass = new CameraFocusPass(this.camera);
+    this.composer.addPass(this.focusPass);
     this.composer.addPass(new OutputPass());
     this.resize();
     this.onResize = () => this.resize();
@@ -540,7 +550,14 @@ export class Scene {
   screenScale(p, frac = SHIP_SCREEN, len = SHIP_LEN) {
     const d = p.distanceTo(this.camWorld);
     const worldH = 2 * d * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
-    return Math.max(1, (worldH * frac) / len);
+    const icon = Math.max(1, (worldH * frac) / len);
+    if (!this.shot || this.shot.manual) return icon;
+    // Fixed optical scale within a rig. Minimum pixel size is a safety floor only;
+    // ordinary approach and recession now change the apparent size of the ships.
+    const base = this.shot.sizeScale;
+    if (len === SHIP_LEN) return Math.min(worldH * .115 / len, Math.max(base, Math.min(icon, worldH * .028 / len)));
+    return Math.max(1, Math.min(icon, base * (len < 2 ? 3.5 : 1)));
+
   }
 
   // Icon size as a fraction of screen height: generous, shrinking so the two never overlap.
@@ -584,7 +601,7 @@ export class Scene {
     this.plane.position.copy(this.planeCenter);
     // Ring spacing to suit the fight: about half the ships' separation, in round numbers.
     const sepNow = st.ships[0].pos.distanceTo(st.ships[1].pos);
-    const want = sepNow < 1400 ? 250 : sepNow < 2800 ? 500 : sepNow < 6000 ? 1000 : 2000;
+    const want = 500; // stable metre reference: the fight moves through the grid
     if (want !== this.gridSpacing && (this.gridSpacing === 0 || want > this.gridSpacing * 1.5 || want < this.gridSpacing / 1.5)) this.buildGrid(want);
     this.plane.quaternion.copy(this.planeQuat);
     this.updateTicks();
@@ -710,7 +727,7 @@ export class Scene {
 
     // Railgun rounds: the one long, bright, solid streak on the screen.
     for (const sl of m.objects(t, 'sl')) {
-      const l = this.get('slug', () => line2(WHITE, 4.0, 1));
+      const l = this.get('slug', () => { const line=line2(WHITE, 4.0, 1); line.material.depthWrite=true; return line; });
       const dir = sl.vel.clone().normalize();
       setLine(l, [sl.pos.clone().addScaledVector(dir, -Math.max(220, this.screenScale(sl.pos, 0.08, 1))), sl.pos]);
       l.material.color.copy(TEAM[sl.owner]).lerp(WHITE, 0.75);
@@ -735,7 +752,7 @@ export class Scene {
       mote.scale.setScalar(this.screenScale(tp.pos, 0.022, 1.4));
       mote.material.color.copy(hot ? THREAT : TEAM[tp.owner].clone().lerp(WHITE, 0.3));
       if (hot) {
-        const ring = this.get('tring', () => new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: THREAT, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+        const ring = this.get('tring', () => new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 24), new THREE.MeshBasicMaterial({ color: THREAT, transparent: true, depthWrite: true, side: THREE.DoubleSide })));
         ring.position.copy(tp.pos);
         ring.quaternion.copy(this.camera.quaternion);
         const k = (now * 2.5 + tp.id * 0.37) % 1;
@@ -994,7 +1011,22 @@ export class Scene {
   }
 
   render(now) {
+    const started = performance.now();
+    this.renderer.info.reset();
+    const gap = this.lastRenderTime == null ? 1/60 : now-this.lastRenderTime;
+    this.lastRenderTime = now;
+    this.renderStats ||= { fps: 60, cpuMs: 0, calls: 0, triangles: 0 };
+    if(gap>0 && gap<.5) this.renderStats.fps += (1/gap-this.renderStats.fps)*.05;
     this._now = now;
+    const shot = this.shot;
+    this.focusPass.enabled = this.depthFocusSupported && !!shot && !shot.manual && shot.aperture > .015;
+    if (shot) {
+      this.focusPass.material.uniforms.focusDistance.value = shot.focus;
+      this.focusPass.material.uniforms.aperture.value = shot.aperture;
+    }
     this.composer.render();
+    this.renderStats.cpuMs += (performance.now()-started-this.renderStats.cpuMs)*.05;
+    this.renderStats.calls = this.renderer.info.render.calls;
+    this.renderStats.triangles = this.renderer.info.render.triangles;
   }
 }

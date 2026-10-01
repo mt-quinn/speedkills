@@ -10,6 +10,7 @@ import { Critic } from './critic.js';
 import { Audio } from './audio.js';
 import { audioHost, captureAudioInteractions } from './audio-context.js';
 import { CamControl } from './camctl.js';
+import { CameraLab } from './camera-lab.js';
 import { rememberResult } from './history.js';
 
 bindFightFullscreen(document.querySelector('#fight-fullscreen'));
@@ -23,6 +24,7 @@ const opt = {
   paused: Q.get('paused') === '1',
   speed: parseFloat(Q.get('speed') || '1'),
   critic: Q.get('critic') === '1',
+  cameraLab: Q.get('cameraLab') === '1',
   audit: Q.get('audit') === '1',
   story: Q.get('story') === '1',
   auditall: Q.get('auditall') === '1',
@@ -46,9 +48,10 @@ class App {
     document.querySelector('#tags').innerHTML = '';
     document.querySelector('#callouts').innerHTML = '';
     this.scene = new Scene(document.querySelector('#view'), match);
+    this.hud = new Hud(match, this.scene);
+    this.hud.measureStage(document.body.classList.contains('portrait'));
     this.dir = new Director(match, this.scene);
     this.dir.user = camctl;
-    this.hud = new Hud(match, this.scene);
     this.hud.fightLabel = `${idx + 2 > index.length ? 1 : idx + 2} of ${index.length}`;
     this.critic = new Critic(match, this.scene);
     // One audio engine for the session; it follows whichever fight is open.
@@ -67,6 +70,7 @@ class App {
     this.hud.onFinish = () => { if (live && !networkLive) { rememberResult(this.m.raw); const file = this.index[this.idx]?.file; const p = loadPicks(); p[file] = { ...(p[file] || {}), seen: true }; savePicks(p); } };
     this.hud.voiceVariations = () => Object.fromEntries(Object.entries(this.audio?.voices || {}).map(([id, clips]) => [id, Object.keys(clips).map(Number)]));
     this.hud.onVoice = (v, i) => this.audio?.voice(v.id, v.variation, i, v.station);
+    this.cameraLab = opt.cameraLab ? new CameraLab(this) : null;
     this.t = 0;
     document.querySelector('#title').textContent = `${match.ships[0].name} v ${match.ships[1].name}`;
   }
@@ -85,11 +89,12 @@ class App {
     const evs = t > t0 ? m.eventsBetween(t0, t) : [];
     this.hud.voiceEnabled = t > t0 && document.querySelector('#prematch').hidden;
     this.hud.onEvents(t, evs, st);
-    this.critic.events_(evs, st);
     if (render) this.fx(evs, st, now);
     this.dir.update(t, st, dtWall * Math.max(0.55, scale));
     this.scene.update(t, st, now);
     this.hud.update(t, st, this.scene.camera);
+    this.critic.events_(evs, st);
+    this.cameraLab?.update(t);
     if (this.replayEnd && t >= this.replayEnd) { this.replayEnd = null; this.hud.replay = false; this.hud.showResult(t); state.paused = true; }
     this.critic.frame(t, st, dtWall, scale, this.hud);
     if (render) this.scene.render(now);
@@ -153,6 +158,10 @@ class App {
     }
   }
 
+  startCameraRecording() {
+    this.seek(0); state.speed = 1; state.paused = false;
+  }
+
   // Jump to match time t: replay the director (and the HUD's memory) from the start without
   // rendering, so the camera is exactly where live playback would have put it.
   seek(t) {
@@ -185,6 +194,7 @@ class App {
       this.dir.update(this.t, st, dtw * Math.max(0.55, this.dir.timeScale));
     }
     this.t = target;
+    this.cameraLab?.update(this.t, true);
     this.hud.update(this.t, stateAt(this.m, this.t), this.scene.camera);
     state.paused = wasPaused;
   }
@@ -206,6 +216,7 @@ async function open(i) {
   if (file && i === undefined) { index.push({ file, seed: file }); }
   const entry = file && i === undefined ? index[index.length - 1] : index[(idx + index.length) % index.length];
   const match = await loadMatch(entry.file);
+  app?.cameraLab?.dispose();
   app?.scene.dispose();
   state.paused = true;
   app = new App(match, index, file && i === undefined ? index.length - 1 : (idx + index.length) % index.length);
@@ -322,6 +333,7 @@ async function auditAll(index) {
   const all = [];
   for (let k = 0; k < index.length; k++) {
     const match = await loadMatch(index[k].file);
+    app?.cameraLab?.dispose();
     app?.scene.dispose();
     app = new App(match, index, k);
     state.paused = false;
@@ -519,6 +531,7 @@ if (!networkLive) open();
 requestAnimationFrame(loop);
 
 export function mountBroadcast(raw, clock) {
+  app?.cameraLab?.dispose();
   app?.scene.dispose();
   liveClock = clock;
   state.speed = 1; state.paused = false; state.lastWall = null;
@@ -531,6 +544,7 @@ export function resumeBroadcast() {
   if (app && liveClock) { app.seek(Math.max(0, liveClock())); state.paused = false; state.lastWall = null; }
 }
 export function stopBroadcast() {
+  app?.cameraLab?.dispose();
   app?.scene.dispose(); app?.audio?.hush(); app = null; liveClock = null;
 }
 export function muteBroadcast(muted) { if (sound) toggleSound(!muted); }

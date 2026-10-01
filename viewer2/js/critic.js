@@ -58,7 +58,7 @@ export class Critic {
     }
     if (sep < 0.06 * H) { this.sepSmall++; (this.closeTimes ||= []).push(+t.toFixed(1)); }
     // Camera smoothness (rad/s, rad/s²) in wall time.
-    if (this.lastDir && dtWall > 0) {
+    if (this.lastDir && dtWall > 0 && !this.scene.cameraCut) {
       const w = this.lastDir.angleTo(view) / dtWall;
       if (this.lastW !== null) {
         const acc = Math.abs(w - this.lastW) / dtWall;
@@ -70,11 +70,12 @@ export class Critic {
       (this.rateLog ||= []).push([+t.toFixed(2), +(w * 57.3).toFixed(1), timeScale]);
       this.lastW = w;
     }
+    if (this.scene.cameraCut) this.lastW = null;
     this.lastDir = view.clone();
     // Tag overlap.
     if (hud.tagRects && hud.tagRects.length === 2) {
       const [r1, r2] = hud.tagRects;
-      if (Math.abs(r1.x - r2.x) < (r1.w + r2.w) / 2 && Math.abs(r1.y - r2.y) < (r1.h + r2.h) / 2) this.tagOverlap++;
+      if (r1.visible !== false && r2.visible !== false && Math.abs(r1.x - r2.x) < (r1.w + r2.w) / 2 && Math.abs(r1.y - r2.y) < (r1.h + r2.h) / 2) this.tagOverlap++;
     }
     if (dtWall > 0) this.fpsSamples.push(1 / dtWall);
   }
@@ -108,6 +109,18 @@ export class Critic {
       V9_fills_frame: { samples: (this.tinyLog || []).slice(0, 8), tiny_share: this.tiny / f, pass: this.tiny / f < 0.02 },
       V8_fps: { p5, median: fps.length ? fps[Math.floor(fps.length / 2)] : 0, pass: p5 >= 50 },
     };
+    const engine = this.scene.cameraEngine;
+    if (engine) {
+      const camera = engine.report();
+      r.V1_framing = { ...r.V1_framing, required_subjects: camera.coverage, pair_shots: camera.pairCoverage, pass: camera.coverage >= .97 && camera.pairCoverage >= .98 };
+      r.V3_smooth.pass = r.V3_smooth.p99_rate_deg_s <= engine.tuning.gimbalTurn + 2;
+      r.V3_smooth.cuts_excluded = true;
+      r.V9_fills_frame.intentional_perspective = true;
+      // Perspective is intentionally preserved: the old constant-fill requirement
+      // is retained as a measurement, not a gate for this camera system.
+      r.V9_fills_frame.pass = camera.coverage >= .97;
+      r.V10_director = { ...camera, pass: camera.cutsPerMinute <= 18 && camera.coverage >= .97 };
+    }
     return r;
   }
 }

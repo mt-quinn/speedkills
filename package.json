@@ -5,20 +5,24 @@
   "scripts": {
     "build": "node tools/build-web.mjs",
     "dev:backend": "convex dev",
-    "test": "node --test viewer2/tools/broadcast.test.mjs viewer2/tools/audio.test.mjs shared/*.test.mjs",
+    "test": "node --test viewer2/tools/broadcast.test.mjs viewer2/tools/audio.test.mjs viewer2/tools/camera.test.mjs shared/*.test.mjs",
     "test:backend": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build:sim": "cargo build -p hb-live-sim --release --target wasm32-unknown-unknown && node tools/embed-sim.mjs"
+    "build:sim": "cargo build -p hb-live-sim --release --target wasm32-unknown-unknown && node tools/embed-sim.mjs",
+    "test:camera": "node viewer2/tools/camera-audit.mjs",
+    "camera:demo": "node viewer2/tools/camera-demo.mjs",
+    "test:camera:suite": "node viewer2/tools/camera-suite.mjs"
   },
   "dependencies": {
     "convex": "^1.42.0"
   },
   "devDependencies": {
-    "esbuild": "^0.25.0",
-    "typescript": "^5.9.0",
-    "convex-test": "^0.0.41",
-    "vitest": "^3.2.0",
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^22.0.0",
-    "@edge-runtime/vm": "^5.0.0"
+    "convex-test": "^0.0.41",
+    "esbuild": "^0.25.0",
+    "three": "0.160.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
   }
 }

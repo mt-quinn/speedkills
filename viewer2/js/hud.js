@@ -48,6 +48,10 @@ export class Hud {
     this.callouts = []; // {text, t0, until, prio, key, node}
     this.stats = { captionsShown: 0, maxSimultaneous: 0, shortest: Infinity, chars: 0 };
     this.platePos = [null, null];
+    document.querySelector('.camera-ident')?.remove();
+    document.querySelectorAll('.camera-bearing').forEach(e=>e.remove());
+    this.cameraIdent = el('div', 'camera-ident'); document.body.append(this.cameraIdent);
+    this.bearings = [0,1].map(i=>{const tag=el('div', `camera-bearing t${i}`);tag.hidden=true;document.body.append(tag);return tag;});
   }
 
   buildScoreboard() {
@@ -399,6 +403,23 @@ export class Hud {
     this.tactical.textContent = this.replay ? 'REPLAY · DECISIVE SEQUENCE' : ended || this.callouts.length ? '' : tactical(st.ships.map((s) => s.raw), this.names, this.m.objects(t, 'tp').map((tp) => ({owner:tp.owner,p:tp.pos.toArray(),intercept:tp.extra})));
     for (let i = 0; i < 2; i++) this.fillPlate(t, i, st.ships[i].raw, ended);
     const portrait = document.body.classList.contains('portrait');
+    const shot = this.scene.shot;
+    if (shot && this.cameraIdent.dataset.rig !== `${shot.id}:${shot.manual}`) {
+      this.cameraIdent.innerHTML = `<b>CAM ${shot.id}</b><span>${shot.manual ? 'MANUAL' : shot.name}</span>`;
+      this.cameraIdent.dataset.rig = `${shot.id}:${shot.manual}`;
+    }
+    if (this.scene.cameraCut) this.platePos = [null, null];
+    for (let i=0;i<2;i++) {
+      const p=st.ships[i].pos.clone().sub(this.scene.mid).project(cam);
+      const off=p.z>1||p.z < -1||Math.abs(p.x)>.97||Math.abs(p.y)>.88;
+      this.bearings[i].hidden=!off;
+      if(off) {
+        const angle=Math.atan2(-p.y,p.x)+(p.z>1?Math.PI:0), arrows=['→','↘','↓','↙','←','↖','↑','↗'];
+        const arrow=arrows[(Math.round(angle/(Math.PI/4))+8)%8];
+        const distance=st.ships[i].pos.distanceTo(st.ships[1-i].pos);
+        this.bearings[i].textContent=`${arrow} ${this.names[i]} · ${(distance/1000).toFixed(1)} km`;
+      }
+    }
     if (portrait) this.placeDocked(st, cam); else this.placePlates(st, cam);
     if (this.frameN++ % 10 === 0 || !this.scene.stage) this.measureStage(portrait);
     this.placeLabels(t, st, cam);
@@ -498,7 +519,7 @@ export class Hud {
       let tx = x + dx * (icon + 10) + (dx >= 0 ? 0 : -w), ty = y + dy * (icon + 10) - h / 2;
       tx = Math.max(6, Math.min(W - 6 - w, tx));
       tag.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
-      this.tagRects.push({ x: tx + w / 2, y: ty + h / 2, w, h });
+      this.tagRects.push({ x: tx + w / 2, y: ty + h / 2, w, h, visible: on });
     }
   }
 
@@ -545,7 +566,7 @@ export class Hud {
       const pl = this.plates[i].p;
       pl.style.display = S[i].on ? '' : 'none';
       pl.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
-      this.tagRects.push({ x: q.x + r.w / 2, y: q.y + r.h / 2, w: r.w, h: r.h });
+      this.tagRects.push({ x: q.x + r.w / 2, y: q.y + r.h / 2, w: r.w, h: r.h, visible: S[i].on });
       // Leader: from just off the ship to the plate's nearest edge.
       const s = S[i];
       const tx = Math.max(q.x, Math.min(q.x + r.w, s.x)), ty = Math.max(q.y, Math.min(q.y + r.h, s.y));
@@ -562,7 +583,7 @@ export class Hud {
   placeLabels(t, st, cam) {
     const W = window.innerWidth, H = window.innerHeight;
     const scr = (p) => { const n = p.clone().sub(this.scene.mid).project(cam); return n.z < 1 && Math.abs(n.x) < 1 && Math.abs(n.y) < 1 ? { x: (n.x * 0.5 + 0.5) * W, y: (-n.y * 0.5 + 0.5) * H } : null; };
-    const clear = (x, y, w = 110) => this.tagRects.every((r) => Math.abs(r.x - (x + w / 2)) > r.w / 2 + w / 2 || Math.abs(r.y - y) > r.h / 2 + 14);
+    const clear = (x, y, w = 110) => this.tagRects.filter(r=>r.visible!==false).every((r) => Math.abs(r.x - (x + w / 2)) > r.w / 2 + w / 2 || Math.abs(r.y - y) > r.h / 2 + 14);
     // Torpedo salvos.
     const groups = [];
     if (t <= this.endT) {
