@@ -60,7 +60,7 @@ export class CameraLab {
     this.el.querySelector('.cl-candidates').textContent=engine.drones.map(x=>`${x.rig.id} ${x===d?'ON AIR':'      '} ${Math.round(x.score)} · ${x.ready?'READY':x.reasons.join(', ')}`).join('\n');
     const st=engine.state(t), cam=this.app.scene.camera;
     this.renderSamples.push({t,rig:shot?.id,viewport:engine.viewport,render:{...this.app.scene.renderStats},position:cam.position.clone().add(this.app.scene.mid).toArray(),quaternion:cam.quaternion.toArray(),fov:cam.fov,focus:shot?.focus,aperture:shot?.aperture,
-      tags:this.app.hud.tagRects?.map(r=>({...r})),subjects:st.ships.map((s,i)=>{
+      tags:this.app.hud.tagRects?.map(r=>({...r})),layout:this.app.hud.layoutTelemetry,subjects:st.ships.map((s,i)=>{
         const p=s.pos.clone().sub(this.app.scene.mid).project(cam);
         return{ship:i,x:(p.x+1)*engine.viewport.width/2,y:(1-p.y)*engine.viewport.height/2,z:p.z,scale:this.app.scene.ships[i].scale.x};
       })});

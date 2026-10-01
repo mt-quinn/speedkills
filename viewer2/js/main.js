@@ -235,6 +235,7 @@ async function open(i) {
   if (entry.ships) app.pickFile = entry.file;
   const p = entry.ships && loadPicks()[entry.file];
   if (p?.pick !== undefined) app.hud.setPick(p.side);
+  if(Q.has('studio')&&['0','1'].includes(Q.get('pick')))app.hud.setPick(+Q.get('pick'));
   app.hud.pickResult = () => {
     if (!entry.ships) return null;
     const w = mine.m.raw.winner;
@@ -563,6 +564,7 @@ if (networkLive) {
           mountBroadcast(message.raw,()=> (Date.now()+serverOffset-epoch)/1000);
           mountedNetworkFight=message.fight;
         }
+        app.hud.setPick(message.pickSide===0||message.pickSide===1?message.pickSide:null);
         parent.postMessage({kind:'broadcast-mounted',fight:message.fight},location.origin);
       }catch{parent.postMessage({kind:'broadcast-error',fight:message.fight},location.origin);}
     }
