@@ -3,6 +3,7 @@ import { shipBetTotal, payoutSummary } from './bet-totals.js';
 import { geeResistance } from '../gee.js';
 import { connect } from './client.bundle.js';
 import { audioHost, captureAudioInteractions } from '../audio-context.js';
+import { sessionMusic } from '../session-music.js';
 import { portrait } from '../portraits.js';
 import { shipCard, rating } from '../prematch.js';
 const query = new URLSearchParams(location.search);
@@ -14,20 +15,25 @@ if (query.has('studio') || query.has('audit') || query.has('auditall') || query.
 async function start() {
   const shell = document.querySelector('#league-shell');
   const audio = audioHost();
+  audio.musicManaged=true;
+  const music=sessionMusic(audio);
+  try{const mix=JSON.parse(localStorage.getItem('sk-audio')||'null');if(mix)music.setEnabled(!!mix.music);}catch{}
   let audioPlaying = false;
   function audioStatus() {
     const button = shell.querySelector('[data-do="sound"]');
+    const playing=audioPlaying||music.playing;
     if (button) {
-      button.textContent = audioPlaying ? 'Sound on' : audio.muted ? 'Sound off' : 'Enable sound';
-      button.setAttribute('aria-pressed', String(audioPlaying));
+      button.textContent = playing ? 'Sound on' : audio.muted ? 'Sound off' : 'Enable sound';
+      button.setAttribute('aria-pressed', String(playing));
     }
   }
   function retryAudio(event) {
-    if (audio.muted || event?.target?.closest?.('[data-do="sound"]')) return;
-    if (!audioPlaying || audio.context?.state !== 'running') {
+    if (event?.target?.closest?.('[data-do="sound"]')) return;
+    if (!audioPlaying || music.media.paused || audio.context?.state !== 'running') {
       audio.resume();
+      music.start();
       // Direct same-origin call retains the gesture; postMessage alone loses it.
-      document.querySelector('#hb-feed')?.contentWindow?.__hbRetryAudio?.();
+      if(!audio.muted)document.querySelector('#hb-feed')?.contentWindow?.__hbRetryAudio?.();
     }
   }
   captureAudioInteractions(retryAudio);
@@ -111,6 +117,7 @@ async function start() {
   function archivePage() { return `<main class="hb-archive"><div class="hb-page-title"><span class="hb-eyebrow">LEAGUE RECORD</span><h1>Finished fights.</h1><p>Completed matches and combat statistics.</p></div>${archive.length ? archive.map(f=>`<details class="hb-archive-entry"><summary><span>#${String(f.sequence).padStart(4,'0')}</span><b>${esc(f.ships.map(s=>s.name).join(' vs '))}</b><strong>${f.winner===null?'Draw':esc(f.ships[f.winner].name)+' won'}</strong></summary>${results(f)}</details>`).join('') : '<p>Completed fights will appear here.</p>'}</main>`; }
   function render(force = false) {
     if (!data) return;
+    music.setVisible(screen==='broadcast');
     if (draft && phase(data.fight) !== 'betting' && !data.wager && draft.side != null) { draft=null;saveDraft(); }
     const isBetting = phase(data.fight) === 'betting';
     if (isBetting) shell.querySelectorAll('[data-market-total]').forEach(el => {
@@ -237,7 +244,7 @@ async function start() {
     else if(a==='dismiss'){notice='';render(true);}
     else if(a==='recovery')await mutation('game:recovery');
     else if(a==='fullscreen'){const frame=document.querySelector('#hb-feed');if(frame)try{await toggleFightFullscreen(frame);}catch(e){error(e);}}
-    else if(a==='sound'){audio.muted=audioPlaying&&!audio.muted; if(!audio.muted)audio.resume(); feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:audio.muted},location.origin);audioStatus();}
+    else if(a==='sound'){audio.muted=(audioPlaying||music.playing)&&!audio.muted; if(!audio.muted){audio.resume();music.start();} music.updateGate();feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:audio.muted},location.origin);audioStatus();}
   });
   shell.addEventListener('submit',async e=>{
     e.preventDefault();const form=e.target,fields=new FormData(form);

@@ -12,4 +12,5 @@ await build({ entryPoints: ['viewer2/js/live/client.js'], bundle: true, format: 
 await writeFile('viewer2/live-config.json',JSON.stringify({convexUrl:url}));
 await rm('dist',{recursive:true,force:true});
 await cp('viewer2','dist',{recursive:true,filter:path=>!/(?:^|\/)(matches|cards|tools)(?:\/|$)/.test(path)});
+await cp('public/background music.opus','dist/sfx/bgm.opus');
 console.log(`Built live client${url?' with configured Convex deployment':'; Convex URL is not configured'}. Legacy recordings are excluded from the deployment.`);

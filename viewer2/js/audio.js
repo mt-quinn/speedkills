@@ -1,9 +1,10 @@
 // Broadcast audio (Web Audio): event one-shots, continuous engine / railgun-charge / PDC layers
-// driven by the fight's state, slow-motion treatment, and the music bed with ducking.
+// driven by the fight's state and slow-motion treatment. Music belongs to the session.
 import * as THREE from 'three';
 import { audioHost } from './audio-context.js';
+import { sessionMusic } from './session-music.js';
 
-const FILES = ['bgm', 'engine', 'explosion', 'pdc', 'rail_charge', 'rail_fire', 'torpedo_launch'];
+const FILES = ['engine', 'explosion', 'pdc', 'rail_charge', 'rail_fire', 'torpedo_launch'];
 
 // Loudness-normalise a buffer in place: gated RMS (ignoring near-silence) to -20 dBFS, but never
 // pushing the peak past -1 dBFS. Returns the gain applied (dB), for the log.
@@ -54,16 +55,16 @@ export class Audio {
 
   // Actually audible: switched on, and the browser has let the audio context run (most
   // browsers hold it suspended until the first click or key press).
-  get playing() { return this.enabled && this.ready && (this.musicOn || this.sfxOn) && !!this.ctx && this.ctx.state === 'running' && this.sources.length > 0; }
+  get playing() { return !!(this.enabled && this.ctx?.state === 'running' && ((this.sfxOn && this.ready && this.sources.length > 0) || (this.musicOn && this.host.music?.playing))); }
 
   // Music / effects on or off (remembered on this device).
   setMix({ music = this.musicOn, sfx = this.sfxOn } = {}) {
     this.musicOn = music; this.sfxOn = sfx;
+    this.host.music?.setEnabled(music);
     try { localStorage.setItem('sk-audio', JSON.stringify({ music, sfx })); } catch (e) { /* private mode */ }
     if (!this.ready) return;
     const now = this.ctx.currentTime;
     this.sfxGate.gain.setTargetAtTime(sfx ? 1 : 0, now, 0.08);
-    this.bgmGate.gain.setTargetAtTime(music ? 1 : 0, now, 0.15);
   }
 
   enable() {
@@ -72,6 +73,9 @@ export class Audio {
     // Resume synchronously inside every gesture, even while assets are still loading.
     const ctx = this.ctx = this.host.resume();
     if (!ctx) return;
+    const music=sessionMusic(this.host);music.setEnabled(this.musicOn);
+    if(!this.host.musicManaged)music.setVisible(true);
+    music.start();
     if (this.master) this.master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.1);
     if (!this.loading) this.loading = this.initialise(ctx).catch(() => {
       this.dispose(); this.onState?.();
@@ -94,18 +98,16 @@ export class Audio {
     // Effects bus: a low-pass that closes in slow motion.
     this.sfx = ctx.createGain();
     this.sfxFilter = ctx.createBiquadFilter(); this.sfxFilter.type = 'lowpass'; this.sfxFilter.frequency.value = 20000;
-    // Music and effects each pass a gate the viewer switches (two toggles in the controls).
+    // Effects gate; the session player owns the music gate.
     this.sfxGate = ctx.createGain(); this.sfxGate.gain.value = this.sfxOn ? 1 : 0;
-    this.bgmGate = ctx.createGain(); this.bgmGate.gain.value = this.musicOn ? 1 : 0;
     this.sfx.connect(this.sfxFilter).connect(this.sfxGate).connect(this.master);
-    this.bgmBus = ctx.createGain(); this.bgmBus.gain.value = 0; this.bgmBus.connect(this.bgmGate).connect(this.master);
     this.buf = {}; this.norm = {};
     await Promise.all(FILES.map(async (f) => {
       for (const ext of ['opus', 'm4a']) {
         try {
           const r = await fetch(`sfx/${f}.${ext}`);
           this.buf[f] = await ctx.decodeAudioData(await r.arrayBuffer());
-          if (f !== 'bgm') this.norm[f] = +normalise(this.buf[f]).toFixed(1);
+          this.norm[f] = +normalise(this.buf[f]).toFixed(1);
           return;
         } catch (e) { /* try the next format */ }
       }
@@ -115,12 +117,6 @@ export class Audio {
     this.buf.chargeLoop = this.buf.rail_charge && loopable(ctx, this.buf.rail_charge, 0.06);
     // Continuous layers, one per ship: engine and railgun charge.
     this.layers = [0, 1].map(() => this.makeLayers());
-    // Music bed.
-    if (this.buf.bgm) {
-      const s = ctx.createBufferSource(); s.buffer = this.buf.bgm; s.loop = true;
-      s.connect(this.bgmBus); s.start(); this.sources.push(s);
-      this.bgmBus.gain.setTargetAtTime(0.32, ctx.currentTime, 1.5);
-    }
     this.voices = {};
     this.ready = true;
     this.master.gain.setTargetAtTime(this.enabled ? .9 : 0, ctx.currentTime, .1);
@@ -142,6 +138,8 @@ export class Audio {
 
   disable() {
     this.enabled = false;
+    this.host.music?.updateGate();
+    if(!this.host.musicManaged)this.host.music?.setVisible(false);
     if (this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
     this.onState?.();
   }
@@ -237,12 +235,6 @@ export class Audio {
     this.slowRate = slow ? 0.72 : 1;
     this.sfxFilter.frequency.setTargetAtTime(slow ? 1700 : 20000, now, slow ? 0.08 : 0.3);
     const ended = t > this.m.duration + 1e-3;
-    const endT = (this.m.events.find((e) => e.k === 'end') || { t: Infinity }).t;
-    // Music: ducks under slow motion, swells for the result.
-    // (It also sits back while a railgun charges, so the spin-up is heard.)
-    const maxCharge = ended ? 0 : Math.max(...st.ships.map((s) => (s.raw.alive ? s.raw.rail[0] : 0)));
-    const bgm = this.voiceSource ? .1 : t > endT + 1.2 ? 0.45 : slow ? 0.16 : 0.32 * (1 - 0.25 * Math.min(1, maxCharge / 0.4));
-    this.bgmBus.gain.setTargetAtTime(bgm, now, 0.4);
     this.sfx.gain.setTargetAtTime(this.voiceSource ? .5 : 1, now, .08);
 
     // ---- events ----

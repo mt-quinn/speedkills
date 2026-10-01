@@ -7,6 +7,26 @@ const engineSource = (await readFile(new URL('../js/audio.js', import.meta.url),
   .replace(/^import .*;$/gm, '').replace('export class Audio', 'globalThis.BroadcastAudio = class Audio');
 const hostSource = (await readFile(new URL('../js/audio-context.js', import.meta.url), 'utf8'))
   .replaceAll('export function ', 'function ');
+const musicSource = (await readFile(new URL('../js/session-music.js', import.meta.url), 'utf8'))
+  .replace('export class SessionMusic','class SessionMusic').replace('export function sessionMusic','function sessionMusic');
+
+test('session music keeps one streaming playhead through screens, fights and mute changes',async()=>{
+ let graphs=0,plays=0,gain=0;
+ const media={paused:true,currentTime:0,dataset:{},addEventListener(){},play(){plays++;this.paused=false;return Promise.resolve();}};
+ const node={connect(){return this;},gain:{value:0,setTargetAtTime(value){gain=value;}}};
+ const context={state:'running',currentTime:0,destination:{},createMediaElementSource(){graphs++;return node;},createGain(){return node;}};
+ const host={context,muted:false,getContext(){return context;}};
+ const sandbox={window:{Audio:function(){return media;}},document:{body:{append(){}}},host};
+ vm.runInNewContext(musicSource+'\nglobalThis.music=sessionMusic(host);',sandbox);
+ const m=sandbox.music;await m.start();assert.equal(gain,0);assert.equal(media.loop,true);
+ media.currentTime=83;m.setVisible(true);assert.equal(gain,.28);
+ m.setVisible(false);media.currentTime=114;m.setVisible(true);await m.start();
+ assert.equal(media.currentTime,114);assert.equal(plays,1);assert.equal(graphs,1);
+ host.muted=true;m.updateGate();assert.equal(gain,0);assert.equal(media.paused,false);
+ host.muted=false;m.updateGate();assert.equal(gain,.28);
+ m.setEnabled(false);assert.equal(gain,0);assert.equal(media.currentTime,114);
+ vm.runInNewContext('globalThis.again=sessionMusic(host);',sandbox);assert.equal(sandbox.again,m);
+});
 
 test('gestures retry suspended audio during loading without duplicating its audio graph', () => {
   let resumes = 0, graphs = 0;
@@ -16,7 +36,7 @@ test('gestures retry suspended audio during loading without duplicating its audi
     createGain: node, createBiquadFilter: node,
     createDynamicsCompressor() { graphs++; return { ...node(), threshold: parameter(), knee: parameter(), ratio: parameter(), attack: parameter(), release: parameter() }; },
     addEventListener() {}, removeEventListener() {} };
-  const sandbox = { audioHost: () => ({ resume() { resumes++; return context; } }),
+  const sandbox = { sessionMusic:()=>({setEnabled(){},setVisible(){},start(){}}),audioHost: () => ({ resume() { resumes++; return context; } }),
     localStorage: {getItem: () => null}, fetch: () => new Promise(() => {}), THREE: {} };
   vm.runInNewContext(engineSource, sandbox);
   const audio = new sandbox.BroadcastAudio({}, {});
