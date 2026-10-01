@@ -17,7 +17,7 @@ const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) 
 const PLAN = {
   'holding range': 'holding range', guns: 'guns up', juke: 'breaking hard', punish: 'going in', 'attack run': 'attack run', extend: 'extending',
   salvo: 'salvo', 'torpedo break': 'torpedo break', 'closing in': 'closing', braking: 'braking', brawl: 'charging in',
-  pressing: 'pressing', ramming: 'ramming!', '': '—',
+  crossing: 'crossing', coasting: 'coasting', 'rail defence': 'rail intercept', 'counter torpedo': 'counter-torpedo', pressing: 'pressing', ramming: 'ramming!', '': '—',
 };
 const STYLE = { Reference: 'duelist', Knife: 'knife fighter', Counter: 'counterpuncher', Striker: 'striker', Warden: 'warden' };
 const BY = { railgun: 'by railgun', torpedo: 'by torpedo', pdc: 'by PDC fire', ram: 'by ramming', 'mutual ram': 'in a collision', rock: 'on the rocks', g: 'by its own burn', overcharge: 'by its own gun' };
@@ -188,7 +188,7 @@ export class Hud {
     const P = this.plates[i], f = P.flagState;
     const wait = () => (this.flagPending ||= []).push({ t: this.pendT ?? t, i, text, opts: { prio, hold, key } });
     if (f && t < f.until) {
-      if (key && f.key === key) { f.text += ' · ' + text; P.flag.textContent = f.text; f.until = t + hold; return; }
+      if (key && f.key === key) { f.text = key.startsWith('intercept:') ? text : f.text + ' · ' + text; P.flag.textContent = f.text; f.until = t + hold; return; }
       // Never cut a fresh flag short; deaths wait for it, lesser news waits its turn.
       if (t - f.t0 < 1.6 || prio < f.prio) { wait(); return; }
       this.stats.shortest = Math.min(this.stats.shortest, t - f.t0);
@@ -231,6 +231,12 @@ export class Hud {
           if (who.station === 'pilot' && e.t < this.endT) this.flag(t, e.ship, 'pilot blacked out', { prio: 2, hold: 2.6 });
           break;
         }
+        case 'defensive_shot':
+          this.flag(t, e.ship, e.weapon === 'railgun' ? 'railgun intercept fired' : 'counter-torpedo launched', { prio: 2, hold: 2.8, key: `intercept:${e.target}` });
+          break;
+        case 'torp_intercept':
+          this.flag(t, e.by, e.weapon === 'railgun' ? 'railgun stopped torpedo' : 'counter-torpedo hit', { prio: 2, hold: 3, key: `intercept:${e.id}` });
+          break;
         case 'overcharge': (this.overT ||= [-1, -1])[e.ship] = e.t; if (e.burned) this.flag(t, e.ship, 'gun burned out · overcharge', { prio: 2, hold: 2.6 }); break;
         case 'end': {
           for (const c of this.callouts) this.retire(c, t, true);
@@ -390,7 +396,7 @@ export class Hud {
       this.leadTxt.className = `sb-lead ${t >= this.endT ? (this.m.raw.winner === null ? '' : 't' + this.m.raw.winner) : Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
     }
     const ended = t >= this.endT;
-    this.tactical.textContent = this.replay ? 'REPLAY · DECISIVE SEQUENCE' : ended || this.callouts.length ? '' : tactical(st.ships.map((s) => s.raw), this.names, this.m.objects(t, 'tp').map((tp) => ({owner:tp.owner,p:tp.pos.toArray()})));
+    this.tactical.textContent = this.replay ? 'REPLAY · DECISIVE SEQUENCE' : ended || this.callouts.length ? '' : tactical(st.ships.map((s) => s.raw), this.names, this.m.objects(t, 'tp').map((tp) => ({owner:tp.owner,p:tp.pos.toArray(),intercept:tp.extra})));
     for (let i = 0; i < 2; i++) this.fillPlate(t, i, st.ships[i].raw, ended);
     const portrait = document.body.classList.contains('portrait');
     if (portrait) this.placeDocked(st, cam); else this.placePlates(st, cam);
@@ -561,8 +567,8 @@ export class Hud {
     const groups = [];
     if (t <= this.endT) {
       for (const tp of this.m.objects(t, 'tp')) {
-        const g = groups.find((q) => q.owner === tp.owner && q.pos.distanceTo(tp.pos) < 900);
-        if (g) { g.n++; g.sum.add(tp.pos); g.pos = g.sum.clone().divideScalar(g.n); } else groups.push({ owner: tp.owner, n: 1, sum: tp.pos.clone(), pos: tp.pos.clone() });
+        const g = groups.find((q) => q.owner === tp.owner && q.defensive === (tp.extra != null) && q.pos.distanceTo(tp.pos) < 900);
+        if (g) { g.n++; g.sum.add(tp.pos); g.pos = g.sum.clone().divideScalar(g.n); } else groups.push({ owner: tp.owner, defensive: tp.extra != null, n: 1, sum: tp.pos.clone(), pos: tp.pos.clone() });
       }
     }
     const tspots = [];
@@ -570,8 +576,8 @@ export class Hud {
       const s = scr(g.pos);
       if (!s || tspots.length >= this.torpTags.length) continue;
       const range = g.pos.distanceTo(st.ships[1 - g.owner].pos);
-      const hot = range < 2500;
-      const txt = `${g.n > 1 ? g.n + ' torpedoes' : 'torpedo'}${hot ? ` · ${(range / 1000).toFixed(1)} km` : ''}`;
+      const hot = !g.defensive && range < 2500;
+      const txt = g.defensive ? 'counter-torpedo' : `${g.n > 1 ? g.n + ' torpedoes' : 'torpedo'}${hot ? ` · ${(range / 1000).toFixed(1)} km` : ''}`;
       // (Flipped to the left of the salvo near the right edge.)
       const tw = 7.2 * txt.length;
       const x = s.x + 16 + tw > W - 6 ? s.x - 16 - tw : s.x + 16, y = s.y - 22;

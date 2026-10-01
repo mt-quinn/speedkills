@@ -43,7 +43,7 @@ export function fightStats(raw) {
   return raw.ships.map((s, side) => ({ name: s.name, railShots: raw.events.filter(e => e.k === 'rail_fire' && e.ship === side).length,
     railHits: raw.events.filter(e => e.k === 'rail_hit' && e.victim === 1 - side).length,
     torpedoes: raw.events.filter(e => e.k === 'torp_launch' && e.ship === side).reduce((n, e) => n + (e.ids?.length ?? 1), 0),
-    intercepts: raw.events.filter(e => e.k === 'torp_down' && e.by === side).length,
+    intercepts: raw.events.filter(e => ['torp_down', 'torp_intercept'].includes(e.k) && e.by === side).length,
     crewSurvived: raw.frames.at(-1).s[side].crew.filter(c => c[0] !== 2).length,
     hull: Math.round(100 * raw.frames.at(-1).s[side].hull / raw.frames[0].s[side].hull) }));
 }

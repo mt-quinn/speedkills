@@ -722,3 +722,102 @@ fn crew_stat_effects() {
         println!("{name:20} wins {:.1}%  (draws {:.1}%)", 100.0 * (w + 0.5 * d) / n as f64, 100.0 * d / n as f64);
     }
 }
+
+fn incoming_torpedo(id:u32,x:f64,speed:f64)->Torpedo{
+    Torpedo{id,owner:1,pos:Vec3::X*x,vel:-Vec3::X*speed,dv:0.0,acc:Vec3::ZERO,bias:Vec3::ZERO,intercept:None,born:-2.0,alive:true}
+}
+#[test]
+fn a_rail_intercept_costs_a_round_and_requires_a_real_hit(){
+    let mut w=duel(5000.0);disable_pdcs(&mut w.ships[0]);disable_pdcs(&mut w.ships[1]);w.rail_scatter=false;
+    w.torps.push(incoming_torpedo(100,1500.0,1000.0));
+    w.ships[0].rail_charge=1.0;
+    w.inputs[0]=Input{fire_rail:true,rail_intercept:Some(100),..Default::default()};
+    run(&mut w,0.6);
+    assert_eq!(w.ships[0].rail_ammo,RAIL_AMMO-1);
+    assert!(w.events.iter().any(|e|matches!(e,Event::TorpedoIntercepted{id:100,by:0,weapon:"railgun",..})));
+    assert!(!w.torps.iter().any(|t|t.id==100&&t.alive));
+    assert!(!w.debris.is_empty(),"an interception leaves debris, not a free deletion");
+    // Identical fire-control intent with the nose off the missile does not remove it.
+    let mut miss=duel(5000.0);disable_pdcs(&mut miss.ships[0]);disable_pdcs(&mut miss.ships[1]);miss.rail_scatter=false;
+    miss.torps.push(incoming_torpedo(100,1500.0,1000.0));miss.ships[0].rail_charge=1.0;
+    miss.ships[0].orient=Quat::from_to(Vec3::Z,Vec3::new(1.0,0.1,0.0));
+    miss.inputs[0]=w.inputs[0];run(&mut miss,0.6);
+    assert!(miss.torps.iter().any(|t|t.id==100&&t.alive));
+}
+#[test]
+fn a_defensive_torpedo_is_spent_and_meets_the_incoming_missile(){
+    let mut w=duel(8000.0);disable_pdcs(&mut w.ships[0]);disable_pdcs(&mut w.ships[1]);
+    w.torps.push(incoming_torpedo(100,5000.0,700.0));
+    w.inputs[0]=Input{fire_torpedo:true,torp_count:1,torp_intercept:Some(100),..Default::default()};
+    w.step();w.inputs[0]=Input::default();run(&mut w,7.0);
+    assert_eq!(w.ships[0].torpedoes,TORPEDOES-1);
+    assert!(w.events.iter().any(|e|matches!(e,Event::TorpedoIntercepted{id:100,weapon:"torpedo",..})));
+    assert!(!w.events.iter().any(|e|matches!(e,Event::TorpedoHit{id:100,..})));
+}
+#[test]
+fn a_point_blank_defensive_launch_cannot_skip_arming_time(){
+    let mut w=duel(8000.0);disable_pdcs(&mut w.ships[0]);disable_pdcs(&mut w.ships[1]);
+    w.torps.push(incoming_torpedo(100,300.0,800.0));
+    w.inputs[0]=Input{fire_torpedo:true,torp_count:1,torp_intercept:Some(100),..Default::default()};
+    w.step();w.inputs[0]=Input::default();run(&mut w,1.5);
+    assert!(w.events.iter().any(|e|matches!(e,Event::TorpedoHit{id:100,..})));
+    assert!(!w.events.iter().any(|e|matches!(e,Event::TorpedoIntercepted{id:100,..})));
+}
+#[test]
+fn tactical_defence_spends_a_charging_rail_when_the_screen_is_gone(){
+    let mut w=duel(8000.0);disable_pdcs(&mut w.ships[0]);
+    w.ships[0].rail_charge=0.85;w.torps.push(incoming_torpedo(100,2000.0,700.0));
+    let mut p=Pilot::seeded(Style::Reference,19);
+    let input=p.act(&w,0);
+    assert_eq!(input.rail_intercept,Some(100));assert!(input.charge_rail);
+    assert!(!input.fire_torpedo);assert!(!input.overcharge);
+}
+#[test]
+fn tactical_defence_uses_one_torpedo_when_the_rail_is_reloading(){
+    let mut w=duel(8000.0);disable_pdcs(&mut w.ships[0]);w.ships[0].rail_cooldown=8.0;
+    w.torps.push(incoming_torpedo(100,4000.0,700.0));
+    let input=Pilot::seeded(Style::Reference,19).act(&w,0);
+    assert_eq!(input.torp_intercept,Some(100));assert_eq!(input.torp_count,1);
+    assert!(input.fire_torpedo);
+}
+#[test]
+fn continuous_pilots_remain_seeded_and_commands_finite(){
+    let mut a=World::new(6601);let mut b=World::new(6601);
+    let mut pa=[Pilot::league(Style::Reference,88,42),Pilot::league(Style::Counter,89,43)];
+    let mut pb=[Pilot::league(Style::Reference,88,42),Pilot::league(Style::Counter,89,43)];
+    for _ in 0..1200 {
+        for i in 0..2{
+            let x=pa[i].act(&a,i);let y=pb[i].act(&b,i);
+            assert_eq!(x.thrust_g,y.thrust_g);assert_eq!(x.rate,y.rate);assert_eq!(x.strafe,y.strafe);
+            assert!(x.thrust_g.is_finite()&&(0.0..=DRIVE_MAX_G).contains(&x.thrust_g));
+            assert!(x.rate.x.is_finite()&&x.rate.y.is_finite()&&x.rate.z.is_finite());
+            assert!(x.strafe.len()<=1.0+1e-9);
+            a.inputs[i]=x;b.inputs[i]=y;
+        }
+        a.step();b.step();
+    }
+    assert_eq!(a.ships[0].pos,b.ships[0].pos);
+}
+
+#[test]
+fn a_rail_round_hits_the_ship_before_a_missile_behind_it(){
+    let mut w=duel(1000.0);disable_pdcs(&mut w.ships[0]);disable_pdcs(&mut w.ships[1]);w.rail_scatter=false;
+    w.torps.push(incoming_torpedo(100,1500.0,0.0));w.ships[0].rail_charge=1.0;
+    w.inputs[0]=Input{fire_rail:true,rail_intercept:Some(100),..Default::default()};run(&mut w,0.6);
+    assert!(w.events.iter().any(|e|matches!(e,Event::RailHit{victim:1,..})));
+    assert!(w.torps.iter().any(|t|t.id==100&&t.alive));
+}
+
+#[test]
+fn a_healthy_pilot_uses_a_short_hard_burn_for_a_real_rail_threat(){
+    let mut w=duel(8000.0);let mut p=Pilot::seeded(Style::Reference,19);
+    w.slugs.push(Slug{id:100,owner:1,power:1.0,pos:Vec3::X*4000.0,vel:-Vec3::X*RAIL_SPEED,born:-1.0,alive:true});
+    let mut peak=0.0_f64;
+    for _ in 0..240 {w.inputs[0]=p.act(&w,0);peak=peak.max(w.inputs[0].thrust_g);w.step();}
+    assert!(peak>=10.0,"a healthy ship must be willing to burn hard to evade: {peak}");
+    assert!(p.intent[1]<1.0,"the emergency burn stops after closest approach");
+    assert!(!w.events.iter().any(|e|matches!(e,Event::RailHit{victim:0,..})),"the burn should evade this round with sufficient warning");
+    let mut miss=duel(8000.0);let mut q=Pilot::seeded(Style::Reference,19);
+    miss.slugs.push(Slug{id:100,owner:1,power:1.0,pos:Vec3::new(4000.0,1000.0,0.0),vel:-Vec3::X*RAIL_SPEED,born:-1.0,alive:true});
+    q.act(&miss,0);assert!(q.intent[1]<1.0,"a distant miss does not trigger a hard emergency burn");
+}

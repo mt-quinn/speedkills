@@ -1,6 +1,6 @@
 {
   "recording_model": "One fixed script per cue; multiple performances of exactly the same words.",
-  "measurement": "30 Hz recorded-card playback, same scheduler as HUD; includes global 3s and per-ship 6s spacing, fit speakers only. Actual display frame timing can change counts slightly.",
+  "measurement": "30 Hz recorded-card playback, same scheduler as HUD; includes global 3s and per-ship 6s spacing, fit speakers only. Actual display frame timing can change counts slightly. Frequencies predate the continuous pilot controller. New intercept cue counts are provisional recommendations, not measured frequencies.",
   "card": [
     "L51000.json",
     "L51001.json",
@@ -17,7 +17,7 @@
   ],
   "fights": 12,
   "seconds": 1370.3500000000001,
-  "recommended_total_takes": 77,
+  "recommended_total_takes": 83,
   "lines": [
     {
       "id": "attack",
@@ -346,6 +346,40 @@
         "g_limit_take_01.wav",
         "g_limit_take_02.wav",
         "g_limit_take_03.wav"
+      ]
+    },
+    {
+      "id": "rail_intercept",
+      "station": "gunner",
+      "trigger": "Actual emergency defensive munition fired",
+      "priority": 2,
+      "text": "Railgun intercept.",
+      "delivery": "Clear, focused firing confirmation.",
+      "observed": null,
+      "per_fight": null,
+      "per_minute": null,
+      "recommended_takes": 3,
+      "files": [
+        "rail_intercept_take_01.wav",
+        "rail_intercept_take_02.wav",
+        "rail_intercept_take_03.wav"
+      ]
+    },
+    {
+      "id": "counter_torpedo",
+      "station": "gunner",
+      "trigger": "Actual emergency defensive munition fired",
+      "priority": 2,
+      "text": "Counter-torpedo away.",
+      "delivery": "Clear, focused firing confirmation.",
+      "observed": null,
+      "per_fight": null,
+      "per_minute": null,
+      "recommended_takes": 3,
+      "files": [
+        "counter_torpedo_take_01.wav",
+        "counter_torpedo_take_02.wav",
+        "counter_torpedo_take_03.wav"
       ]
     }
   ],

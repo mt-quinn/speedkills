@@ -92,7 +92,7 @@ export class Match {
   // and named by the weapon that did most of it (≥60%) when there is one.
   findExchanges() {
     const GAP = 4, act = [];
-    for (const e of this.events) if (['damage', 'rail_fire', 'torp_launch', 'torp_down'].includes(e.k)) act.push(e.t);
+    for (const e of this.events) if (['damage', 'rail_fire', 'torp_launch', 'torp_down', 'torp_intercept'].includes(e.k)) act.push(e.t);
     for (let k = 0; k < this.frames.length; k += 15) if (this.frames[k].s.some((s) => s.pdc.some((p) => p[3]))) act.push(this.frames[k].t);
     act.sort((a, b) => a - b);
     const cl = [];
@@ -202,7 +202,7 @@ export class Match {
     const B = this.frames[Math.min(k + 1, this.frames.length - 1)][key];
     const f = Math.max(0, Math.min(1, t * this.hz - k));
     const next = new Map(B.map((o) => [o[0], o]));
-    // Records: torpedo/slug [id, owner, [x,y,z], [vx,vy,vz], (power)]; debris [id, target, [x,y,z], sigma].
+    // Torpedo extra = intercepted torpedo ID or null; slug extra = power. Old four-field torpedoes remain supported.
     return A.map((o) => {
       const n = next.get(o[0]);
       const p0 = v(o[2]);

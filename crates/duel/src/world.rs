@@ -14,6 +14,10 @@ pub struct Input {
     /// Desired body rotation rates (rad/s): x pitch, y yaw, z roll.
     pub rate: Vec3,
     pub fire_torpedo: bool,
+    /// A defensive launch guides toward this hostile torpedo, not the enemy ship.
+    pub torp_intercept: Option<u32>,
+    /// Fire-control intent only: rail rounds still require an actual geometric hit.
+    pub rail_intercept: Option<u32>,
     /// How many torpedoes to send (1..tubes; 0 = as many as are loaded), and the gap between
     /// launches (s; 0 = all at once, a ripple otherwise).
     pub torp_count: u32,
@@ -37,6 +41,7 @@ pub struct Torpedo {
     pub acc: Vec3,
     /// This torpedo's approach axis offset (world, perpendicular to the launch line of sight).
     pub bias: Vec3,
+    pub intercept: Option<u32>,
     pub born: f64,
     pub alive: bool,
 }
@@ -75,6 +80,8 @@ pub struct Rock {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
     TorpedoLaunched { ship: usize, id: u32 },
+    DefensiveShot { ship: usize, weapon: &'static str, target: u32, munition: u32 },
+    TorpedoIntercepted { id: u32, by: usize, weapon: &'static str, munition: u32, pos: Vec3, range: f64 },
     TorpedoDown { id: u32, by: usize, mount: usize, range: f64 },
     TorpedoHit { id: u32, victim: usize, pos: Vec3 },
     /// A broken-up torpedo's debris reached its target; `share` of the cloud struck it.
@@ -307,7 +314,7 @@ impl World {
             let gap = inp.torp_ripple.max(0.0);
             let s = &mut self.ships[i];
             for k in 0..n {
-                s.launch_queue.push((self.t + k as f64 * gap, k, n, turn));
+                s.launch_queue.push((self.t + k as f64 * gap, k, n, turn, inp.torp_intercept));
             }
         }
         // Launch what's due (a ripple leaves from wherever the ship is at the moment).
@@ -321,9 +328,9 @@ impl World {
                 s.launch_queue.clear();
             } else {
                 let now = self.t;
-                let due: Vec<(f64, u32, u32, f64)> = s.launch_queue.iter().cloned().filter(|q| q.0 <= now + 1e-9).collect();
+                let due: Vec<(f64, u32, u32, f64, Option<u32>)> = s.launch_queue.iter().cloned().filter(|q| q.0 <= now + 1e-9).collect();
                 self.ships[i].launch_queue.retain(|q| q.0 > now + 1e-9);
-                for (_, k, n, turn) in due {
+                for (_, k, n, turn, intercept) in due {
                     let s = &self.ships[i];
                     let (pos, vel, fwd) = (s.to_world(Part::Launcher.pos()), s.vel, s.forward());
                     let los = (self.ships[1 - i].pos - pos).normalized_or(fwd);
@@ -333,8 +340,9 @@ impl World {
                     let bias = if n > 1 { side * TORP_SPREAD } else { Vec3::ZERO };
                     let id = self.id();
                     let v = vel + (fwd + side * 0.3).normalized() * TORP_EJECT;
-                    self.torps.push(Torpedo { id, owner: i, pos, vel: v, dv: TORP_DV, acc: Vec3::ZERO, bias, born: self.t, alive: true });
+                    self.torps.push(Torpedo { id, owner: i, pos, vel: v, dv: TORP_DV, acc: Vec3::ZERO, bias, intercept, born: self.t, alive: true });
                     self.events.push(Event::TorpedoLaunched { ship: i, id });
+                    if let Some(target)=intercept {self.events.push(Event::DefensiveShot{ship:i,weapon:"torpedo",target,munition:id});}
                 }
             }
         }
@@ -381,6 +389,7 @@ impl World {
                 let id = self.id();
                 self.slugs.push(Slug { id, owner: i, power, pos, vel, born: self.t, alive: true });
                 self.events.push(Event::RailFired { ship: i, id });
+                if let Some(target)=inp.rail_intercept {self.events.push(Event::DefensiveShot{ship:i,weapon:"railgun",target,munition:id});}
                 if was_over {
                     let burned = self.rng.f64() < RAIL_OVERCHARGE_RISK;
                     self.events.push(Event::Overcharged { ship: i, burned });
@@ -402,12 +411,18 @@ impl World {
 
     /// Proportional navigation with a steering lag and a delta-v budget; fuze on proximity.
     fn guide_torpedoes(&mut self, dt: f64) {
+        // Snapshot target trajectories before moving either side; interceptor guidance must not
+        // depend on the order torpedoes happen to occupy the vector.
+        let targets: Vec<_>=self.torps.iter().map(|t|(t.id,t.owner,t.pos,t.vel,t.alive)).collect();
         for k in 0..self.torps.len() {
             if !self.torps[k].alive {
                 continue;
             }
             let tg = 1 - self.torps[k].owner;
-            let (tp, tv, talive, trad) = (self.ships[tg].pos, self.ships[tg].vel, self.ships[tg].alive, self.ships[tg].class.radius);
+            let intercept=self.torps[k].intercept;
+            let (tp,tv,talive,trad)=if let Some(id)=intercept {
+                targets.iter().find(|t|t.0==id&&t.1==tg).map(|t|(t.2,t.3,t.4,2.0)).unwrap_or((self.torps[k].pos,self.torps[k].vel,false,2.0))
+            }else{(self.ships[tg].pos,self.ships[tg].vel,self.ships[tg].alive,self.ships[tg].class.radius)};
             let t = &mut self.torps[k];
             // Steer for the approach axis until the last stretch, then for the ship itself.
             let range = (tp - t.pos).len();
@@ -454,6 +469,13 @@ impl World {
                 if gap < TORP_FUZE && s < 1.0 {
                     let at = p0 + (p1 - p0) * s;
                     self.torps[k].alive = false;
+                    if let Some(target)=intercept {
+                        if self.torps.iter().any(|t|t.id==target&&t.alive){
+                            let by=self.torps[k].owner;
+                            self.break_torpedo(target,by,"torpedo",id,at);
+                        }
+                        continue;
+                    }
                     self.events.push(Event::TorpedoHit { id, victim: tg, pos: at });
                     // The warhead: hull damage, and a blast into the ship from the near side.
                     let ship = &self.ships[tg];
@@ -486,7 +508,7 @@ impl World {
             .torps
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.alive && t.owner == e && (t.pos - pos).len() < PDC_RANGE)
+            .filter(|(_, t)| t.alive && t.owner == e && t.intercept.is_none() && (t.pos - pos).len() < PDC_RANGE)
             .map(|(k, t)| {
                 let rel = t.pos - pos;
                 let closing = -(t.vel - vel).dot(rel.normalized_or(Vec3::Z));
@@ -612,6 +634,20 @@ impl World {
                 self.slugs[k].alive = false;
                 continue;
             }
+            let mut closest: Option<(f64,u32,Vec3)>=None;
+            for t in self.torps.iter().filter(|t|t.alive&&t.owner!=owner) {
+                let a=p0-(t.pos-t.vel*dt);let b=p1-t.pos;
+                if let Some(f)=segment_sphere(a,b,Vec3::ZERO,2.0){
+                    if closest.map_or(true,|c|f<c.0){closest=Some((f,t.id,p0+(p1-p0)*f));}
+                }
+            }
+            let target=&self.ships[1-owner];
+            let body_hit=if target.alive {segment_sphere(p0-target.pos,p1-(target.pos+target.vel*dt),Vec3::ZERO,target.class.radius)}else{None};
+            if let Some((_,id,at))=closest.filter(|c|body_hit.map_or(true,|f|c.0<f)) {
+                self.slugs[k].alive=false;
+                self.break_torpedo(id,owner,"railgun",sid,at);
+                continue;
+            }
             let tg = 1 - owner;
             let s = &self.ships[tg];
             if !s.alive {
@@ -629,6 +665,15 @@ impl World {
             }
         }
         self.slugs.retain(|s| s.alive);
+    }
+
+    fn break_torpedo(&mut self,id:u32,by:usize,weapon:&'static str,munition:u32,at:Vec3){
+        if let Some(t)=self.torps.iter_mut().find(|t|t.id==id&&t.alive){
+            t.alive=false;
+            let range=(at-self.ships[by].pos).len();
+            self.debris.push(Debris{id,target:1-t.owner,pos:at,vel:t.vel,travelled:0.0,alive:true});
+            self.events.push(Event::TorpedoIntercepted{id,by,weapon,munition,pos:at,range});
+        }
     }
 
     fn collisions(&mut self) {

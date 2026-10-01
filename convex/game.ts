@@ -363,3 +363,13 @@ export const migrateCrewNames = internalMutation({args:{},handler:async ctx=>{
  }
  return{renamed:converted,candidates};
 }});
+
+// Refresh only unpublished recordings after a simulator change. Announced fights keep
+// their original crews, odds and trace so existing bets remain valid.
+export const refreshSimulation = internalMutation({args:{},handler:async ctx=>{
+  const ch=await channel(ctx);if(!ch)return;
+  for(const id of new Set([ch.pending,ch.fallback]))if(id){const f=await ctx.db.get(id as Id<'fights'>);if(f){await ctx.storage.delete(f.trace);await ctx.db.delete(id);}}
+  const generation=ch.generation+1;
+  await ctx.db.patch(ch._id,{pending:undefined,fallback:undefined,generation,preparing:true,attempts:0,error:undefined});
+  await ctx.scheduler.runAfter(0,internal.simulation.prepare,{generation});
+}});

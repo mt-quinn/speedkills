@@ -7,7 +7,7 @@ export function defence(raw) {
 export function tactical(raws, names, torpedoes = []) {
   for (let i = 0; i < 2; i++) {
     if (!raws[i].alive) continue;
-    const incoming = torpedoes.filter((tp) => tp.owner !== i && Math.hypot(...tp.p.map((x,k) => x - raws[i].p[k])) < 2500);
+    const incoming = torpedoes.filter((tp) => tp.owner !== i && tp.intercept == null && Math.hypot(...tp.p.map((x,k) => x - raws[i].p[k])) < 2500);
     if (!incoming.length) continue;
     const d = defence(raws[i]);
     return `${incoming.length} torpedo${incoming.length === 1 ? '' : 'es'} closing on ${names[i]} · ${!d.loaded || !d.working ? 'defence unavailable' : d.hot === d.loaded ? 'defence is cooling' : 'can point defence hold?'}`;
@@ -17,7 +17,8 @@ export function tactical(raws, names, torpedoes = []) {
     if (!r.alive) continue;
     if (!d.working || !d.loaded) return `${names[i]} has no point defence${raws[1-i].torps[0] > 0 && raws[1-i].parts[10] > 0 ? ' · torpedoes have an opening' : ''}`;
     if (d.hot === d.loaded) return `${names[i]} is cooling point defence · a brief opening`;
-    if (r.crew.some(([state, , dose]) => state === 0 && dose > 0.75)) return `${names[i]} is near a crew g limit · can the burn continue?`;
+    if (r.mode === 'rail defence') return `${names[i]} is turning the railgun on an incoming torpedo`;
+    if (r.mode === 'counter torpedo') return `${names[i]} is spending a torpedo to defend the ship`;
   }
   for (let i = 0; i < 2; i++) {
     const r = raws[i], other = raws[1 - i];

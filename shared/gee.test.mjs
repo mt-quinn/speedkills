@@ -15,6 +15,6 @@ test('scouting produces whole resistance scores and caches separate the new gee 
  const values=new Set();for(let seed=0;seed<1000;seed++){const c=candidate(Math.imul(seed,0x9e3779b9)>>>0,'pilot');assert.ok(Number.isInteger(c.resistance)&&c.resistance>=1&&c.resistance<=10);assert.equal(c.tolerance,undefined);values.add(c.resistance);}
  assert.equal(values.size,10);
  const ship={style:'Reference',identity:1000,crew:[{skill:1,tolerance:1}]};
- assert.ok(oddsKey([ship,ship]).startsWith('["wasm-gee-v2"'));
+ assert.ok(oddsKey([ship,ship]).startsWith('["wasm-tactics-v3"'));
  const high={...ship,crew:[{skill:1,resistance:10}]};assert.notEqual(oddsKey([ship,ship]),oddsKey([high,ship]));
 });

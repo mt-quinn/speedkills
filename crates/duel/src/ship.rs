@@ -130,7 +130,7 @@ pub struct Crew {
     pub health: f64,
     /// Seconds remaining until a blacked-out crew member recovers.
     pub blackout_remaining: f64,
-    /// Personal resistance: thresholds are multiplied by it.
+    /// Integer 1–10 resistance scales per-second gee incident probability; nobody is immune.
     pub resistance: f64,
     /// Skill at their station (1 = league average): pilot — handling (rotation authority and
     /// thruster jinks); gunner — railgun scatter and charge speed; engineer — repair speed;
@@ -189,7 +189,7 @@ pub struct Ship {
     pub torp_reload: f64,
     pub tubes: Vec<f64>,
     /// Launches of a rippled salvo still to go: (when, index in salvo, salvo size, ring turn).
-    pub launch_queue: Vec<(f64, u32, u32, f64)>,
+    pub launch_queue: Vec<(f64, u32, u32, f64, Option<u32>)>,
     pub rail_ammo: u32,
     /// 0..1 while charging (1 = ready); cooldown after a shot.
     pub rail_charge: f64,

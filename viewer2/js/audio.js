@@ -280,6 +280,11 @@ export class Audio {
           this.oneShot('explosion', { gain: (0.15 + 0.7 * e.share) * att, rate: 1.55, pan, highpass: 900 });
           break;
         }
+        case 'torp_intercept': {
+          const { pan, att } = atP(e.pos);
+          this.oneShot('explosion', { gain: 0.3 * att, rate: 1.8, pan, highpass: 1100 });
+          break;
+        }
         case 'torp_down': {
           // A torpedo killed out in the dark: a distant pop.
           this.oneShot('explosion', { gain: 0.16, rate: 2.2, pan: (Math.random() - 0.5) * 0.6, highpass: 1400 });

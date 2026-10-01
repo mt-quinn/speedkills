@@ -10,6 +10,8 @@ export const VOICES = {
   overcharge: { station: 'gunner', priority: 2, trigger: 'Rail enters overcharge', text: 'Overcharging the rail.', delivery: 'Deliberate; a dangerous choice, not a celebration.' },
   launch: { station: 'gunner', priority: 1, trigger: 'Torpedo launch; salvo grouped by cooldown', text: 'Torpedoes away.', delivery: 'Crisp launch confirmation.' },
   fire: { station: 'gunner', priority: 1, trigger: 'Rail fired', text: 'Railgun firing.', delivery: 'Short and matter-of-fact.' },
+  rail_intercept: { station: 'gunner', priority: 2, trigger: 'Railgun fired at an incoming torpedo', text: 'Railgun intercept.', delivery: 'Focused; emergency firing confirmation.' },
+  counter_torpedo: { station: 'gunner', priority: 2, trigger: 'Defensive torpedo launched', text: 'Counter-torpedo away.', delivery: 'Clear, urgent launch confirmation.' },
   rail_restored: { station: 'engineer', priority: 2, trigger: 'Railgun repaired', text: 'Railgun back online.', delivery: 'Brief relief, still working.' },
   rail_lost: { station: 'engineer', priority: 2, trigger: 'Railgun destroyed', text: 'Railgun offline.', delivery: 'Immediate, clear damage report.' },
   drive_restored: { station: 'engineer', priority: 2, trigger: 'Main drive repaired', text: 'Main drive back online.', delivery: 'Relieved but composed.' },
@@ -29,11 +31,13 @@ export function voiceRequests(state, raw, crew, events) {
       const system = { railgun: 'rail', drive: 'drive' }[e.part];
       if (system) id = `${system}_${e.k === 'repaired' ? 'restored' : 'lost'}`;
     }
+    if (e.k === 'defensive_shot') id = e.weapon === 'railgun' ? 'rail_intercept' : 'counter_torpedo';
     if (id) out.push(id);
     if (e.k === 'blackout' && crew[e.crew]?.station === 'pilot') out.push('pilot_out');
   }
   if (raw.mode !== state.mode) {
     const id = { 'attack run': 'attack', punish: 'attack', juke: 'evade', extend: 'extend', 'holding range': 'hold_range', 'torpedo break': 'torpedo_break', ramming: 'ram' }[raw.mode];
+    if (e.k === 'defensive_shot') id = e.weapon === 'railgun' ? 'rail_intercept' : 'counter_torpedo';
     if (id) out.push(id);
     state.mode = raw.mode;
   }

@@ -133,6 +133,8 @@ class App {
         sc.flash(new THREE.Vector3(...e.pos), THREAT, 0.09, 0.9);
       } else if (e.k === 'debris_hit') {
         sc.flash(new THREE.Vector3(...e.pos), THREAT, 0.03 + 0.05 * e.share, 0.6);
+      } else if (e.k === 'torp_intercept') {
+        sc.flash(new THREE.Vector3(...e.pos), TEAM[e.by], 0.045, 0.65);
       } else if (e.k === 'torp_down') {
         const tr = sc.trails.get(e.id);
         if (tr && tr.length) sc.flash(tr[tr.length - 1].p, TEAM[e.by], 0.02, 0.4);

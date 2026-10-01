@@ -1,6 +1,6 @@
 # Crew comms recording manifest
 
-**18 scripts · 77 recommended recordings.** Record the exact same words for every take of a script. The takes provide vocal variation; there are no alternate-wording lists.
+**20 scripts · 83 recommended recordings.** Record the exact same words for every take of a script. The takes provide vocal variation; there are no alternate-wording lists.
 
 Keep one consistent character voice within each script. Change emphasis, pace, breath and the amount of strain slightly. Aim for usable performances of the same intent, rather than different impressions or exaggerated moods. One shared comms pack works across the roster; separate character packs can come later.
 
@@ -17,6 +17,8 @@ Measured on 12 unfiltered fights (22.8 match minutes). Counts reflect emitted su
 | “Overcharging the rail.” | gunner | 0.92 | 0.48 | **4** |
 | “Torpedoes away.” | gunner | 3.92 | 2.06 | **8** |
 | “Railgun firing.” | gunner | 2.33 | 1.23 | **6** |
+| “Railgun intercept.” | gunner | Rare; not yet measured | — | **3** |
+| “Counter-torpedo away.” | gunner | Rare; not yet measured | — | **3** |
 | “Railgun back online.” | engineer | 0 | 0 | **3** |
 | “Railgun offline.” | engineer | 0 | 0 | **3** |
 | “Main drive back online.” | engineer | 0.08 | 0.04 | **3** |
@@ -275,3 +277,25 @@ Trigger: Pilot conscious and felt acceleration reaches 7 g; rearm below 6 g. Obs
 - [ ] Take 1: `g_limit_take_01.wav`
 - [ ] Take 2: `g_limit_take_02.wav`
 - [ ] Take 3: `g_limit_take_03.wav`
+
+## rail_intercept — 3 takes
+
+**Say every time: “Railgun intercept.”**
+
+Trigger: An actual railgun shot committed to an incoming torpedo. Focused emergency confirmation.
+
+- [ ] Take 1: `rail_intercept_take_01.wav`
+- [ ] Take 2: `rail_intercept_take_02.wav`
+- [ ] Take 3: `rail_intercept_take_03.wav`
+
+## counter_torpedo — 3 takes
+
+**Say every time: “Counter-torpedo away.”**
+
+Trigger: A defensive torpedo actually launches. Clear, urgent confirmation.
+
+- [ ] Take 1: `counter_torpedo_take_01.wav`
+- [ ] Take 2: `counter_torpedo_take_02.wav`
+- [ ] Take 3: `counter_torpedo_take_03.wav`
+
+These two calls are provisional rare cues: three performances of identical words each. The earlier frequency measurements describe the previous pilot controller; measure the new controller before increasing recording counts.

@@ -32,6 +32,8 @@ fn event_json(e: &Event) -> Option<String> {
     let mut o = String::new();
     match *e {
         Event::TorpedoLaunched { ship, id } => { let _ = write!(o, "\"k\":\"torp_launch\",\"ship\":{ship},\"id\":{id}"); }
+        Event::DefensiveShot{ship,weapon,target,munition}=>{let _=write!(o,"\"k\":\"defensive_shot\",\"ship\":{ship},\"weapon\":{},\"target\":{target},\"munition\":{munition}",js(weapon));}
+        Event::TorpedoIntercepted{id,by,weapon,munition,pos,range}=>{let _=write!(o,"\"k\":\"torp_intercept\",\"id\":{id},\"by\":{by},\"weapon\":{},\"munition\":{munition},\"range\":{range:.0},\"pos\":",js(weapon));v3(&mut o,pos,1);}
         Event::TorpedoDown { id, by, mount, range } => { let _ = write!(o, "\"k\":\"torp_down\",\"id\":{id},\"by\":{by},\"mount\":{mount},\"range\":{range:.0}"); }
         Event::TorpedoHit { id, victim, pos } => { let _ = write!(o, "\"k\":\"torp_hit\",\"id\":{id},\"victim\":{victim},\"pos\":"); v3(&mut o, pos, 1); }
         Event::DebrisHit { id, victim, share, pos } => { let _ = write!(o, "\"k\":\"debris_hit\",\"id\":{id},\"victim\":{victim},\"share\":{share:.3},\"pos\":"); v3(&mut o, pos, 1); }
@@ -78,7 +80,7 @@ fn ship_frame(o: &mut String, s: &Ship, p: &Pilot) {
     for (k, m) in s.pdcs.iter().enumerate() {
         let _ = write!(o, "{}[{:.2},{:.2},{},{},{}]", if k > 0 { "," } else { "" }, m.ammo, m.heat, m.target.map_or(-1, |t| t as i64), m.at_ship as u8, m.overheated as u8);
     }
-    let _ = write!(o, "],\"mode\":{}}}", js(p.mode));
+    let _ = write!(o, "],\"intent\":[{:.2},{:.2},{:.2},{:.2}],\"mode\":{}}}",p.intent[0],p.intent[1],p.intent[2],p.intent[3], js(p.mode));
 }
 
 /// Record a whole match. `summary` is the diagnostics of the same match (same seed and pilots),
@@ -122,7 +124,7 @@ fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipC
                 v3(&mut frames, t.pos, 1);
                 frames.push(',');
                 v3(&mut frames, t.vel, 1);
-                frames.push(']');
+                let _=write!(frames,",{}]",t.intercept.map_or("null".into(),|id|id.to_string()));
             }
             frames.push_str("],\"sl\":[");
             for (k, sl) in w.slugs.iter().filter(|s| s.alive).enumerate() {
@@ -194,7 +196,7 @@ fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipC
     o.push_str(&w.rocks.iter().map(|r| format!("[{:.0},{:.0},{:.0},{:.0}]", r.pos.x, r.pos.y, r.pos.z, r.radius)).collect::<Vec<_>>().join(","));
     let _ = write!(
         o,
-        "],\"params\":{{\"g_model\":\"random-v1\",\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
+        "],\"params\":{{\"g_model\":\"random-v1\",\"pilot_model\":\"continuous-v1\",\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
         RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, DRIVE_MAX_G, if time_limit().is_finite() { format!("{}", time_limit()) } else { "null".into() }, DISENGAGE_RANGE
     );
     let _ = write!(o, "\"winner\":{},\"end_reason\":{},", w.winner.map_or("null".into(), |x| x.to_string()), js(w.end_reason));

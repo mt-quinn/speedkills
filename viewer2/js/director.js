@@ -93,8 +93,10 @@ export class Director {
     const pts = [st.ships[0].pos, st.ships[1].pos];
     // Ordnance counts for framing only while it's still coming at its target: anything that has
     // gone past is still drawn, but never holds the shot wide.
-    for (const tp of this.match.objects(t, 'tp')) {
-      const target = st.ships[1 - tp.owner];
+    const torpedoes = this.match.objects(t, 'tp');
+    for (const tp of torpedoes) {
+      const target = tp.extra != null ? torpedoes.find(other => other.id === tp.extra) : st.ships[1 - tp.owner];
+      if (!target) continue;
       const toT = target.pos.clone().sub(tp.pos);
       const closing = toT.dot(tp.vel.clone().sub(target.vel)) > 0;
       if (closing && toT.length() < 2000) pts.push(tp.pos);

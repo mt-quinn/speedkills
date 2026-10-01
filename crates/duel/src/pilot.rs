@@ -1,6 +1,6 @@
-//! Scripted pilots. The reference pilot flies a sensible, balanced fight; the lazy pilots each
-//! do one simple thing. The sanity gate (tests) requires every lazy strategy to lose to the
-//! reference pilot: if one doesn't, the rules have a degenerate strategy.
+//! Continuous tactical pilots. Doctrine and identity bias a shared movement/weapon planner.
+//! Simple negative controls and the previous controller remain available for diagnostics.
+mod tactics;
 use crate::params::*;
 use crate::ship::*;
 use crate::world::{Input, World};
@@ -92,6 +92,10 @@ impl Style {
 
 pub struct Pilot {
     pub style: Style,
+    /// Diagnostic control only: compare the preceding priority-ladder controller.
+    pub adaptive: bool,
+    pub intent: [f64; 4],
+    tactics: tactics::Motion,
     /// What the pilot is doing this step (for diagnostics and the broadcast).
     pub mode: &'static str,
     /// Experiment switch: the reference pilot without torpedoes (closes at once).
@@ -147,6 +151,11 @@ pub struct Temper {
     /// How long they'll hold a loaded salvo waiting for the target to turn a weak side to them
     /// (fewer PDC mounts bearing), before sending it anyway (s).
     pub patience: f64,
+    pub initiative: f64,
+    pub crossing: f64,
+    pub range_bias: f64,
+    pub rhythm: f64,
+    pub orbit_sign: f64,
 }
 
 impl Pilot {
@@ -157,6 +166,9 @@ impl Pilot {
     pub fn seeded(style: Style, seed: u64) -> Pilot {
         Pilot {
             style,
+            adaptive: true,
+            intent: [0.0; 4],
+            tactics: tactics::Motion::default(),
             mode: "",
             torps: true,
             rng: Rng::new(seed ^ 0x9E37_79B9_7F4A_7C15),
@@ -192,7 +204,7 @@ impl Pilot {
         // (Its own stream, so the temperament doesn't shift the pilot's juke sequence.)
         let mut r = Rng::new(seed.wrapping_mul(0x2545_F491_4F6C_DD1D) ^ 0xA5A5_5A5A);
         self.temper = if std::env::var("TEMPER").map_or(false, |v| v == "off") {
-            Temper::default()
+            Temper { initiative:0.5,crossing:0.5,rhythm:1.0,orbit_sign:1.0,..Temper::default() }
         } else {
             Temper {
                 launch_depth: r.f64(),
@@ -201,6 +213,11 @@ impl Pilot {
                 reaction: r.range(0.1, 1.6),
                 odds_shift: r.range(-0.08, 0.08),
                 patience: r.range(1.0, 7.0),
+                initiative: r.range(0.25, 0.85),
+                crossing: r.range(0.25, 1.0),
+                range_bias: r.range(-500.0, 500.0),
+                rhythm: r.range(0.7, 1.4),
+                orbit_sign: if r.f64() < 0.5 { -1.0 } else { 1.0 },
             }
         };
         self
@@ -252,8 +269,8 @@ impl Pilot {
                 self.ram(w, me, &mut inp);
             }
             Style::Reference | Style::Knife | Style::Counter | Style::Striker | Style::Warden => {
-                self.reference(w, me, &mut inp);
-                inp.overcharge = self.overcharge;
+                if self.adaptive { self.reference(w, me, &mut inp); } else { self.legacy_reference(w, me, &mut inp); }
+                inp.overcharge = self.overcharge && inp.rail_intercept.is_none();
                 // PDC fire discipline: keep a reserve sized to their remaining torpedoes (~5 s of
                 // fire each) while they could actually get a salvo off at range (torpedoes need
                 // ~3.5 km of run-up) or one is inbound; grind their hull only with what's above
@@ -291,7 +308,7 @@ impl Pilot {
         inp.pdc_hold = false;
     }
 
-    fn reference(&mut self, w: &World, me: usize, inp: &mut Input) {
+    fn legacy_reference(&mut self, w: &World, me: usize, inp: &mut Input) {
         let s = &w.ships[me];
         let e = &w.ships[1 - me];
         let rel = e.pos - s.pos;

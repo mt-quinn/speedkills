@@ -104,3 +104,13 @@ test('restoration tags follow simulation time and clear on a new system loss', (
   assert.deepEqual(recentRestorations(events,1,12),['railgun']);
   assert.deepEqual(recentRestorations(events,0,10),['drive']); // backwards seek
 });
+
+test('defensive launch comms explain the ammunition choice rather than generic fire', () => {
+  const r=raw(),crew=m.ships[0].crew,s=voiceState();
+  const ids=voiceRequests(s,r,crew,[{k:'torp_launch'},{k:'defensive_shot',weapon:'torpedo'}]);
+  assert.equal(chooseVoice(s,0,r,crew,ids).line,'Counter-torpedo away.');
+});
+test('a counter-torpedo is not described as an incoming ship threat', () => {
+  const r=raw();
+  assert.equal(tactical([r,r],['A','B'],[{owner:1,p:r.p,intercept:100}]),'');
+});
