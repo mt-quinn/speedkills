@@ -28,5 +28,10 @@
     }
   ],
   "configuredCpuLimitMs": 60000,
-  "notes": "Observed live staging preparation jobs. Representative measurements, not an exhaustive maximum; local memory bounds are in memory-report.json."
+  "notes": "Observed live staging preparation jobs. Representative measurements, not an exhaustive maximum; local memory bounds are in memory-report.json.",
+  "queuedPreparationDuringLoad": {
+    "cpuMs": 40856,
+    "wallMs": 54412,
+    "outcome": "ok"
+  }
 }
