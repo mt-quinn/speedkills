@@ -1,0 +1,55 @@
+{
+  "recordedAt": "2026-10-01T20:48:22.642Z",
+  "endpoint": "https://hardburn-api-preview.quinn-a19.workers.dev",
+  "runtime": "deployed-cloudflare",
+  "simulator": {
+    "sha256": "5d667e96dae985ea42068345761caef9f207a07b9e8aa45cbcf48aad973d9d60",
+    "bytes": 280261
+  },
+  "measurements": [
+    {
+      "pair": [
+        0,
+        1
+      ],
+      "customized": false,
+      "samples": 128,
+      "roundTripMs": 14982,
+      "sha256": "5431d3c81b390d1da2deb68746edfdc0da67f48b6e28ff5a812da83856528699",
+      "rawBytes": 2118942,
+      "compressedBytes": 337432,
+      "wasmMemoryBytes": 14745600
+    },
+    {
+      "pair": [
+        4,
+        5
+      ],
+      "customized": false,
+      "samples": 400,
+      "roundTripMs": 30151,
+      "sha256": "010f5e84fd437156709d3d1ab39c5c75dab357ae9b1f14651a48fdecb22d0f62",
+      "rawBytes": 1024282,
+      "compressedBytes": 180616,
+      "wasmMemoryBytes": 7929856
+    },
+    {
+      "pair": [
+        7,
+        8
+      ],
+      "customized": true,
+      "samples": 128,
+      "roundTripMs": 8828,
+      "sha256": "34bae874f36abdb377d59e400aba6b4f92734b75826beb1cc953673c3dda6809",
+      "rawBytes": 1483159,
+      "compressedBytes": 231714,
+      "wasmMemoryBytes": 8978432
+    }
+  ],
+  "limitations": [
+    "Round-trip times include network latency; they are not billed CPU measurements.",
+    "WASM memory is linear memory after execution, not peak total isolate memory.",
+    "Passing a small fixture set does not establish load capacity or full gameplay parity."
+  ]
+}

@@ -11,7 +11,11 @@
     "build:sim": "cargo build -p hb-live-sim --release --target wasm32-unknown-unknown && node tools/embed-sim.mjs",
     "test:camera": "node viewer2/tools/camera-audit.mjs",
     "camera:demo": "node viewer2/tools/camera-demo.mjs",
-    "test:camera:suite": "node viewer2/tools/camera-suite.mjs"
+    "test:camera:suite": "node viewer2/tools/camera-suite.mjs",
+    "build:cloudflare:sim": "node tools/build-cloudflare-sim.mjs",
+    "types:cloudflare": "wrangler types cloudflare/simulator-configuration.d.ts --config cloudflare/simulator.wrangler.jsonc --env-interface SimulatorEnv && wrangler types cloudflare/worker-configuration.d.ts --config cloudflare/wrangler.jsonc --env-interface WorkerBindings",
+    "typecheck:cloudflare": "npm run types:cloudflare && tsc --noEmit -p cloudflare/tsconfig.json",
+    "test:cloudflare": "node tools/build-cloudflare-sim.mjs && node --test cloudflare/test/*.test.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.3",
@@ -19,12 +23,15 @@
     "convex": "^1.42.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
     "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^22.0.0",
     "convex-test": "^0.0.41",
     "esbuild": "^0.25.0",
+    "miniflare": "^5.20261001.0-alpha",
     "three": "0.160.0",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "wrangler": "^4.146.0"
   }
 }

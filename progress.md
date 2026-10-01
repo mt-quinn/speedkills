@@ -135,3 +135,14 @@
 - Final 1,200 default-pilot fights pass all six unchanged spectacle gates and the new motion checks: median 91s, p95 155s, no unfinished fights, 52% lead reversals, 10% dangerous burns/gee deaths; doctrine wins Counter 53%, Knife 48%, Reference 50%. 91% reach below 1 km, 98% have multiple excursions.
 - Final 900 persistent-roster fights pass motion checks: 96% below 1 km, 99% multiple excursions, 6% held windows. Knife mirrors all close and reopen. Counter mirrors still pause more than other doctrines; measurements do not substitute for user judgment of the broadcast.
 - 28 Rust and 33 JS checks pass; native/WASM finish summaries agree exactly for persistent Knife and Counter mirrors. Engine continuous-v3 / odds wasm-tactics-v5.
+
+## 2026-10-01 — Begin approved Cloudflare migration
+- Reviewed approved scope and retained Vercel hosting decision. User requested a Git branch and isolated comparison preview.
+- Inspected existing Vercel build/project linkage and prepared staged implementation plan; production cutover is separate from comparison deployment.
+- Created codex/cloudflare-migration after Git sandbox escalation. Installed Wrangler 4.146.0 and Workers types.
+- Cloudflare OAuth initially timed out; second flow succeeded after user authorization. Vercel login is valid; project lookup needs configured team scope.
+- Compiled-module simulator adaptation typechecks and passes Worker deployment dry-run. Fixed custom-build working-directory assumption; local runtime commands require sandbox escalation for listening ports/logs.
+- Initial D1 schema applied remotely (22 SQL commands). Cloudflare API deploy is a protected compute prototype, starts in maintenance, and explicitly reports gameplayReady=false.
+- All seven local workerd integration tests pass: simulator/odds parity, concurrent instances, auth/origin protection, atomic D1 constraints/rollback, R2 gzip persistence, password-hash compatibility, and D1-to-alarm reconciliation. Existing backend tests, 71 Node tests, and TypeScript pass.
+- Deployed three-case benchmark passed exact fight hashes and odds. Private simulator has no public Worker route. Runtime/type fixes were resolved before deployment.
+- This checkpoint starts the migration; full lifecycle/economy/auth/socket/client integration and production rehearsal are still pending. Initial Vercel branch preview remains on development Convex as a baseline until the Cloudflare client adapter is ready.

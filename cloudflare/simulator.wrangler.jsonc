@@ -1,0 +1,13 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hardburn-simulator-preview",
+  "main": "src/simulator.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 60000 },
+  "observability": { "enabled": true },
+  "r2_buckets": [{ "binding": "TRACES", "bucket_name": "hardburn-traces-preview" }],
+  "build": { "command": "node tools/build-cloudflare-sim.mjs" }
+}

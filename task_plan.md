@@ -36,3 +36,24 @@ Hangar is home. Empty berth teaches sponsorship goal. Credits from betting fund 
 5. Desktop/mobile and multi-client validation; setup/deployment documentation.
 
 Economy values are initial tuning defaults, clearly centralized. No production deployment or git push requested in this turn. Preserve uncommitted voice revision.
+
+# Cloudflare migration — approved 2026-10-01
+
+User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live comparison. Keep Vercel frontend/production Convex unchanged; use an isolated Cloudflare preview backend. Preserve accounts on eventual cutover; preview uses independent test accounts/data.
+
+## Migration phases
+1. Branch, deployment access, simulator feasibility and auth compatibility — in progress.
+2. D1 schema, transactional command/settlement layer, Durable Object lifecycle and private R2 — pending.
+3. Account/auth parity, chat/moderation, client transport and paginated archives — pending.
+4. Runtime integration, fault/security/parity/load checks and deployment docs — pending.
+5. Push branch and publish isolated Vercel/Cloudflare comparison preview — pending.
+6. Production data inventory/rehearsal/cutover — requires readiness evidence and concrete cutover review; comparison preview does not replace production.
+
+## Migration issues
+- Initial git branch creation denied by filesystem sandbox; retry with approved escalation for Git metadata.
+
+## Migration checkpoint: compute prototype verified
+- Phase 1 initial feasibility and access milestone complete: branch, paid provider access, isolated resources, deployed deterministic benchmark and disposable credential compatibility.
+- Remaining phase-1 production readiness evidence: actual auth/storage inventory, billed CPU/peak-memory profiling, workload/pass thresholds. These do not block isolated game implementation.
+- Phase 2 next: durable game commands, lifecycle, preparation acceptance and settlement. Phase 3–6 remain pending as above.
+- Resolved tooling issues: Miniflare 5 API via supported converter; old runtime removed; auth dependencies isolated to avoid optional framework peer conflict. Deployed resources and current limitations documented in cloudflare/README.md.

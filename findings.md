@@ -33,3 +33,14 @@ The current manifest supersedes the earlier alternate-wording catalog:18 fixed s
 
 ## Live league foundation
 Existing Vercel config serves viewer2 as static output with no build step. No package or Convex configuration exists. Current Rust CLI generates real matches; viewer uses full traces and local picks. Production needs server authority and must not disclose a future fight trace/winner before betting closes.
+
+## Cloudflare migration discovery — 2026-10-01
+- main tracks origin/main (GitHub mt-quinn/speedkills); scope file untracked at start.
+- Vercel project hardburn is already linked. Build selects production/preview Convex endpoints; add explicit backend selection rather than replacing defaults.
+- Existing simulator WASM artifact is available. Cloudflare CLI not installed; Vercel CLI available. Need verify provider authentication and Worker runtime before remote preview.
+- Current auth uses Convex Password provider; hash compatibility and session migration require proof, not assumptions.
+- Cloudflare authorization succeeded; user enabled Workers Paid and R2. Created isolated D1 hardburn-preview and private R2 hardburn-traces-preview; deployed private Simulator RPC service and protected API/coordinator scaffold.
+- Deployed simulator parity passed three fixtures (128/400/customized 128 samples). Round trips 14.982s, 30.151s, 8.828s; WASM linear memory 7.6–14.1 MiB. These are not billed CPU or peak isolate measurements. Report saved in cloudflare/docs/compute-report.json.
+- Better Auth 1.7.7 verifies Convex/Lucia scrypt hashes in Node and workerd, including NFKC normalization and wrong-password rejection. Actual exported credential inventory and full session/reset integration remain pending.
+- Miniflare 5 changed its constructor API; use convertV4MiniflareOptions with the current runtime. Stable Miniflare 4 was too old for the compatibility date and introduced advisories, so it was removed.
+- Better Auth optional frontend peers conflicted with the root Vite/Vitest graph. Isolated cloudflare/package.json installs without that conflict and audits clean. Existing root package versions did not change; two pre-existing moderate Vitest advisories remain.

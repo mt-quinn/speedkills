@@ -1,13 +1,17 @@
 import { geeResistance } from '../viewer2/js/gee.js';
 const styleIndex = { Reference: 0, Knife: 1, Counter: 2 };
 export async function simulator(bytes) {
-  const { instance } = await WebAssembly.instantiate(bytes, {}); const e = instance.exports;
+  // Workers import a compiled WebAssembly.Module; Convex and Node supply bytes.
+  const loaded = await WebAssembly.instantiate(bytes, {});
+  const instance = loaded instanceof WebAssembly.Instance ? loaded : loaded.instance;
+  const e = instance.exports;
   function setup(ships) {
     const p = e.hb_input();
     new Float64Array(e.memory.buffer, p, 16).set(ships.flatMap(s => s.crew.flatMap(c => [c.skill, geeResistance(c)])));
     return [styleIndex[ships[0].style] ?? 0, ships[0].identity, styleIndex[ships[1].style] ?? 0, ships[1].identity];
   }
   return {
+    memoryBytes() { return e.memory.buffer.byteLength; },
     odds(ships, seed, n = 128) { return e.hb_odds(seed, n, ...setup(ships)); },
     fight(ships, seed) {
       const len = e.hb_fight(seed, ...setup(ships)); const ptr = e.hb_output();

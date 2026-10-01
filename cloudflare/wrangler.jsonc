@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "hardburn-api-preview",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 30000 },
+  "observability": { "enabled": true },
+  "vars": { "ENVIRONMENT": "preview", "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:5173" },
+  "secrets": { "required": ["BENCHMARK_KEY"] },
+  "durable_objects": { "bindings": [{ "name": "LEAGUE", "class_name": "League" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["League"] }],
+  "d1_databases": [{
+    "binding": "DB", "database_name": "hardburn-preview",
+    "database_id": "1fcc95e4-748c-48d4-a36a-3075f863e108", "migrations_dir": "migrations"
+  }],
+  "r2_buckets": [{ "binding": "TRACES", "bucket_name": "hardburn-traces-preview" }],
+  "services": [{ "binding": "SIMULATOR", "service": "hardburn-simulator-preview", "entrypoint": "Simulator" }],
+  "triggers": { "crons": ["* * * * *"] }
+}
