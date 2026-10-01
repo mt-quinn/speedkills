@@ -34,7 +34,7 @@ export function magazine(raw,initial) {
   return [
     {key:'RAIL',value:raw.rail[3],unit:'',level:level(raw.rail[3],initial.rail[3],2,raw.parts[11]>0&&d.powered)},
     {key:'TORP',value:raw.torps[0],unit:'',level:level(raw.torps[0],initial.torps[0],2,raw.parts[10]>0&&d.powered)},
-    {key:'PDC',value:Math.ceil(d.ammo),unit:'s',level:level(d.ammo,initialPdc,6,d.working>0&&d.powered)},
+    {key:'PDC',value:d.ammo<=.01?0:d.ammo<1?'<1':Math.ceil(d.ammo),unit:'s',level:level(d.ammo,initialPdc,6,d.working>0&&d.powered)},
   ];
 }
 

@@ -20,6 +20,7 @@ test('reserve warnings distinguish ammunition exhaustion from disabled weapons',
  const initial=raw(),r=raw();r.rail[3]=2;r.torps[0]=0;r.parts[7]=0;r.pdc[1][0]=1;r.pdc[2][0]=2;
  assert.deepEqual(magazine(r,initial).map(m=>m.level),['low','empty','low']);
  r.parts[11]=0;assert.equal(magazine(r,initial)[0].level,'disabled');
+ r.pdc.forEach(p=>p[0]=.1);assert.equal(magazine(r,initial)[2].value,'<1');
 });
 test('openings require a living opponent and usable attacking weapon',()=>{
  const a=raw(),b=raw();b.pdc.forEach(p=>p[0]=0);

@@ -52,7 +52,7 @@ body.portrait .pl-weapon{gap:3px;padding:0 3px}body.portrait .pl-weapon small{fo
 body.portrait .pl-signal b{font-size:10px}body.portrait .pl-signal span{font-size:8px}
 body.portrait .pl-outs,body.portrait .pl-outs.fresh,body.portrait .pl-restored,body.portrait .pl-flag{font-size:9px;margin:3px 0 0;padding:3px 4px}
 body.portrait .pl-chat{position:static;width:auto;font-size:9px;max-height:23px}
-#soundhint{bottom:50px}
+#soundhint{left:50%;bottom:18px;transform:translateX(-50%)}
 @media(max-height:520px) and (min-width:601px){
   .plate{width:176px;padding:5px 7px}.pl-name{font-size:16px}.pl-bet{font-size:8px}
   .pl-plan{font-size:9px}.pl-crew i.crew-face{width:12px;height:14px}
