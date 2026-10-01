@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node tools/build-web.mjs",
     "dev:backend": "convex dev",
-    "test": "node --test viewer2/tools/broadcast.test.mjs viewer2/tools/betting.test.mjs viewer2/tools/audio.test.mjs viewer2/tools/camera.test.mjs viewer2/tools/fight-cards.test.mjs shared/*.test.mjs",
+    "test": "node --test viewer2/tools/broadcast.test.mjs viewer2/tools/betting.test.mjs viewer2/tools/results.test.mjs viewer2/tools/audio.test.mjs viewer2/tools/camera.test.mjs viewer2/tools/fight-cards.test.mjs shared/*.test.mjs",
     "test:backend": "vitest run",
     "typecheck": "tsc --noEmit",
     "build:sim": "cargo build -p hb-live-sim --release --target wasm32-unknown-unknown && node tools/embed-sim.mjs",

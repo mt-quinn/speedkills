@@ -1,0 +1,121 @@
+/* Final whistle desk: the combat record and the settlement share the frame. */
+body[data-screen="broadcast"][data-phase="results"] .hb-broadcast { height:calc(100dvh - 64px);min-height:0; }
+.finish-desk { container-type:size; }
+.finish-desk,.finish-desk * { box-sizing:border-box; }
+.finish-desk .match-console-head { padding:12px 20px;background:#1c2a31; }
+
+.finish-desk .match-console-body { display:grid;grid-template-columns:minmax(0,1.8fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:10px 16px;padding:14px 20px 9px;overflow:hidden; }
+#league-shell .finish-story { grid-column:1/-1;margin:0;padding:8px 12px;border-left:2px solid #a2b2b4;background:#1c2c33;color:#c3ced0;font-size:12px;line-height:1.4; }
+.finish-ships { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0;min-height:0; }
+.finish-ship { display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0;border:1px solid #51606a;background:#18282f; }
+.finish-ship.victor { border-color:var(--team);box-shadow:inset 0 0 0 1px var(--team); }
+.finish-ship>header { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 12px;background:#14232a;border-bottom:1px solid #465961;min-width:0; }
+.finish-ship.victor>header { background:color-mix(in srgb,var(--team) 15%,#14232a); }
+.finish-ship>header>div:first-child { min-width:0;flex:1; }
+.finish-outcome { display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:.08em;color:var(--team);font-weight:600; }
+.finish-outcome i { font-style:normal;font-size:8px;letter-spacing:0;padding:2px 4px;background:var(--team);color:#14232a;white-space:nowrap; }
+#league-shell .finish-ship h2 { font:600 clamp(22px,2.4vw,36px)/1.1 'Saira Condensed',sans-serif;text-transform:uppercase;color:var(--team);margin:4px 0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
+.finish-doctrine { display:block;font-size:9px;color:#a9bcc3; }
+.finish-opening { flex-shrink:0;text-align:right; }.finish-opening b { font:600 25px/1 'Saira Condensed',sans-serif;color:#e7dfce; }.finish-opening b small { font-size:12px; }.finish-opening span { display:block;font-size:6px;color:#a3b5bd;letter-spacing:.04em; }
+.finish-record { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));min-height:0;gap:8px;padding:9px; }
+.finish-stat { display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;align-items:baseline;gap:8px 5px;padding:10px;background:#22333a;border-top:1px solid #54636a;min-width:0;min-height:0; }
+.finish-stat>span { font-size:10px;color:#bdc9ca; }.finish-stat>b { font:600 30px/1 'Saira Condensed',sans-serif;color:#e6e1d4;font-variant-numeric:tabular-nums; }.finish-stat>b small { font-size:12px;font-weight:400;color:#a5b6bb; }.finish-stat.stat-lead>b { color:var(--team); }
+.finish-meter { grid-column:1/-1;height:5px;background:#0d1b22; }.finish-meter i { display:block;width:var(--fill);height:100%;background:var(--team);opacity:.8; }
+.finish-ship>footer { display:flex;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;border-top:1px solid #465961;font-size:7px;color:#a3b4bb; }.finish-ship>footer span { color:#94a8b0; }
+.finish-ledger { display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;min-width:0;min-height:0; }
+.finish-ledger:has(.finish-personal:only-child) { grid-template-rows:1fr; }
+.finish-personal { padding:14px 16px;background:#23343a;border-top:2px solid #92a5aa;min-width:0; }
+.finish-personal.won { border-color:#bccd9c;background:#293c37; }.finish-personal.lost { border-color:#c78977; }.finish-personal.returned { border-color:#c7b385; }
+.finish-overline { display:block;font-size:8px;letter-spacing:.1em;color:#adbec4; }
+.finish-settlement { display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:9px 0 4px; }.finish-settlement>span { font-size:10px;font-weight:600;color:#c8d5d1; }.finish-settlement>b { font:600 42px/1 'Saira Condensed',sans-serif;white-space:nowrap;color:#e4dac3; }.won .finish-settlement>b { color:#cbdab4; }.lost .finish-settlement>b { color:#e6b4a2; }.finish-settlement>b small { font-size:15px;margin-left:4px; }.finish-settlement .finish-spectator { font-size:22px;white-space:normal;line-height:1.2; }
+#league-shell .finish-backed { font-size:10px;line-height:1.3;color:#b6c7ca;margin:0 0 10px;overflow-wrap:anywhere; }
+.finish-receipt { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;border-top:1px solid #54666a;padding-top:8px; }.finish-receipt span { display:block;font-size:8px;color:#adbec4; }.finish-receipt b { font:500 21px/1.1 'Saira Condensed',sans-serif;color:#e3dfd2; }.finish-receipt small { font-size:9px; }
+.finish-market { display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-width:0;min-height:0;padding:12px 14px;background:#1c2c33;border:1px solid #465961;gap:8px; }
+.finish-market-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px 12px;min-height:0; }
+.finish-market-grid>div { display:flex;flex-direction:column;justify-content:center;min-width:0;border-top:1px solid #435761;padding-top:6px; }
+.finish-market-grid span { font-size:9px;color:#adbec4; }.finish-market-grid b { font:600 clamp(21px,2.4vw,32px)/1.1 'Saira Condensed',sans-serif;font-variant-numeric:tabular-nums;color:#e6dfcf;white-space:nowrap; }.finish-market-grid b small { font-size:10px;font-weight:400;color:#a9bec6; }.finish-paid-note { font-size:7px;color:#9bafb6; }
+.finish-income { display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:9px;border-top:1px solid #687877;min-width:0; }.finish-income>div { min-width:0; }.finish-income span { display:block;font-size:7px;color:#b0c0bd;letter-spacing:.04em; }.finish-income b { display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:500 20px/1.2 'Saira Condensed',sans-serif;color:#d8c198; }.finish-income strong { white-space:nowrap;font:600 28px/1 'Saira Condensed',sans-serif;color:#e4c58e; }.finish-income small { font-size:10px; }
+#league-shell .finish-reset { grid-column:1/-1;margin:0;font-size:9px;line-height:1.2;color:#9bb0b8; }
+.finish-desk .finish-action { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 20px;background:#2b3b40;box-shadow:none; }
+.finish-action .hb-next-window { display:flex;align-items:center;gap:14px;border:0;padding:0; }.finish-action .hb-next-window span { max-width:85px;font-size:8px;line-height:1.4;color:#bdc9ca; }.finish-action .hb-next-window b { margin:0;font:600 36px/1 'Saira Condensed',sans-serif;color:#e9c788;font-variant-numeric:tabular-nums; }
+#league-shell .finish-action>button { display:flex;align-items:center;justify-content:space-between;gap:30px;min-width:220px;min-height:44px;background:#334950;border-color:#75858b;font-size:11px;border-radius:0; }.finish-action>button span { color:#d8c29a; }
+@container (max-width:900px) {
+ .finish-desk .match-console-body { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:8px;padding:10px 12px 8px; }
+ .finish-ships { gap:8px; }.finish-ship>header { padding:9px; }.finish-outcome { font-size:8px;gap:4px; }.finish-outcome i { font-size:6px; }.finish-opening { display:block; }.finish-opening b { font-size:20px; }.finish-opening span { font-size:5px; }
+ .finish-doctrine { font-size:8px; }.finish-record { padding:6px;gap:6px; }.finish-stat { padding:7px;gap:5px; }.finish-stat>span { font-size:8px; }.finish-stat>b { font-size:25px; }
+ .finish-ship>footer { padding:5px 7px;font-size:6px; }.finish-personal { padding:10px; }.finish-settlement { flex-wrap:wrap;margin-top:5px; }.finish-settlement>b { font-size:32px; }.finish-settlement>span { font-size:8px; }#league-shell .finish-backed { font-size:8px; }.finish-market { padding:9px;gap:6px; }.finish-market-grid { gap:6px 9px; }.finish-market-grid b { font-size:23px; }.finish-market-grid span { font-size:8px; }.finish-income b { font-size:17px; }.finish-income strong { font-size:22px; }
+}
+@container (max-width:680px) and (min-height:650px) {
+ .finish-desk .match-console-body { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto; }
+ .finish-ledger { grid-template-columns:minmax(0,1fr) minmax(0,1.65fr);grid-template-rows:auto;gap:8px; }.finish-ledger:has(.finish-personal:only-child) { grid-template-columns:1fr;grid-template-rows:auto; }
+ .finish-market { grid-template-rows:auto auto auto; }.finish-market-grid { grid-auto-rows:auto; }.finish-market-grid>div { padding-top:3px; }
+ .finish-personal { display:flex;flex-direction:column;justify-content:center; }.finish-receipt { gap:5px;padding-top:5px; }#league-shell .finish-backed { margin-bottom:6px; }.finish-receipt b { font-size:18px; }.finish-market-grid b { font-size:21px; }.finish-income { padding-top:5px; }.finish-income strong { font-size:20px; }
+ .finish-opening { display:block; }.finish-ledger .finish-settlement .finish-spectator { font-size:19px;white-space:normal; }
+}
+@media(max-width:760px) and (orientation:portrait) {
+ body[data-screen="broadcast"][data-phase="results"] .hb-broadcast { height:calc(100dvh - 115px);min-height:0;margin-bottom:57px; }
+ .finish-desk .match-console-head { padding:8px 12px; }
+ .finish-desk .match-console-body { grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;padding:8px 10px 6px;gap:7px; }
+ #league-shell .finish-story { font-size:10px;line-height:1.3;padding:5px 7px; }.finish-ships { gap:8px; }.finish-ship>header { padding:7px 8px; }#league-shell .finish-ship h2 { font-size:24px; }.finish-outcome { font-size:8px; }.finish-opening { display:block; }.finish-opening b { font-size:21px; }.finish-opening span { font-size:5px; }
+ .finish-record { gap:5px;padding:6px; }.finish-stat { padding:6px;gap:5px 3px; }.finish-stat>span { font-size:8px; }.finish-stat>b { font-size:23px; }.finish-stat>b small { font-size:10px; }.finish-meter { height:3px; }
+ .finish-ledger { grid-template-columns:minmax(0,1fr) minmax(0,1.65fr);grid-template-rows:auto;gap:7px; }.finish-personal { padding:8px; }.finish-settlement>b { font-size:29px; }.finish-market { padding:8px;gap:5px; }.finish-market-grid { gap:4px 8px; }.finish-market-grid b { font-size:20px; }.finish-market-grid b small { font-size:8px; }.finish-income b { font-size:15px; }.finish-paid-note { font-size:6px; }.finish-income span { font-size:6px; }
+ #league-shell .finish-reset { font-size:8px; }.finish-desk .finish-action { padding:8px 10px;gap:10px; }.finish-action .hb-next-window { gap:8px; }.finish-action .hb-next-window span { font-size:7px;max-width:70px; }.finish-action .hb-next-window b { font-size:30px; }#league-shell .finish-action>button { min-width:0;min-height:44px;gap:15px;font-size:9px;padding:9px 11px; }
+}
+@media(max-width:760px) and (orientation:portrait) and (max-height:650px) {
+ .finish-desk .match-console-head { padding:5px 10px; }#league-shell .finish-desk .match-console-head h1 { font-size:19px!important; }
+ .finish-desk .match-console-body { padding:6px 10px 4px;gap:5px; }#league-shell .finish-story { font-size:8px;padding:4px 6px; }.finish-ship>header { padding:5px 7px; }#league-shell .finish-ship h2 { font-size:20px;margin:2px 0; }.finish-doctrine { font-size:7px; }.finish-opening b { font-size:18px; }.finish-outcome { font-size:7px; }.finish-outcome i { font-size:6px; }
+ .finish-record { padding:4px;gap:4px; }.finish-stat { padding:4px;gap:3px; }.finish-stat>span { font-size:7px; }.finish-stat>b { font-size:19px; }.finish-stat>b small { font-size:8px; }.finish-meter { height:2px; }.finish-ship>footer { font-size:5px;padding:4px; }
+ .finish-personal { padding:6px; }.finish-overline { font-size:6px; }.finish-settlement { margin:4px 0 2px;gap:3px; }.finish-settlement>b { font-size:25px; }#league-shell .finish-backed { font-size:7px;margin-bottom:5px; }.finish-receipt span { font-size:6px; }.finish-receipt b { font-size:15px; }.finish-market { padding:6px;gap:4px; }.finish-market-grid span { font-size:7px; }.finish-market-grid b { font-size:17px; }.finish-income { padding-top:4px; }.finish-income strong { font-size:18px; }.finish-income b { font-size:14px; }#league-shell .finish-reset { font-size:7px; }
+ .finish-desk .finish-action { padding:5px 10px; }.finish-action .hb-next-window b { font-size:27px; }
+}
+@media(max-height:500px) and (orientation:landscape) {
+ body[data-screen="broadcast"][data-phase="results"] .hb-header { height:48px;min-height:48px; }
+ body[data-screen="broadcast"][data-phase="results"] .hb-broadcast { height:calc(100dvh - 48px);min-height:0; }
+ .finish-desk .match-console-head { padding:4px 12px; }#league-shell .finish-desk .match-console-head h1 { font-size:19px!important; }
+ .finish-desk .match-console-body { padding:5px 12px;gap:4px 9px; }#league-shell .finish-story { padding:3px 6px;font-size:8px; }.finish-ship>header { padding:4px 7px; }#league-shell .finish-ship h2 { font-size:21px;margin:2px 0; }.finish-doctrine { font-size:6px; }.finish-outcome { font-size:7px; }
+ .finish-record { padding:4px;gap:4px; }.finish-stat { padding:3px 5px;gap:2px; }.finish-stat>span { font-size:7px; }.finish-stat>b { font-size:19px; }.finish-stat>b small { font-size:8px; }.finish-meter { height:2px; }.finish-ship>footer { padding:3px 5px;font-size:5px; }
+ .finish-ledger { gap:5px; }.finish-personal { padding:5px 8px; }.finish-overline { font-size:6px; }.finish-settlement { margin:3px 0;gap:4px; }.finish-settlement>b { font-size:25px; }#league-shell .finish-backed { font-size:7px;margin-bottom:4px; }.finish-receipt { padding-top:3px;gap:5px; }.finish-receipt span { font-size:6px; }.finish-receipt b { font-size:15px; }.finish-market { padding:5px 8px;gap:3px; }.finish-market-grid { gap:3px 6px; }.finish-market-grid>div { padding-top:2px; }.finish-market-grid span { font-size:6px; }.finish-market-grid b { font-size:19px; }.finish-market-grid b small { font-size:7px; }.finish-paid-note { font-size:5px; }.finish-income { padding-top:3px; }.finish-income strong { font-size:19px; }.finish-income b { font-size:15px; }.finish-income span { font-size:5px; }
+ #league-shell .finish-reset { font-size:6px; }.finish-desk .finish-action { padding:4px 12px; }.finish-action .hb-next-window b { font-size:24px; }.finish-action .hb-next-window span { font-size:6px;max-width:none; }#league-shell .finish-action>button { min-height:34px;min-width:180px;padding:6px 10px;font-size:9px; }
+}
+@media(max-width:760px) and (orientation:landscape) {
+ body[data-screen="broadcast"][data-phase="results"] .hb-broadcast { height:calc(100dvh - 92px);margin-bottom:44px; }
+ body[data-screen="broadcast"][data-phase="results"] .hb-header nav { height:44px; }body[data-screen="broadcast"][data-phase="results"] .hb-header nav button { min-height:43px!important;padding:5px 0!important; }
+}
+
+/* Override shell typography explicitly so captions retain their compact metrics. */
+#league-shell .finish-desk small { font-size:9px;line-height:1.1; }
+#league-shell .finish-desk .finish-paid-note { font-size:7px;line-height:1.2; }
+@media(max-width:760px) and (orientation:portrait) {
+ .finish-market { grid-template-rows:auto auto auto; }.finish-market-grid { grid-auto-rows:auto; }.finish-market-grid>div { padding-top:3px; }
+ .finish-personal { display:flex;flex-direction:column;justify-content:center; }.finish-receipt { padding-top:5px;gap:5px; }
+}
+@media(max-width:760px) and (orientation:portrait) and (max-height:650px) {
+ #league-shell .finish-desk small { font-size:7px; }#league-shell .finish-desk .finish-paid-note { font-size:6px; }
+ .finish-market-grid b { font-size:17px; }.finish-market-grid>div { padding-top:2px; }.finish-market-grid { gap:3px 5px; }.finish-income { padding-top:3px; }.finish-income b { font-size:13px; }
+}
+@media(max-height:500px) and (orientation:landscape) {
+ #league-shell .finish-desk small { font-size:7px; }#league-shell .finish-desk .finish-paid-note { font-size:5px; }
+ .finish-personal { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 7px;align-items:center; }
+ .finish-personal>.finish-overline { grid-column:1; }.finish-settlement { grid-column:1/-1;display:flex;flex-wrap:nowrap; }.finish-backed { margin:0;grid-column:1; }.finish-receipt { grid-column:2;grid-row:1/4;padding:0 0 0 7px;border-top:0;border-left:1px solid #54666a;grid-template-columns:1fr;gap:3px; }.finish-receipt span { display:inline;margin-right:4px; }.finish-receipt b { font-size:13px; }
+ .finish-market { grid-template-rows:auto minmax(0,1fr) auto; }.finish-market-grid b { font-size:17px; }
+}
+@media(max-width:760px) and (orientation:portrait) and (max-height:650px) {
+ .finish-stat { padding:2px 3px;gap:1px; }.finish-stat>b { font-size:17px; }.finish-stat>span { line-height:1.1; }
+ .finish-market-grid span,.finish-income span { line-height:1.1; }.finish-market-grid b { font-size:16px; }.finish-market-grid>div { border:0;padding-top:0; }
+ .finish-market { padding:5px 6px;gap:3px; }.finish-market>.finish-overline { line-height:1; }.finish-income { padding-top:3px; }.finish-income b { font-size:12px;line-height:1.1; }
+ #league-shell .finish-story { line-height:1.2; }.finish-receipt span { line-height:1; }.finish-receipt b { line-height:1; }
+}
+@media(max-height:500px) and (orientation:landscape) {
+ .finish-personal { grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;gap:2px 5px; }
+ .finish-personal>.finish-settlement { grid-column:1;grid-row:2;flex-wrap:wrap;gap:2px;margin:0; }.finish-personal>.finish-backed { grid-column:1;grid-row:3;margin:0; }
+ .finish-settlement>b { font-size:21px; }.finish-settlement>span { font-size:6px; }.finish-receipt { grid-row:1/4; }
+ .finish-stat { padding:2px 4px;gap:1px; }.finish-stat>b { font-size:17px; }.finish-market-grid span { line-height:1.1; }.finish-market-grid>div { border:0;padding-top:0; }.finish-market>.finish-overline { line-height:1; }
+ .finish-income span { line-height:1.1; }.finish-income b { font-size:13px;line-height:1.1; }
+}
+@media(max-height:500px) and (orientation:landscape) {
+ .finish-ship>header>div:first-child { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 4px;align-items:center; }
+ .finish-outcome { grid-column:1;grid-row:1;gap:3px; }.finish-doctrine { grid-column:2;grid-row:1;font-size:5px; }#league-shell .finish-ship h2 { grid-column:1/-1;grid-row:2;margin:1px 0;font-size:20px; }
+ .finish-stat { padding:1px 4px;gap:0; }.finish-stat>b { font-size:15px; }.finish-stat>span { line-height:1; }.finish-meter { height:2px; }
+}
+
+.finish-final { font-size:9px;letter-spacing:.12em;border:1px solid #879a94;padding:5px 9px;color:#bfcfc2; }

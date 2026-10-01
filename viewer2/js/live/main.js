@@ -6,6 +6,7 @@ import { audioHost, captureAudioInteractions } from '../audio-context.js';
 import { sessionMusic } from '../session-music.js';
 import { portrait } from '../portraits.js';
 import { renderBetting } from './betting.js';
+import { renderResults } from './results.js';
 import { shipCard, rating } from '../prematch.js';
 const query = new URLSearchParams(location.search);
 if (query.has('studio') || query.has('audit') || query.has('auditall') || query.has('story')) {
@@ -96,6 +97,7 @@ async function start() {
     return renderBetting({fight:f,player:data.player,draft,wager:w,busy});
   }
   function results(f, personal=false) {
+    if(personal)return renderResults({fight:f,wager:data.wager});
     if(f.winner===undefined)return '<p>Confirming the result…</p>';
     const w=personal&&data.wager,winner=f.winner===null?null:f.ships[f.winner];
     const stats=[['railShots','Railgun shots'],['railHits','Railgun hits'],['torpedoes','Torpedoes launched'],['intercepts','Torpedoes intercepted'],['crewSurvived','Crew survived'],['hull','Hull remaining']];
