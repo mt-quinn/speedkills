@@ -246,7 +246,7 @@ export const promote = internalMutation({ args: {}, handler: async ctx => {
     await ctx.scheduler.runAfter(0, internal.simulation.prepare, { generation: ch.generation }); await ctx.scheduler.runAfter(1000, internal.game.promote, {}); return;
   } }
   if (ch.fallback) { const backup: any = await ctx.db.get(ch.fallback); if (backup) { await ctx.storage.delete(backup.trace); await ctx.db.delete(backup._id); } }
-  const opensAt = Date.now(), startsAt = opensAt + TIMING.betting, endsAt = startsAt + f.duration * 1000, nextAt = endsAt + TIMING.results;
+  const opensAt = Date.now(), startsAt = opensAt + TIMING.betting, endsAt = startsAt + f.duration * 1000 + TIMING.finishHold, nextAt = endsAt + TIMING.results;
   await ctx.db.patch(f._id, { opensAt, startsAt, endsAt, nextAt });
   for (const s of f.ships) await ctx.db.patch(s.id, { lastFight: f.sequence });
   await ctx.db.patch(ch._id, { current: f._id, pending: undefined, fallback: undefined, queue: (ch.queue ?? []).slice(1), generation: ch.generation + 1, preparing: false });

@@ -4,7 +4,7 @@ export const ECONOMY = Object.freeze({ starting: 50000, sponsor: 200000, tryout:
 export function maxBet(balance) {
   return Math.min(balance, balance < 100000 ? 10000 : balance < 200000 ? 25000 : 50000);
 }
-export const TIMING = Object.freeze({ betting: 60000, results: 15000 });
+export const TIMING = Object.freeze({ betting: 60000, finishHold: 4000, results: 15000 });
 export const STATIONS = ['pilot', 'gunner', 'engineer', 'ops'];
 export function phase(fight, now) {
   if (!fight || fight.opensAt == null) return 'preparing';

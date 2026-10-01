@@ -71,3 +71,7 @@
 - Live sound status requires loaded sources and a running context. The broadcast sound control reports actual playback; explicit mute persists across fights and ordinary interactions.
 - Wager caps now apply to all players based on available balance: <1,000 cr = 100; 1,000–1,999 cr = 250; >=2,000 cr = 500, bounded by available funds. Server validation and UI use the same cap.
 - Validation: 19 unit checks passed, TypeScript passed, development economy check confirmed all tiers and stipend rules. Cloud-connected UI confirmed sound activation from a hangar navigation gesture, mute persistence after chat toggle, and successful unmute. Convex development and production deployed.
+
+## 2026-09-30 — Hold the final combat view before results
+- Added a shared four-second finish hold to the live match schedule. The existing viewer continues rendering the final state and effects before the results screen replaces it.
+- Results still receive their full 15 seconds; settlement and the next match follow the same server schedule for every viewer. Already scheduled matches retain their original timing; newly opened fights use the hold.

@@ -1,6 +1,6 @@
 # Live league
 
-The hangar is the home screen. One shared live broadcast cycles through 60 seconds of betting, a fight at real speed, and 15 seconds of results. Completed fights expose statistics and crew snapshots, without replay recordings or betting.
+The hangar is the home screen. One shared live broadcast cycles through 60 seconds of betting, a fight at real speed, a four-second hold on the final combat view, and 15 seconds of results. Completed fights expose statistics and crew snapshots, without replay recordings or betting.
 
 ## Economy
 
