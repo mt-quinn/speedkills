@@ -36,3 +36,9 @@ Build a replacement simulator with `npm run build:sim` after installing the Rust
 `?lab=1` reveals development preview-credit tooling. Every lab mutation/query checks the development deployment URL and rejects production use. Verification ships are excluded from matchmaking. `lab:verifyEconomy` checks the spectator cap, ownership cap removal, and refill eligibility/interval on the development cloud. `lab:queueStatus` and `lab:creditAudit` provide development diagnostics without exposing recording outcomes.
 
 Accounts currently use an anonymous browser capability saved in local storage. They are not transferable authenticated accounts. Chat supports remembered visibility, mute/report and rate limits; reports are stored for review. Economy tuning, durable account authentication and moderation operations remain prototype work.
+
+## Crew names
+
+New sponsored crews and scouting candidates use Terran given names and surnames sampled from Donjon's SciFi Name Generator. The pool comes from 20 ten-name batches each of Terran Male and Terran Female, sampled on September 30, 2026; the original outputs and source URL are saved in `terran-name-samples.json`. `shared/terran-name-pool.js` contains the deduplicated given-name lists and shared surnames.
+
+`shared/crew-names.js` selects either given-name list equally and recombines names deterministically from a seed. Current crew names are excluded during scouting and assignment. Existing identities persist. Names do not affect skill or g tolerance; generated names receive stable, varied portraits. The game does not call Donjon at runtime.

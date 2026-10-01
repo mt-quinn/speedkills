@@ -2,6 +2,7 @@ import { mutation, query, internalMutation, internalQuery, action } from './_gen
 import { internal } from './_generated/api';
 import { v, ConvexError } from 'convex/values';
 import { ECONOMY, TIMING, phase, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote } from '../shared/rules.js';
+import { crewName } from '../shared/crew-names.js';
 import { roster } from './roster';
 import { rotation } from './matchmaking';
 import type { Id } from './_generated/dataModel';
@@ -155,7 +156,12 @@ export const sponsor = mutation({ args: tokenArg, handler: async (ctx, { token }
   const r = roster.ships[Math.floor(Math.random() * roster.ships.length)];
   const name = ['Wayfarer', 'Redshift', 'Starling', 'Longshot', 'Peregrine', 'Afterglow'][Math.floor(Math.random() * 6)] + ' ' + (100 + Math.floor(Math.random() * 900));
   await move(ctx, p, -ECONOMY.sponsor, 'sponsor', `Sponsored ${name}`);
-  const shipId = await ctx.db.insert('ships', { name, style: r.style, crew: r.crew, identity: 10000 + Math.floor(Math.random() * 1000000), revision: 1, owner: p._id, earnings: 0, wins: 0, fights: 0, lastFight: 0 });
+  const aboard = new Set<string>();
+  const crew = r.crew.map(member => {
+    const name = crewName(Math.floor(Math.random() * 4294967296), [...aboard]); aboard.add(name);
+    return { ...member, name };
+  });
+  const shipId = await ctx.db.insert('ships', { name, style: r.style, crew, identity: 10000 + Math.floor(Math.random() * 1000000), revision: 1, owner: p._id, earnings: 0, wins: 0, fights: 0, lastFight: 0 });
   const ch=await channel(ctx);
   if(ch){
     const queue=await ensureQueue(ctx,ch);
@@ -174,8 +180,7 @@ export const tryout = mutation({ args: { ...tokenArg, station: v.string() }, han
   if (p.candidate) throw new ConvexError('Decide on your current candidate first.');
   if (!STATIONS.includes(station)) throw new ConvexError('Choose a crew station.');
   const aboard = new Set(s.crew.map((c: any) => c.name));
-  const names = roster.ships.flatMap(s => s.crew.map(c => c.name)).filter(name => !aboard.has(name));
-  const c = candidate(Math.floor(Math.random() * 4294967295), station, names);
+  const c = candidate(Math.floor(Math.random() * 4294967296), station, [...aboard]);
   await move(ctx, p, -ECONOMY.tryout, 'tryout', `${station} candidate tryout`);
   await ctx.db.patch(p._id, { candidate: { shipId: s._id, crew: c, paid: ECONOMY.tryout } });
 }});

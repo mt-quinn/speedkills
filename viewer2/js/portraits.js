@@ -41,9 +41,10 @@ const PORTRAITS = {
   "Hollis": "triton-head.svg",
   "Lindqvist": "walrus-head.svg"
 };
+const GENERATED_PORTRAITS = [...new Set(Object.values(PORTRAITS))];
 const COLORS = ["#d4bb8a", "#a4bda7", "#adb9cc", "#c9a2a0", "#b5aed0", "#a3bbb9"];
 export function portrait(name) {
   let hash = 0;
   for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
-  return { file: PORTRAITS[name] || "astronaut-helmet.svg", color: COLORS[hash % COLORS.length] };
+  return { file: PORTRAITS[name] || GENERATED_PORTRAITS[hash % GENERATED_PORTRAITS.length], color: COLORS[hash % COLORS.length] };
 }

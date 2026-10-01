@@ -1,3 +1,5 @@
+import { crewName } from './crew-names.js';
+
 // Whole fictional credits, stored in legacy scaled units (100 units = 1 credit).
 // Every monetary value must be a multiple of 100; awards round once at source.
 export const ECONOMY = Object.freeze({ starting: 50000, sponsor: 200000, tryout: 10000, rename: 5000, recovery: 5000, margin: 0.05, ownerShare: 0.01 });
@@ -31,9 +33,10 @@ export function settlement(wager, winner) {
 }
 export function ownerIncome(profits) { return Math.round(profits.reduce((a, b) => a + b, 0) * ECONOMY.ownerShare / 100) * 100; }
 export function crewLocked(shipId, fight, now) { return !!fight?.ships?.some(s => s.id === shipId) && ['betting', 'combat'].includes(phase(fight, now)); }
-export function candidate(seed, station, names) {
+export function candidate(seed, station, excluded = []) {
   let n = seed >>> 0; const rand = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296; };
-  return { name: names[Math.floor(rand() * names.length)], station, skill: +(0.78 + (rand() + rand() + rand()) / 3 * 0.50).toFixed(3), tolerance: +(0.88 + rand() * 0.27).toFixed(3) };
+  rand(); // Preserve the existing skill/tolerance rolls when changing naming.
+  return { name: crewName(seed, excluded), station, skill: +(0.78 + (rand() + rand() + rand()) / 3 * 0.50).toFixed(3), tolerance: +(0.88 + rand() * 0.27).toFixed(3) };
 }
 export function fightStats(raw) {
   return raw.ships.map((s, side) => ({ name: s.name, railShots: raw.events.filter(e => e.k === 'rail_fire' && e.ship === side).length,

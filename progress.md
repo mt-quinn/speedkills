@@ -75,3 +75,9 @@
 ## 2026-09-30 — Hold the final combat view before results
 - Added a shared four-second finish hold to the live match schedule. The existing viewer continues rendering the final state and effects before the results screen replaces it.
 - Results still receive their full 15 seconds; settlement and the next match follow the same server schedule for every viewer. Already scheduled matches retain their original timing; newly opened fights use the hold.
+
+## 2026-09-30 — Sampled Terran crew names
+- Sampled 20 ten-name batches each of Donjon Terran Male and Terran Female (400 outputs); preserved source, date and all batches in viewer2/docs/terran-name-samples.json.
+- Derived 142 given names per list and 260 surnames, supporting 73,320 distinct full names. The seeded generator selects either list equally, recombines given names/surnames, and excludes names already aboard.
+- New sponsored crews and scouting candidates use the generator. Existing identities persist, skill/tolerance rolls remain unchanged, and generated names receive varied stable portraits.
+- Validation: all 23 checks passed, including sample provenance, 1,000 distinct names, both given-name lists, duplicate avoidance, unchanged scouting stats, and portrait variety. TypeScript passed. Convex development deployed; production deployment initiated.
