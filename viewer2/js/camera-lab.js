@@ -53,6 +53,8 @@ export class CameraLab {
   get engine() { return this.app.dir.engine; }
   update(t, force=false) {
     if (!force && Math.abs(t-this.last)<.15) return; this.last=t;
+    const timeInput=this.el.querySelector('[data-control=time]');
+    if(document.activeElement!==timeInput)timeInput.value=t.toFixed(1);
     const engine=this.engine, shot=this.app.scene.shot, d=engine.drones[shot?.rig??0], report=engine.report();
     this.el.querySelector('.cl-readout').textContent = `${round(t)}s · CAM ${d.rig.id} ${d.purpose}\n${round(d.vel.length())} m/s · ${round(d.acc.length()/9.81)} g ${d.flightLimit?'LIMIT':''}\nBody error ${round(d.bodyError)}° · pan ${round(d.aimRate*180/Math.PI)}°/s · aim error ${round(d.aimError)}°\nLens ${round(d.fov)}° · focus ${Math.round(d.focus)} → ${Math.round(d.focusWanted)}m · ${d.focusKey}\nFocus error ${round(Math.abs(d.focus-d.focusWanted)/d.focusWanted*100)}% · blur ${round(circleOfConfusion(d.focusWanted,d.focus,d.aperture,d.fov))}px\nCoverage ${round(report.coverage*100)}% · ${report.cuts} cuts (${round(report.cutsPerMinute)}/min) · ${report.safetyCuts} recoveries\nRender ${round(this.app.scene.renderStats?.fps)} fps · ${round(this.app.scene.renderStats?.cpuMs)}ms CPU · ${this.app.scene.renderStats?.calls??0} draw calls`;
     this.el.querySelector('.cl-candidates').textContent=engine.drones.map(x=>`${x.rig.id} ${x===d?'ON AIR':'      '} ${Math.round(x.score)} · ${x.ready?'READY':x.reasons.join(', ')}`).join('\n');
