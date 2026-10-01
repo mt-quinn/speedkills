@@ -97,3 +97,10 @@
 - Updated hangar, betting, archival crew details and live crew accessibility labels. Random-model traces carry blackout recovery seconds. Replaced the inaccurate impending-blackout line with “High-g burn.” and updated the recording manifest.
 - Checks: 15 Rust tests passed (11 ignored diagnostics); 25 JS tests passed; TypeScript passed; WASM rebuilt. Development backend deployed and 12 ships migrated.
 - Production backend deployed and 10 ships migrated; unannounced matches regenerate under the new model. Announced recordings and locked odds remain intact.
+
+## 2026-09-30 — Live bet totals, payout summary and standing crew names
+- Added reactive per-ship betting totals and result totals for stakes, winning profit, lost stakes, total returns and the winning owner's actual income. Combined crowd/player figures use the same quotes as settlement; no spectator distinction appears in the UI.
+- Every zero-valued summary item is omitted. Incoming totals update in place without replacing the stake form or moving its scroll position; existing fixed timers/actions remain outside the detail scroller.
+- New names were already active for sponsorship/scouting. Replaced the static roster with generated Terran names and added an idempotent migration for every legacy persistent crew/candidate, preserving stats and already announced match recordings.
+- Verified 29 JS checks and TypeScript; development migration replaced 48 crew names. Cloud-backed archive UI confirmed totals and actual owner earnings.
+- Production backend deployed; all 40 legacy production crew names migrated.

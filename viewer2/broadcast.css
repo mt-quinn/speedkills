@@ -147,3 +147,21 @@ body[data-screen="broadcast"] { --broadcast-height:calc(100dvh - 64px); }
 .market-ratings { max-width:190px; }
 @media(max-width:760px) { #league-shell .match-console-head h1 { font-size:22px!important; } }
 @media(max-height:560px) { #league-shell .match-console-head h1 { font-size:20px!important; } }
+
+/* Money follows the two ship colours; totals stay in the scrolling detail area. */
+.market-bet-total { display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid #435761;background:#192b34; }
+.market-bet-total>span { font-size:8px;letter-spacing:.08em;color:#a9bec6; }
+.market-bet-total>b { margin-left:auto;font-family:'Saira Condensed',sans-serif;font-size:19px;font-variant-numeric:tabular-nums; }
+.market-bet-total small,.result-market small { font-size:9px;font-weight:400;color:#a9bec6; }
+.market-bet-total>i { width:4px;height:16px;background:var(--team); }
+.result-market { border-top:1px solid #435761;border-bottom:1px solid #435761;margin:8px 0; }
+.result-market header { padding:6px 10px;font-size:8px;letter-spacing:.08em;color:#a9bec6; }
+.result-market-totals { display:grid;grid-template-columns:repeat(4,minmax(0,1fr)); }
+.result-market-totals>div { padding:3px 10px 8px;min-width:0; }
+.result-market-totals span { display:block;font-size:8px;color:#a9bec6; }
+.result-market-totals b { font-family:'Saira Condensed',sans-serif;font-size:22px;font-variant-numeric:tabular-nums; }
+.result-ship-income { display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:#283a3e; }
+.result-ship-income>span { font-size:11px; }
+.result-ship-income>span small { display:block;font-size:8px;margin-top:3px; }
+.result-ship-income>b { white-space:nowrap;color:#dfc18c;font-family:'Saira Condensed',sans-serif;font-size:23px; }
+@media(max-width:600px) { .result-market-totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .market-bet-total { padding:5px 8px;gap:5px; } .market-bet-total>span { font-size:7px; } }

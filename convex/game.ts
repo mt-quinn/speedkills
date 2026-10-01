@@ -3,6 +3,7 @@ import { internal } from './_generated/api';
 import { v, ConvexError } from 'convex/values';
 import { ECONOMY, TIMING, phase, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote } from '../shared/rules.js';
 import { withResistance } from '../viewer2/js/gee.js';
+import { bettingSummary } from '../shared/betting-summary.js';
 import { crewName } from '../shared/crew-names.js';
 import { roster } from './roster';
 import { rotation } from './matchmaking';
@@ -34,10 +35,12 @@ async function editable(ctx: any, p: any) {
   if (crewLocked(ship._id, f, Date.now())) throw new ConvexError('Your ship is locked for this matchup. You can make changes after its fight.');
   return ship;
 }
-function publicFight(f: any, now: number) {
+async function publicFight(ctx: any, f: any, now: number) {
   if (!f) return null;
   const ended = now >= f.endsAt;
+  const wagers = await ctx.db.query('wagers').withIndex('fight', (q: any) => q.eq('fight', f._id)).collect();
   return { id: f._id, sequence: f.sequence, ships: f.ships, odds: f.odds, oddsSamples: f.oddsSamples,
+    betting: bettingSummary(wagers, ended ? f.winner : undefined, f.crowd, f.odds),
     opensAt: f.opensAt, startsAt: f.startsAt, endsAt: f.endsAt, nextAt: f.nextAt,
     ...(ended ? { winner: f.winner, stats: f.stats, story: f.story, settled: f.settled, ownerPayout: f.ownerPayout ?? 0 } : {}) };
 }
@@ -121,7 +124,7 @@ export const home = query({ args: tokenArg, handler: async (ctx, { token }) => {
   const upcoming = nextPair ? { fightsRemaining: queueIndex+1, opponent: opponent?.name ?? 'Opponent unavailable' } : null;
   const lastOwnerIncome = ship ? await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p._id)).filter(q => q.eq(q.field('kind'), 'owner')).order('desc').first() : null;
   return { now: Date.now(), player: { id: p._id, name: p.name, balance: p.balance, maxBet: maxBet(p.balance), nextStipendAt: p.lastRecovery+3600000, candidate: p.candidate ?? null }, ship: ship ? { ...ship, locked: crewLocked(ship._id, f, Date.now()) } : null,
-    fight: publicFight(f, Date.now()), wager: wager ?? null, transactions, shipActivity, lastOwnerIncome, upcoming, economy: ECONOMY,
+    fight: await publicFight(ctx, f, Date.now()), wager: wager ?? null, transactions, shipActivity, lastOwnerIncome, upcoming, economy: ECONOMY,
     status: ch?.error ? 'recovering' : ch?.current ? 'ready' : 'preparing' };
 }});
 // A scheduled write makes time-gated trace/home queries reactive at combat start.
@@ -142,7 +145,7 @@ export const trace = query({ args: { fight: v.id('fights') }, handler: async (ct
 }});
 export const archive = query({ args: {}, handler: async ctx => {
   const rows = await ctx.db.query('fights').withIndex('sequence').order('desc').take(31);
-  return rows.filter(f => f.endsAt && f.endsAt <= Date.now()).slice(0, 30).map(f => publicFight(f, Date.now()));
+  return Promise.all(rows.filter(f => f.endsAt && f.endsAt <= Date.now()).slice(0, 30).map(f => publicFight(ctx, f, Date.now())));
 }});
 export const wager = mutation({ args: { ...tokenArg, fight: v.id('fights'), side: v.number(), stake: v.number() }, handler: async (ctx, a) => {
   const p = await player(ctx, a.token); const ch = await channel(ctx); const f = await ctx.db.get(a.fight);
@@ -335,4 +338,28 @@ export const migrateGeeResistance = internalMutation({args:{},handler:async ctx=
   await ctx.scheduler.runAfter(0,internal.simulation.prepare,{generation:ch.generation+1});
  }
  return{converted};
+}});
+
+// Replace legacy single-surname identities; generated Terran full names persist.
+export const migrateCrewNames = internalMutation({args:{},handler:async ctx=>{
+ let converted=0,candidates=0;
+ const ships=await ctx.db.query('ships').collect();
+ const taken=ships.flatMap(s=>s.crew.filter(c=>c.name.includes(' ')).map(c=>c.name));
+ const rename=(crew:any[],key:string)=>crew.map((c,i)=>{
+  if(c.name.includes(' '))return c;
+  let seed=2166136261;for(const ch of `${key}:${i}`)seed=Math.imul(seed^ch.charCodeAt(0),16777619);
+  const name=crewName(seed>>>0,taken);taken.push(name);converted++;
+  return{...c,name};
+ });
+ for(const ship of ships){const crew=rename(ship.crew,ship._id);if(crew.some((c,i)=>c.name!==ship.crew[i].name))await ctx.db.patch(ship._id,{crew,revision:ship.revision+1});}
+ for(const p of await ctx.db.query('players').collect())if(p.candidate&&!p.candidate.crew.name.includes(' ')){
+  const crew=rename([p.candidate.crew],p._id)[0];await ctx.db.patch(p._id,{candidate:{...p.candidate,crew}});candidates++;
+ }
+ const ch=await channel(ctx);
+ if(converted&&ch){
+  for(const id of [ch.pending,ch.fallback])if(id){const f=await ctx.db.get(id as Id<'fights'>);if(f){await ctx.storage.delete(f.trace);await ctx.db.delete(id);}}
+  await ctx.db.patch(ch._id,{pending:undefined,fallback:undefined,generation:ch.generation+1,preparing:true});
+  await ctx.scheduler.runAfter(0,internal.simulation.prepare,{generation:ch.generation+1});
+ }
+ return{renamed:converted,candidates};
 }});
