@@ -39,3 +39,9 @@ Observed rendering without shader or console errors on the local browser. Blur u
 Observer drones have physical flight limits but are not combat entities. Blur is art-directed for this game's enhanced ship silhouettes and kilometre-scale engagements, capped at nine CSS pixels rather than claiming literal lens optics. Unsupported depth textures disable optical blur. The editor anticipates recorded weapon firing by 2.2 seconds; it does not anticipate damage or winners. The global live clock and fight simulation are unchanged.
 
 Coverage gates prevent identifiable broadcast failures. Subjective pacing, depth and camera character still need a human viewing judgment; the lab and saved review fixtures make that judgment repeatable.
+
+## Subsequent edit pacing pass
+
+Removed the elapsed-hold/phase-change cut fallback. Good coverage now yields only to a sustained quality gain and a materially different view of an explicit action. Minimum ordinary hold is seven seconds; a defense establishment can begin after 3.5 seconds. Coverage failures still recover immediately. Cut traces record actual viewpoint angle, projected scale ratio, outgoing readiness/failure reasons, quality gain and proposal duration.
+
+A before/after comparison of all 45 pairings, desktop and portrait, seeds 9100–9144 (90 audits per version) reduced cuts from 1,028 to 455: 55.7% fewer. Coverage recoveries fell from 137 to 80. Both versions retained 100% sampled required-subject and key-event visibility; all after-version audit gates passed. Full summaries and cuts from four local review fights are saved in `camera-edit-review.json`. These results address redundant editing; human review still determines whether the remaining motivated cuts feel right.

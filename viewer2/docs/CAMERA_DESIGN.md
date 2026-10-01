@@ -14,7 +14,7 @@ The flight ceiling is 620m/s² (~63g), speed 3400m/s, body turn 110°/s; stabili
 
 The director scores prepared coverage against present subjects and readable ship separation. Both ships receive coverage during gun exchanges and simultaneous incoming threats. Recently fired rails retain coverage through flight. The recorded schedule of weapon firing provides a 2.2s preparation horizon; future hits, damage, deaths and winners are never used to select shots. Approaching/closing, separation, hard burns, defense and actual coverage failures motivate cuts. There is no fixed camera rotation timer.
 
-Ordinary shots hold at least 4.5s. A prepared defense shot may start after 2.8s if it can establish the incoming threat before arrival. A defense hold persists through predicted resolution; a coverage failure overrides it. An emergency goes directly to the high-angle reserve when available, avoiding several desperate close-camera handoffs. Long holds are reconsidered on changes in engagement, rather than forcibly ended by a timer.
+Ordinary shots hold at least 7 seconds. A normal edit requires an explicit present-action reason, a quality advantage of at least 18 points maintained for 0.65 seconds, and either 30° of actual viewpoint change around the fight or a 1.7× change in projected subject size. Different rig names alone do not qualify. There is no timer- or phase-change fallback. A prepared defense shot can enter after 3.5 seconds, subject to the same contrast, quality and sustained-proposal requirements. Genuine framing failures can recover immediately, including to a similar angle. Emergency recovery still prefers the ready high-angle reserve. Defense holds persist through predicted resolution.
 
 The on-air lens holds its composition. It widens to protect an edge, and tightens gently only after a loose composition persists 3.5s. Ships have a fixed enhancement scale per rig, a small minimum readability floor and a maximum screen-size cap. They change apparent size with perspective. The reference grid uses fixed 500m spacing.
 
@@ -30,7 +30,7 @@ Open `broadcast.html?studio=1&file=recording.json&cameraLab=1`. The lab supports
 
 - Plan-view positions and assignments of all five drones, plus optical depth/focus monitor.
 - Shot timeline, clickable seeking, previous/next cuts, explicit time entry, play/pause and individual camera monitoring.
-- Every candidate's score, readiness and rejection reasons; every cut's trigger and previous duration.
+- Every candidate's score, readiness, visual contrast and editorial rejection reasons; every cut's trigger, previous duration, score gain, outgoing framing failure and angle/scale contrast. Pending proposals include their stability timer.
 - Position, velocity, acceleration vector and limiting, body direction/error, gimbal quaternion/rate/error, job position/error, lens FOV and focus target/acquisition error.
 - Actual render FPS, CPU submission time, total compositor draw calls, subject projections and HUD rectangles.
 - Focus pulls, coverage, safety cuts, camera usage, focus errors and all decision traces.

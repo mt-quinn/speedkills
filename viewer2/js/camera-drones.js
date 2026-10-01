@@ -7,7 +7,8 @@ const clamp = THREE.MathUtils.clamp;
 export const CAMERA_DEFAULTS = Object.freeze({
   hz: 30, acceleration: 620, speed: 3400, bodyTurn: 110, gimbalTurn: 95,
   gimbalAcceleration: 240, zoomRate: 11, focusRate: 4.8,
-  minimumShot: 4.5, maximumShot: 13, safetyMargin: .78, focusStrength: .72,
+  minimumShot: 7, safetyMargin: .78, focusStrength: .72,
+  cutScoreMargin: 18, cutAngle: 30, cutScaleRatio: 1.7, cutSustain: .65,
 });
 export const CAMERA_RIGS = Object.freeze([
   { id: '01', name: 'OVERVIEW', role: 'wide', elevation: 57, fov: 46, near: 31, far: 86, aperture: 0 },
@@ -24,6 +25,15 @@ export function circleOfConfusion(depth, focus, aperture, fov = 35) {
   return clamp((error - .12) * aperture * (35 / fov) ** 2 * 10, 0, 9);
 }
 
+export function shotContrast(a,b,subject,tuning=CAMERA_DEFAULTS) {
+  // Compare actual observer locations, not rig names or lens settings. Two drones
+  // that drift into the same viewpoint must not masquerade as different angles.
+  const av=a.pos.clone().sub(subject),bv=b.pos.clone().sub(subject);
+  const angle=av.angleTo(bv)/D;
+  const scaleRatio=Math.max(a.sizePx,b.sizePx)/Math.max(1,Math.min(a.sizePx,b.sizePx));
+  return{angle,scaleRatio,distinct:angle>=tuning.cutAngle||scaleRatio>=tuning.cutScaleRatio};
+}
+
 export class CameraDrones {
   constructor(match, up, viewport = { width: 1600, height: 900 }, tuning = {}, instrument = false) {
     this.match = match; this.up = up.clone(); this.viewport = viewport;
@@ -34,6 +44,7 @@ export class CameraDrones {
   reset() {
     this.tick = -1; this.current = null; this.previous = null; this.active = 0;
     this.since = 0; this.shotPhase = 'approach'; this.lockUntil = 0; this.lastDecision = -1;
+    this.pendingCut=null;
     this.cuts = []; this.samples = []; this.decisions = []; this.focusEvents = [];
     this.metrics = { frames: 0, covered: 0, pairFrames: 0, pairCovered: 0, focusError: 0, flightLimited: 0, focusPulls: 0, safetyCuts: 0, roleFrames: CAMERA_RIGS.map(()=>0), maxFocusError: 0, onAirFocusPulls: 0 };
     const a = this.match.ship(0, 0), b = this.match.ship(0, 1);
@@ -264,29 +275,42 @@ export class CameraDrones {
       const reserve=this.drones.findIndex(d=>d.rig.role==='reserve'&&d.ready);
       chosen=reserve>=0&&reserve!==this.active?reserve:best; reason='coverage recovery';
     }
-    else if (t >= this.lockUntil && age >= this.tuning.minimumShot) {
-      if (best !== this.active && this.drones[best].score > active.score + 10) { chosen = best; reason = this.drones[best].purpose; }
-      else if (age >= this.tuning.maximumShot && c.phase !== this.shotPhase) {
-        const fresh = this.drones.map((d, i) => ({d, i})).filter(x => x.i !== this.active && x.d.ready && x.d.score >= active.score - 12).sort((a, b) => b.d.score - a.d.score)[0];
-        if (fresh) { chosen = fresh.i; reason = 'engagement changes'; }
-      }
+    // A score advantage alone is not an edit. Require a genuinely different view
+    // of the present action and a stable, explicit reason to leave good coverage.
+    const eligible=[];
+    for(let i=0;i<this.drones.length;i++){
+      const d=this.drones[i],contrast=shotContrast(active,d,c.mid,this.tuning);
+      const gain=d.score-active.score;
+      const urgent=d.purpose==='defense'&&active.purpose!=='defense'&&!c.rail&&c.threats.some(x=>x.ship===d.rig.ship&&x.eta>1&&x.eta<3.8);
+      const motive=c.ended&&d.rig.role==='wide'?'aftermath':urgent?'incoming threat':
+        d.rig.role==='pair'&&c.merge?'close engagement':d.rig.role==='pair'&&c.rail?'rail exchange':
+        d.rig.role==='wide'&&c.phase==='separating'?'separation geography':
+        d.rig.role==='wide'&&c.phase==='closing'&&c.separation>3500?'approach geography':
+        d.rig.role==='track'&&d.rig.ship===c.hard&&st.ships[c.hard].raw.g>=7?'hard burn detail':null;
+      const blocked=i===this.active?'on air':!d.ready?'not framed':!contrast.distinct?'similar view':
+        gain<this.tuning.cutScoreMargin?'hold quality shot':!motive?'no editorial reason':
+        t<this.lockUntil?'action hold':age<(urgent?3.5:this.tuning.minimumShot)?'minimum hold':null;
+      d.editReason=blocked||motive;
+      candidates[i].editorial={...contrast,gain,reason:d.editReason};
+      if(!blocked)eligible.push({i,d,motive,contrast,gain});
     }
-    // A prepared defense camera may enter before the ordinary hold expires, but
-    // only while there is still time to explain the threat and its consequence.
-    const urgent = this.drones.findIndex(d => d.ready && d.purpose === 'defense' && c.threats.some(x=>x.ship===d.rig.ship && x.eta>1 && x.eta<3.8));
-    if (chosen === this.active && active.purpose !== 'defense' && !c.rail && age >= 2.8 && urgent >= 0 && t >= this.lockUntil && this.drones[urgent].score > active.score + 10) {
-      chosen = urgent; reason = 'incoming threat';
-    }
+    const proposal=eligible.sort((a,b)=>b.gain-a.gain)[0];
+    if(proposal){
+      if(this.pendingCut?.i!==proposal.i||this.pendingCut.motive!==proposal.motive)this.pendingCut={i:proposal.i,motive:proposal.motive,since:t};
+      if(chosen===this.active&&t-this.pendingCut.since>=this.tuning.cutSustain){chosen=proposal.i;reason=proposal.motive;}
+    }else this.pendingCut=null;
     if (chosen !== this.active) {
       const incoming = this.drones[chosen];
-      const cut = { t, from: active.rig.id, to: incoming.rig.id, reason, previousDuration: age, purpose: incoming.purpose, score: incoming.score };
+      const cut = { t, from: active.rig.id, to: incoming.rig.id, reason, previousDuration: age, purpose: incoming.purpose, score: incoming.score,
+        contrast:shotContrast(active,incoming,c.mid,this.tuning),scoreGain:incoming.score-active.score,outgoingReady:active.ready,outgoingReasons:[...active.reasons],proposalDuration:reason==='coverage recovery'?0:t-(this.pendingCut?.since??t) };
       this.cuts.push(cut); if (reason === 'coverage recovery') this.metrics.safetyCuts++;
       this.active = chosen; this.since = t; this.shotPhase = c.phase; incoming.zoomStableAge = 0;
+      this.pendingCut=null;
       // Stay with the threat through its predicted arrival, hit or miss. An emergency
       // coverage failure still overrides this editorial lock.
       this.lockUntil = incoming.purpose === 'defense' ? t + Math.min(4.5, (c.threats.find(x => x.ship === incoming.rig.ship)?.eta || 1) + .8) : t + 1.2;
     }
-    if (this.instrument) this.decisions.push({ t, active: this.drones[this.active].rig.id, reason, lockUntil: this.lockUntil, candidates });
+    if (this.instrument) this.decisions.push({ t, active: this.drones[this.active].rig.id, reason, lockUntil: this.lockUntil, pendingCut:this.pendingCut?{...this.pendingCut}:null, candidates });
     return candidates;
   }
   snapshot(t) {

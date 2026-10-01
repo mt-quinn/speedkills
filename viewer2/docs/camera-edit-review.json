@@ -1,0 +1,644 @@
+{
+  "seedRange": "9100\u20139144",
+  "before": {
+    "samples": 90,
+    "cuts": 1028,
+    "safetyCuts": 137,
+    "coverage": 1,
+    "eventCoverage": 1,
+    "maximumCutsPerMinute": 11.735941320293398,
+    "failures": 0
+  },
+  "after": {
+    "samples": 90,
+    "cuts": 455,
+    "safetyCuts": 80,
+    "coverage": 1,
+    "eventCoverage": 1,
+    "maximumCutsPerMinute": 8.352668213457076,
+    "failures": 0
+  },
+  "reviewCuts": [
+    {
+      "file": "8000.json",
+      "report": {
+        "coverage": 1,
+        "pairCoverage": 1,
+        "cuts": 8,
+        "cutsPerMinute": 6.959884001933301,
+        "safetyCuts": 1,
+        "focusPulls": 14,
+        "onAirFocusPulls": 1,
+        "maxFocusError": 0.026180731640598247,
+        "shotShares": {
+          "OVERVIEW": 0.5072463768115942,
+          "RINGSIDE": 0.4434782608695652,
+          "TRACK A": 0,
+          "TRACK B": 0.014492753623188406,
+          "HIGH ANGLE": 0.034782608695652174
+        },
+        "meanFocusError": 0.0029759455186247384,
+        "limitedShare": 0.278743961352657,
+        "roles": {
+          "OVERVIEW": 4,
+          "RINGSIDE": 3,
+          "TRACK A": 0,
+          "TRACK B": 1,
+          "HIGH ANGLE": 1
+        }
+      },
+      "cuts": [
+        {
+          "t": 11.4,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 11.4,
+          "purpose": "exchange",
+          "score": 90.83765224275912,
+          "contrast": {
+            "angle": 44.50185061445954,
+            "scaleRatio": 1.1205298543387585,
+            "distinct": true
+          },
+          "scoreGain": 36.05228263061095,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 21.8,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 10.4,
+          "purpose": "geography",
+          "score": 78.53232294418305,
+          "contrast": {
+            "angle": 42.71431801268195,
+            "scaleRatio": 1.3670200889690358,
+            "distinct": true
+          },
+          "scoreGain": 32.13911903641159,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 29.599999999999998,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 7.799999999999997,
+          "purpose": "crossing",
+          "score": 73.31136134866986,
+          "contrast": {
+            "angle": 43.708426967335605,
+            "scaleRatio": 2.0371379053810488,
+            "distinct": true
+          },
+          "scoreGain": 18.99785607458079,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 37.4,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 7.800000000000001,
+          "purpose": "geography",
+          "score": 76.88630733326312,
+          "contrast": {
+            "angle": 44.263632175350374,
+            "scaleRatio": 1.1016123791909906,
+            "distinct": true
+          },
+          "scoreGain": 32.077290283004935,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 45.2,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 7.800000000000004,
+          "purpose": "exchange",
+          "score": 62.31593940941455,
+          "contrast": {
+            "angle": 45.630122597254186,
+            "scaleRatio": 1.1333868568091119,
+            "distinct": true
+          },
+          "scoreGain": 20.067235491097314,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 57.6,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 12.399999999999999,
+          "purpose": "geography",
+          "score": 78.27352685414472,
+          "contrast": {
+            "angle": 45.47681668698262,
+            "scaleRatio": 1.7293845100958132,
+            "distinct": true
+          },
+          "scoreGain": 31.54362496777722,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 65.6,
+          "from": "01",
+          "to": "04",
+          "reason": "incoming threat",
+          "previousDuration": 7.999999999999993,
+          "purpose": "defense",
+          "score": 76.4457412062497,
+          "contrast": {
+            "angle": 66.1235746737064,
+            "scaleRatio": 1.3990574754829492,
+            "distinct": true
+          },
+          "scoreGain": 23.220802953557758,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 66.6,
+          "from": "04",
+          "to": "05",
+          "reason": "coverage recovery",
+          "previousDuration": 1,
+          "purpose": "overhead coverage",
+          "score": 34.262821749078,
+          "contrast": {
+            "angle": 80.61332401833394,
+            "scaleRatio": 1.3047098124586871,
+            "distinct": true
+          },
+          "scoreGain": 123.39838047836756,
+          "outgoingReady": false,
+          "outgoingReasons": [
+            "subject outside clear stage"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "8001.json",
+      "report": {
+        "coverage": 1,
+        "pairCoverage": 1,
+        "cuts": 4,
+        "cutsPerMinute": 4.353083434099154,
+        "safetyCuts": 0,
+        "focusPulls": 11,
+        "onAirFocusPulls": 0,
+        "maxFocusError": 0.01284864440699549,
+        "shotShares": {
+          "OVERVIEW": 0.4706948640483384,
+          "RINGSIDE": 0.5293051359516616,
+          "TRACK A": 0,
+          "TRACK B": 0,
+          "HIGH ANGLE": 0
+        },
+        "meanFocusError": 0.002749307918178467,
+        "limitedShare": 0.4012084592145015,
+        "roles": {
+          "OVERVIEW": 3,
+          "RINGSIDE": 2,
+          "TRACK A": 0,
+          "TRACK B": 0,
+          "HIGH ANGLE": 0
+        }
+      },
+      "cuts": [
+        {
+          "t": 13.2,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 13.2,
+          "purpose": "crossing",
+          "score": 73.79883790297104,
+          "contrast": {
+            "angle": 44.019840974957354,
+            "scaleRatio": 1.7611181081792369,
+            "distinct": true
+          },
+          "scoreGain": 18.98825344868939,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 21,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 7.800000000000001,
+          "purpose": "geography",
+          "score": 77.9578757423531,
+          "contrast": {
+            "angle": 44.68538225657961,
+            "scaleRatio": 1.4984421249921294,
+            "distinct": true
+          },
+          "scoreGain": 32.32230226551585,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 28.8,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 7.800000000000001,
+          "purpose": "crossing",
+          "score": 73.14833497142232,
+          "contrast": {
+            "angle": 45.995691058993806,
+            "scaleRatio": 1.2997612776901057,
+            "distinct": true
+          },
+          "scoreGain": 19.576127133692417,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 50.2,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 21.400000000000002,
+          "purpose": "geography",
+          "score": 76.44507734389634,
+          "contrast": {
+            "angle": 50.22775637585347,
+            "scaleRatio": 1.4696246493608838,
+            "distinct": true
+          },
+          "scoreGain": 32.235313991682894,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        }
+      ]
+    },
+    {
+      "file": "8002.json",
+      "report": {
+        "coverage": 1,
+        "pairCoverage": 1,
+        "cuts": 5,
+        "cutsPerMinute": 3.0653950953678475,
+        "safetyCuts": 0,
+        "focusPulls": 12,
+        "onAirFocusPulls": 0,
+        "maxFocusError": 0.007456207780173523,
+        "shotShares": {
+          "OVERVIEW": 0.38202247191011235,
+          "RINGSIDE": 0.6179775280898876,
+          "TRACK A": 0,
+          "TRACK B": 0,
+          "HIGH ANGLE": 0
+        },
+        "meanFocusError": 0.002700816061564283,
+        "limitedShare": 0.26898195437521283,
+        "roles": {
+          "OVERVIEW": 3,
+          "RINGSIDE": 3,
+          "TRACK A": 0,
+          "TRACK B": 0,
+          "HIGH ANGLE": 0
+        }
+      },
+      "cuts": [
+        {
+          "t": 17.8,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 17.8,
+          "purpose": "exchange",
+          "score": 62.221508257473225,
+          "contrast": {
+            "angle": 44.19222126309902,
+            "scaleRatio": 1.01814586866988,
+            "distinct": true
+          },
+          "scoreGain": 20.03856182749478,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 42.4,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 24.599999999999998,
+          "purpose": "geography",
+          "score": 76.49977246824675,
+          "contrast": {
+            "angle": 41.18522688818623,
+            "scaleRatio": 1.2877456892410937,
+            "distinct": true
+          },
+          "scoreGain": 32.03252133260893,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 52.6,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 10.200000000000003,
+          "purpose": "exchange",
+          "score": 63.41281274784745,
+          "contrast": {
+            "angle": 44.1334707175748,
+            "scaleRatio": 1.0041511203156726,
+            "distinct": true
+          },
+          "scoreGain": 19.9810200179812,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 77.8,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 25.199999999999996,
+          "purpose": "geography",
+          "score": 74.42746378364271,
+          "contrast": {
+            "angle": 43.637381068643144,
+            "scaleRatio": 1.5402645493999343,
+            "distinct": true
+          },
+          "scoreGain": 19.318068578105525,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 87.2,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 9.400000000000006,
+          "purpose": "exchange",
+          "score": 60.59493509260321,
+          "contrast": {
+            "angle": 42.8056439216743,
+            "scaleRatio": 1.5137101255832575,
+            "distinct": true
+          },
+          "scoreGain": 19.98553688221301,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        }
+      ]
+    },
+    {
+      "file": "8003.json",
+      "report": {
+        "coverage": 1,
+        "pairCoverage": 1,
+        "cuts": 12,
+        "cutsPerMinute": 4.755614266842801,
+        "safetyCuts": 1,
+        "focusPulls": 10,
+        "onAirFocusPulls": 1,
+        "maxFocusError": 0.06454677413463555,
+        "shotShares": {
+          "OVERVIEW": 0.5362095531587057,
+          "RINGSIDE": 0.3684789786484702,
+          "TRACK A": 0.04534448602245213,
+          "TRACK B": 0,
+          "HIGH ANGLE": 0.049966982170372
+        },
+        "meanFocusError": 0.0034478612339433356,
+        "limitedShare": 0.2599603786044464,
+        "roles": {
+          "OVERVIEW": 6,
+          "RINGSIDE": 5,
+          "TRACK A": 1,
+          "TRACK B": 0,
+          "HIGH ANGLE": 1
+        }
+      },
+      "cuts": [
+        {
+          "t": 9,
+          "from": "01",
+          "to": "02",
+          "reason": "rail exchange",
+          "previousDuration": 9,
+          "purpose": "exchange",
+          "score": 90.591271344519,
+          "contrast": {
+            "angle": 44.77634107410619,
+            "scaleRatio": 1.7325381473231007,
+            "distinct": true
+          },
+          "scoreGain": 36.05776547653475,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 16.8,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 7.800000000000001,
+          "purpose": "geography",
+          "score": 77.52963115505385,
+          "contrast": {
+            "angle": 44.648054194185384,
+            "scaleRatio": 1.1790927968389928,
+            "distinct": true
+          },
+          "scoreGain": 31.983465019178446,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 25.4,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 8.599999999999998,
+          "purpose": "crossing",
+          "score": 72.87214316973201,
+          "contrast": {
+            "angle": 44.72065425080404,
+            "scaleRatio": 1.344356435271934,
+            "distinct": true
+          },
+          "scoreGain": 20.370959450250446,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 33.2,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 7.800000000000004,
+          "purpose": "geography",
+          "score": 78.26508766153144,
+          "contrast": {
+            "angle": 44.20934454643926,
+            "scaleRatio": 1.2869614088256491,
+            "distinct": true
+          },
+          "scoreGain": 31.938990877421375,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 42.8,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 9.599999999999994,
+          "purpose": "crossing",
+          "score": 84.03398816750233,
+          "contrast": {
+            "angle": 43.65875596373392,
+            "scaleRatio": 1.368906713863295,
+            "distinct": true
+          },
+          "scoreGain": 30.885437083256242,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 61.6,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 18.800000000000004,
+          "purpose": "geography",
+          "score": 78.44806027671912,
+          "contrast": {
+            "angle": 44.70228441937802,
+            "scaleRatio": 1.0012972738878747,
+            "distinct": true
+          },
+          "scoreGain": 19.92751476640398,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 72.8,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 11.199999999999996,
+          "purpose": "crossing",
+          "score": 84.17793248345829,
+          "contrast": {
+            "angle": 44.71883892987733,
+            "scaleRatio": 1.6862735336940162,
+            "distinct": true
+          },
+          "scoreGain": 30.91185200318312,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 80.6,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 7.799999999999997,
+          "purpose": "geography",
+          "score": 76.97748448386726,
+          "contrast": {
+            "angle": 43.54875115242245,
+            "scaleRatio": 1.2897376246741914,
+            "distinct": true
+          },
+          "scoreGain": 32.157592702098306,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 92,
+          "from": "01",
+          "to": "02",
+          "reason": "close engagement",
+          "previousDuration": 11.400000000000006,
+          "purpose": "crossing",
+          "score": 72.10702250673994,
+          "contrast": {
+            "angle": 44.92631536940213,
+            "scaleRatio": 1.4400371524698954,
+            "distinct": true
+          },
+          "scoreGain": 19.30742829593025,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 105.6,
+          "from": "02",
+          "to": "01",
+          "reason": "separation geography",
+          "previousDuration": 13.599999999999994,
+          "purpose": "geography",
+          "score": 77.32052870669995,
+          "contrast": {
+            "angle": 46.19289398620498,
+            "scaleRatio": 1.5328620872750316,
+            "distinct": true
+          },
+          "scoreGain": 32.28110829135877,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 137,
+          "from": "01",
+          "to": "03",
+          "reason": "incoming threat",
+          "previousDuration": 31.400000000000006,
+          "purpose": "defense",
+          "score": 80.31358437882837,
+          "contrast": {
+            "angle": 52.024573427365866,
+            "scaleRatio": 1.460382068272816,
+            "distinct": true
+          },
+          "scoreGain": 39.776892927264925,
+          "outgoingReady": true,
+          "outgoingReasons": []
+        },
+        {
+          "t": 143.86666666666667,
+          "from": "03",
+          "to": "05",
+          "reason": "coverage recovery",
+          "previousDuration": 6.866666666666674,
+          "purpose": "overhead coverage",
+          "score": 35.57577298564878,
+          "contrast": {
+            "angle": 48.08110541007072,
+            "scaleRatio": 2.0402324892250605,
+            "distinct": true
+          },
+          "scoreGain": 180.8299324278051,
+          "outgoingReady": false,
+          "outgoingReasons": [
+            "subject outside clear stage"
+          ]
+        }
+      ]
+    }
+  ]
+}

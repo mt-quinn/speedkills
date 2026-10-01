@@ -15,7 +15,9 @@ export class CameraLab {
         ['acceleration',100,1200,20,'Drone acceleration · m/s²'],['bodyTurn',30,240,5,'Body turn · °/s'],
         ['gimbalTurn',20,180,5,'Camera pan · °/s'],['gimbalAcceleration',40,480,10,'Pan acceleration · °/s²'],
         ['zoomRate',2,25,1,'Zoom · °/s'],['focusRate',1,12,.2,'Focus tracking'],
-        ['minimumShot',2,9,.5,'Minimum shot · s'],['maximumShot',8,25,1,'Review hold after · s'],
+        ['minimumShot',3.5,15,.5,'Minimum shot · s'],['cutScoreMargin',10,40,1,'Cut quality gain'],
+        ['cutAngle',15,60,1,'Minimum angle change · °'],['cutScaleRatio',1.3,2.5,.1,'Minimum scale change'],
+        ['cutSustain',.2,1.5,.05,'Stable cut proposal · s'],
         ['focusStrength',0,1,.05,'Depth of field strength'],
       ].map(([key,min,max,step,label])=>`<label>${label}<output>${CAMERA_DEFAULTS[key]}</output><input type="range" data-tune="${key}" min="${min}" max="${max}" step="${step}" value="${window.__cameraTuning?.[key]??CAMERA_DEFAULTS[key]}"></label>`).join('')}</details>
       <a class="cl-recording" hidden>Download recording</a><pre class="cl-audit"></pre></div>`;
@@ -57,7 +59,7 @@ export class CameraLab {
     if(document.activeElement!==timeInput)timeInput.value=t.toFixed(1);
     const engine=this.engine, shot=this.app.scene.shot, d=engine.drones[shot?.rig??0], report=engine.report();
     this.el.querySelector('.cl-readout').textContent = `${round(t)}s · CAM ${d.rig.id} ${d.purpose}\n${round(d.vel.length())} m/s · ${round(d.acc.length()/9.81)} g ${d.flightLimit?'LIMIT':''}\nBody error ${round(d.bodyError)}° · pan ${round(d.aimRate*180/Math.PI)}°/s · aim error ${round(d.aimError)}°\nLens ${round(d.fov)}° · focus ${Math.round(d.focus)} → ${Math.round(d.focusWanted)}m · ${d.focusKey}\nFocus error ${round(Math.abs(d.focus-d.focusWanted)/d.focusWanted*100)}% · blur ${round(circleOfConfusion(d.focusWanted,d.focus,d.aperture,d.fov))}px\nCoverage ${round(report.coverage*100)}% · ${report.cuts} cuts (${round(report.cutsPerMinute)}/min) · ${report.safetyCuts} recoveries\nRender ${round(this.app.scene.renderStats?.fps)} fps · ${round(this.app.scene.renderStats?.cpuMs)}ms CPU · ${this.app.scene.renderStats?.calls??0} draw calls`;
-    this.el.querySelector('.cl-candidates').textContent=engine.drones.map(x=>`${x.rig.id} ${x===d?'ON AIR':'      '} ${Math.round(x.score)} · ${x.ready?'READY':x.reasons.join(', ')}`).join('\n');
+    this.el.querySelector('.cl-candidates').textContent=engine.drones.map(x=>`${x.rig.id} ${x===d?'ON AIR':'      '} ${Math.round(x.score)} · ${x.ready?x.editReason||'READY':x.reasons.join(', ')}`).join('\n');
     const st=engine.state(t), cam=this.app.scene.camera;
     this.renderSamples.push({t,rig:shot?.id,viewport:engine.viewport,render:{...this.app.scene.renderStats},position:cam.position.clone().add(this.app.scene.mid).toArray(),quaternion:cam.quaternion.toArray(),fov:cam.fov,focus:shot?.focus,aperture:shot?.aperture,
       tags:this.app.hud.tagRects?.map(r=>({...r})),layout:this.app.hud.layoutTelemetry,subjects:st.ships.map((s,i)=>{

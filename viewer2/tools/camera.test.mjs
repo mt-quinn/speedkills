@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import { Match } from '../js/data.js';
-import { CameraDrones, CAMERA_DEFAULTS, circleOfConfusion } from '../js/camera-drones.js';
+import { CameraDrones, CAMERA_DEFAULTS, circleOfConfusion, shotContrast } from '../js/camera-drones.js';
 const match=new Match(JSON.parse(fs.readFileSync(new URL('../matches/L40000.json',import.meta.url))));
 const viewport={width:1600,height:900,stage:{left:0,right:1600,top:112,bottom:884}};
 const engine=()=>new CameraDrones(match,new THREE.Vector3(0,1,0),viewport,{},true);
@@ -49,4 +49,39 @@ test('focus optics preserve deep coverage and bounded blur',()=>{
 test('ordinary playback does not accumulate diagnostic samples',()=>{
  const e=new CameraDrones(match,new THREE.Vector3(0,1,0),viewport);e.at(match.duration);
  assert.equal(e.samples.length,0);assert.equal(e.decisions.length,0);assert.equal(e.focusEvents.length,0);
+});
+test('visual contrast measures actual angle and subject scale, not camera identity',()=>{
+ const a={pos:new THREE.Vector3(0,0,1000),sizePx:30},b={pos:new THREE.Vector3(10,0,1000),sizePx:32};
+ assert.equal(shotContrast(a,b,new THREE.Vector3()).distinct,false);
+ b.pos.set(1000,0,0);assert.equal(shotContrast(a,b,new THREE.Vector3()).distinct,true);
+ b.pos.copy(a.pos);b.sizePx=60;assert.equal(shotContrast(a,b,new THREE.Vector3()).distinct,true);
+});
+test('good shots ignore similar score winners and require a sustained motivated edit',()=>{
+ const e=engine();e.drones=e.drones.slice(0,2);e.active=0;e.since=0;
+ const [a,b]=e.drones;a.pos.set(0,0,1000);b.pos.set(10,0,1000);
+ for(const d of e.drones){d.ready=true;d.sizePx=30;d.purpose='exchange';}
+ a.score=50;b.score=80;
+ e.evaluate=d=>({rig:d.rig.id,ready:d.ready,score:d.score});
+ const st={ships:[{raw:{g:0}},{raw:{g:0}}]},c={mid:new THREE.Vector3(),merge:true,phase:'crossing',threats:[],hard:-1};
+ e.choose(20,st,c);e.choose(100,st,c);assert.equal(e.cuts.length,0);
+ b.pos.set(1000,0,0);e.choose(101,st,c);assert.equal(e.cuts.length,0);
+ b.score=55;e.choose(101.4,st,c);b.score=80;e.choose(102,st,c);assert.equal(e.cuts.length,0);
+ e.choose(102.7,st,c);assert.equal(e.cuts.length,1);assert.equal(e.cuts[0].reason,'close engagement');
+ assert.equal(e.cuts[0].contrast.distinct,true);assert.equal(e.cuts[0].outgoingReady,true);
+});
+test('coverage recovery can cut immediately even to a similar view',()=>{
+ const e=engine();e.drones=e.drones.slice(0,2);e.active=0;e.since=0;
+ const [a,b]=e.drones;a.ready=false;b.ready=true;a.score=-100;b.score=20;a.sizePx=b.sizePx=30;
+ a.pos.set(0,0,1000);b.pos.set(10,0,1000);a.purpose=b.purpose='exchange';
+ e.evaluate=d=>({rig:d.rig.id,ready:d.ready,score:d.score});
+ e.choose(.1,{ships:[{raw:{g:0}},{raw:{g:0}}]},{mid:new THREE.Vector3(),phase:'approach',threats:[],hard:-1});
+ assert.equal(e.cuts[0].reason,'coverage recovery');assert.equal(e.cuts[0].outgoingReady,false);
+});
+test('elapsed time and a phase change cannot force an unmotivated cut',()=>{
+ const e=engine();e.drones=e.drones.slice(0,2);e.active=0;e.since=0;
+ const [a,b]=e.drones;for(const d of e.drones){d.ready=true;d.sizePx=30;d.purpose='exchange';}
+ a.pos.set(0,0,1000);b.pos.set(1000,0,0);a.score=50;b.score=80;
+ e.evaluate=d=>({rig:d.rig.id,ready:d.ready,score:d.score});
+ e.choose(100,{ships:[{raw:{g:0}},{raw:{g:0}}]},{mid:new THREE.Vector3(),phase:'separating',threats:[],hard:-1});
+ assert.equal(e.cuts.length,0);
 });
