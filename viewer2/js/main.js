@@ -1,3 +1,4 @@
+import { applyShipColors, readShipColors } from './ship-colors.js';
 import { readAudioMix, readViewerSettings } from './preferences.js';
 // Hard Burn broadcast viewer: plays back recorded duels.
 import { bindFightFullscreen } from './fullscreen.js';
@@ -14,6 +15,7 @@ import { CamControl } from './camctl.js';
 import { CameraLab } from './camera-lab.js';
 import { rememberResult } from './history.js';
 
+applyShipColors();
 bindFightFullscreen(document.querySelector('#fight-fullscreen'));
 
 const Q = new URLSearchParams(location.search);
@@ -579,7 +581,10 @@ if (networkLive) {
 function applySettings() {
   sound?.setMix(readAudioMix());
   if(sound){sound.userOff=audioHost().muted;if(!sound.userOff&&(sound.musicOn||sound.sfxOn))sound.enable();else sound.disable();}
-  if(app)app.scene.viewerSettings=readViewerSettings();
+  if(app){app.scene.viewerSettings=readViewerSettings();app.scene.setShipColors(readShipColors());}
+  else applyShipColors();
   soundUI();
 }
 window.__hbApplySettings=applySettings;
+
+window.addEventListener('storage',e=>{if(['hb-ship-colors','hb-viewer-settings','sk-audio'].includes(e.key))applySettings();});

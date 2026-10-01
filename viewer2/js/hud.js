@@ -157,7 +157,7 @@ export class Hud {
       <span><svg viewBox="0 0 24 12"><path d="M1 10 Q12 -3 23 10" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3"/></svg>PDC rounds</span>
       <span><svg viewBox="0 0 24 12"><g stroke="#ffa070" stroke-width="1.4"><line x1="3" y1="3" x2="7" y2="4"/><line x1="10" y1="8" x2="14" y2="9"/><line x1="15" y1="2" x2="19" y2="3"/><line x1="6" y1="9" x2="9" y2="10"/></g></svg>shrapnel</span>
       <span><svg viewBox="0 0 24 12"><line x1="12" y1="0" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><ellipse cx="12" cy="11" rx="5" ry="1.4" fill="none" stroke="currentColor"/></svg>height above the plane</span>
-      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="#f5a623"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: hull integrity · white = hull lost this exchange</span>`;
+      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="var(--a)"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: hull integrity · white = hull lost this exchange</span>`;
     this.legend = lg;
   }
 

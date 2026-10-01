@@ -1,3 +1,4 @@
+import { SHIP_COLORS } from './ship-colors.js';
 // Opt-in production-room instrumentation: ?studio=1&cameraLab=1. No backend writes.
 import { CameraDrones, CAMERA_DEFAULTS, CAMERA_RIGS, circleOfConfusion } from './camera-drones.js';
 const round = n => Number.isFinite(n) ? n.toFixed(1) : '—';
@@ -79,10 +80,10 @@ export class CameraLab {
     ctx.strokeStyle='#263345';ctx.lineWidth=1;
     for(const r of [.33,.66,1]){ctx.beginPath();ctx.ellipse(W/2,125,310*r,95*r,0,0,Math.PI*2);ctx.stroke();}
     ctx.font='16px monospace';ctx.fillStyle='#7890a8';ctx.fillText(`PLAN VIEW · ${Math.round(radius)}m`,12,23);
-    st.ships.forEach((s,i)=>{const [x,y]=xy(s.pos);ctx.fillStyle=i?'#4f8dff':'#f5a623';ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();ctx.fillText(i?'B':'A',x+10,y+4);});
+    st.ships.forEach((s,i)=>{const [x,y]=xy(s.pos);ctx.fillStyle=SHIP_COLORS[i];ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();ctx.fillText(i?'B':'A',x+10,y+4);});
     engine.drones.forEach((d,i)=>{const [x,y]=xy(d.pos),[tx,ty]=xy(d.target);ctx.strokeStyle=i===engine.active?'#e4f0de':'#355069';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(tx,ty);ctx.stroke();ctx.fillStyle=i===engine.active?'#e4f0de':'#7d9ab5';ctx.fillRect(x-4,y-4,8,8);ctx.fillText(d.rig.id,x+8,y-8);});
     const live=engine.drones[this.app.scene.shot?.rig??engine.active];
-    const objects=[...st.ships.map((s,i)=>({pos:s.pos,label:i?'B':'A',color:i?'#4f8dff':'#f5a623'})),...engine.match.objects(t,'tp').slice(0,8).map(p=>({pos:p.pos,label:'T',color:'#ff3b5c'}))];
+    const objects=[...st.ships.map((s,i)=>({pos:s.pos,label:i?'B':'A',color:SHIP_COLORS[i]})),...engine.match.objects(t,'tp').slice(0,8).map(p=>({pos:p.pos,label:'T',color:'#ff3b5c'}))];
     const inv=live.quat.clone().invert();objects.forEach(o=>o.depth=-o.pos.clone().sub(live.pos).applyQuaternion(inv).z);
     const maxDepth=Math.max(2000,live.focus*1.7,...objects.filter(o=>o.depth>0).map(o=>o.depth));
     ctx.fillStyle='#1d2938';ctx.fillRect(12,257,W-24,23);

@@ -1,3 +1,4 @@
+import { SHIP_COLORS, applyShipColors } from './ship-colors.js';
 import { readViewerSettings } from './preferences.js';
 // The 3D broadcast scene: ships, weapons, the fight plane and its drop lines.
 import * as THREE from 'three';
@@ -13,7 +14,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 
-export const TEAM_CSS = ['#f5a623', '#4f8dff'];
+export const TEAM_CSS = SHIP_COLORS;
 export const TEAM = TEAM_CSS.map((c) => new THREE.Color(c));
 export const THREAT = new THREE.Color('#ff3b5c');
 const WHITE = new THREE.Color('#ffffff');
@@ -111,6 +112,7 @@ function dustMaterial(pr) {
 // reads in 3D, flat-ish so the key light shows which way it's banked), a bright nose tip, and a
 // short flame whose length is the g. Stylised legibility over realism.
 function shipModel(team) {
+  TEAM[team].set(TEAM_CSS[team]);
   const g = new THREE.Group();
   const c = TEAM[team];
   // Dart: nose, two wing tips, tail notch, dorsal ridge and a shallow keel.
@@ -157,7 +159,7 @@ function shipModel(team) {
     shards.add(m);
   });
   g.add(shards);
-  g.userData = { plume, edges, hullMat, tip, body, shards };
+  g.userData = { plume, edges, hullMat, tip, body, shards, shardMat, shardEdge };
   return g;
 }
 
@@ -1016,6 +1018,17 @@ export class Scene {
     setLine(obj, [a, b]);
     this.root.add(obj);
     this.fx.push({ obj, born: this._now, life, tick: (k, o) => { o.material.opacity = 1 - k; o.material.linewidth = 3 * (1 - k) + 1; } });
+  }
+
+  setShipColors(colors) {
+    applyShipColors(colors);
+    for(let i=0;i<2;i++) {
+      const c=TEAM[i].set(TEAM_CSS[i]),u=this.ships[i].userData;
+      u.edges.material.color.copy(c).lerp(WHITE,.55);
+      u.shardMat.color.copy(c).multiplyScalar(.5);u.shardMat.emissive.copy(c).multiplyScalar(.12);
+      u.shardEdge.color.copy(c).lerp(WHITE,.3);
+      for(const group of [this.chargeLines,this.chargeBg,this.stalks,this.feet,this.velLines])group[i].material.color.copy(c);
+    }
   }
 
   render(now) {

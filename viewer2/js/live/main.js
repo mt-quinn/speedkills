@@ -1,3 +1,4 @@
+import { SHIP_COLORS, DEFAULT_SHIP_COLORS, COLOR_PRESETS, normalizeShipColor, readShipColors, applyShipColors, saveShipColors } from '../ship-colors.js';
 import { readAudioMix, saveAudioMix, readViewerSettings, saveViewerSettings, AUDIO_DEFAULTS, VIEW_DEFAULTS } from '../preferences.js';
 import { renderSettings } from './settings.js';
 import { toggleFightFullscreen } from '../fullscreen.js';
@@ -23,6 +24,7 @@ async function start() {
   audio.musicManaged=true;
   const music=sessionMusic(audio);
   let mix=readAudioMix(),viewerSettings=readViewerSettings();
+  applyShipColors();
   music.setEnabled(mix.music);music.setVolume(mix.musicVolume);
   let audioPlaying = false;
   function audioStatus() {
@@ -48,6 +50,7 @@ async function start() {
   const stations = { pilot:'Pilot', gunner:'Gunner', engineer:'Engineer', ops:'Ops' };
   const skills = { pilot:'Handling', gunner:'Gunnery', engineer:'Engineering', ops:'Defence' };
   const doctrines = { Reference:'Duelist', Knife:'Knife fighter', Counter:'Counterpuncher' };
+  let settingsPane='audio';
   let dockScene, sceneLoading=false, profileSaving=false, profileSaved=false, profileOpen=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
   let archiveState={view:'fights',query:'',filter:'all',sort:'recent',detailTab:'combat'};
@@ -134,7 +137,7 @@ async function start() {
     const archiveScroll=new Map(!resetArchiveScroll&&screen==='archive'?[...shell.querySelectorAll('[data-archive-scroll]')].map(el=>[el.dataset.archiveScroll,el.scrollTop]):[]);
     const active = document.activeElement, focusId = active?.id, selection = active?.selectionStart;
     document.body.dataset.screen = screen; document.body.classList.toggle('hb-chat-open',screen==='broadcast'&&chatShown);
-    shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results'],['settings','Settings']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',settings:'<path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':screen==='settings'?'DEVICE / PREFERENCES':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':screen==='settings'?'SETTINGS':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():screen==='settings'?renderSettings({mix,viewer:viewerSettings,chatShown}):archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
+    shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results'],['settings','Settings']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',settings:'<path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':screen==='settings'?'DEVICE / PREFERENCES':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':screen==='settings'?'SETTINGS':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():screen==='settings'?renderSettings({mix,viewer:viewerSettings,chatShown,colors:SHIP_COLORS,pane:settingsPane}):archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
     shell.querySelectorAll('[data-archive-scroll]').forEach(el=>{if(archiveScroll.has(el.dataset.archiveScroll))el.scrollTop=archiveScroll.get(el.dataset.archiveScroll);});
     if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selection,selection); } catch {} } }
     renderChat(true); countdown(); syncBroadcast(); syncHangar(); audioStatus();
@@ -188,6 +191,24 @@ async function start() {
     });
     audioStatus();
   }
+  function editShipColor(input) {
+    const side=Number(input.dataset.shipColor??input.dataset.shipHex),color=normalizeShipColor(input.value);
+    input.setAttribute('aria-invalid',String(!color));
+    if(color){const colors=[...SHIP_COLORS];colors[side]=color;saveShipColors(colors);syncShipColors();applyColorPreferences();}
+  }
+  function syncShipColors() {
+    shell.querySelectorAll('[data-ship-color],[data-ship-hex]').forEach(input=>{
+      const color=SHIP_COLORS[Number(input.dataset.shipColor??input.dataset.shipHex)];
+      if(input!==document.activeElement){input.value=color;input.setAttribute('aria-invalid','false');}
+    });
+    shell.querySelectorAll('[data-color-preset]').forEach(button=>button.setAttribute('aria-pressed',String(COLOR_PRESETS[Number(button.dataset.colorPreset)].colors.every((c,i)=>c===SHIP_COLORS[i]))));
+  }
+  function applyColorPreferences() {
+    const frame=shell.querySelector('#hb-feed');
+    frame?.contentWindow?.__hbApplySettings?.();
+    frame?.contentWindow?.postMessage({kind:'settings-live'},location.origin);
+  }
+  window.addEventListener('storage',e=>{if(e.key==='hb-ship-colors'){applyShipColors();syncShipColors();applyColorPreferences();}});
   function applyPreferences() {
     music.setEnabled(mix.music);music.setVolume(mix.musicVolume);
     audio.resume();music.start();
@@ -198,7 +219,7 @@ async function start() {
   }
   function error(e) { notice=typeof e.data==='string'?e.data:(e.message||String(e)).replace(/^.*Uncaught ConvexError: /,'').split('\n')[0];render(true); }
   async function mutation(name,args={}) { if(busy)return;busy=true;countdown();try {await service.call(name,args);notice='';return true;}catch(e){error(e);return false;}finally{busy=false;render(true);} }
-  function navigate(to) { if(to==='settings'){mix=readAudioMix();viewerSettings=readViewerSettings();}screen=to;notice='';lastKey='';render();subscribeChat();if(to==='broadcast')feedElement?.contentWindow?.postMessage({kind:'resume-live'},location.origin);else feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:true},location.origin); }
+  function navigate(to) { applyShipColors();if(to==='settings'){mix=readAudioMix();viewerSettings=readViewerSettings();}screen=to;notice='';lastKey='';render();subscribeChat();if(to==='broadcast')feedElement?.contentWindow?.postMessage({kind:'resume-live'},location.origin);else feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:true},location.origin); }
   // Readiness comes from the viewer module, not the iframe's initial about:blank document.
   window.addEventListener('message',e=>{
     const frame=document.querySelector('#hb-feed');
@@ -236,15 +257,21 @@ async function start() {
   }
   shell.addEventListener('toggle',e=>{if(e.target.isConnected&&e.target.matches('.hb-chat-profile'))profileOpen=e.target.open;},true);
   shell.addEventListener('input',e=>{
+    if(e.target.hasAttribute('data-ship-color')||e.target.hasAttribute('data-ship-hex')) {
+      editShipColor(e.target);
+      return;
+    }
     if(e.target.dataset.volume){const key=e.target.dataset.volume;mix=saveAudioMix({[key+'Volume']:Number(e.target.value)/100});if(Number(e.target.value)>0)audio.muted=false;applyPreferences();syncSettings();return;}
     if(e.target.id==='archive-search'){archiveState.query=e.target.value;render(true,true);return;}
     if(e.target.id==='stake'){draft.amount=e.target.value;saveDraft();const p=draft.side==null?null:data.fight.odds[draft.side],stake=Math.round(Number(draft.amount)*100);document.querySelector('#profit').textContent=p==null?'Choose a ship':'+ '+credits(Math.round(stake*.95*(1-p)/p/100)*100)+' cr';document.querySelector('#after-stake').textContent=credits(data.player.balance-stake)+' cr remaining';}
     if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;if(e.target.id==='viewer-name'){drafts.viewer=e.target.value;profileSaved=false;syncProfile();}
   });
-  shell.addEventListener('change',e=>{if(e.target.id==='archive-filter'||e.target.id==='archive-sort'){archiveState[e.target.id==='archive-filter'?'filter':'sort']=e.target.value;archiveState.detailOpen=false;render(true,true);}});
+  shell.addEventListener('change',e=>{if(e.target.hasAttribute('data-ship-color')||e.target.hasAttribute('data-ship-hex')){editShipColor(e.target);return;}if(e.target.id==='archive-filter'||e.target.id==='archive-sort'){archiveState[e.target.id==='archive-filter'?'filter':'sort']=e.target.value;archiveState.detailOpen=false;render(true,true);}});
   shell.addEventListener('keydown',e=>{const panel=e.target.closest('[data-side]');if(panel&&['Enter',' '].includes(e.key)){e.preventDefault();panel.click();}});
   shell.addEventListener('click',async e=>{
     const b=e.target.closest('button,[data-do],[data-side]');if(!b)return;e.stopPropagation();
+    if(b.dataset.settingsPane){settingsPane=b.dataset.settingsPane;shell.querySelector('.st-console').dataset.pane=settingsPane;shell.querySelectorAll('[data-settings-pane]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.settingsPane===settingsPane)));return;}
+    if(b.hasAttribute('data-color-preset')){saveShipColors(COLOR_PRESETS[Number(b.dataset.colorPreset)].colors);syncShipColors();applyColorPreferences();return;}
     if(b.dataset.setting){const key=b.dataset.setting;if(key==='music'||key==='sfx'){mix=saveAudioMix({[key]:!mix[key]});if(mix[key])audio.muted=false;}else if(key==='chat'){chatShown=!chatShown;localStorage.setItem('hb-chat-visible',String(chatShown));subscribeChat();}else viewerSettings=saveViewerSettings({[key]:!viewerSettings[key]});applyPreferences();syncSettings();return;}
     if(b.hasAttribute('data-archive-export')){const content=archiveCsv(filterFights(archive,archiveState,data.ship?.id??data.ship?._id)),url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='hardburn-results.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
     if(b.dataset.archiveView){archiveState.view=b.dataset.archiveView;archiveState.detailOpen=false;render(true);return;}
@@ -260,7 +287,7 @@ async function start() {
     const a=b.dataset.do;
     if(['hangar','broadcast','archive','settings'].includes(a)){e.preventDefault();navigate(a);}
     else if(a==='chat'){chatShown=!chatShown;localStorage.setItem('hb-chat-visible',String(chatShown));render(true);subscribeChat();}
-    else if(a==='reset-settings'){mix=saveAudioMix(AUDIO_DEFAULTS);viewerSettings=saveViewerSettings(VIEW_DEFAULTS);chatShown=matchMedia('(min-width:761px)').matches;localStorage.removeItem('hb-chat-visible');audio.muted=false;applyPreferences();render(true);}
+    else if(a==='reset-settings'){saveShipColors(DEFAULT_SHIP_COLORS);applyColorPreferences();mix=saveAudioMix(AUDIO_DEFAULTS);viewerSettings=saveViewerSettings(VIEW_DEFAULTS);chatShown=matchMedia('(min-width:761px)').matches;localStorage.removeItem('hb-chat-visible');audio.muted=false;applyPreferences();render(true);}
     else if(a==='preview-credits')await mutation('lab:previewCredits');
     else if(a==='sponsor')await mutation('game:sponsor');
     else if(a==='tryout')await mutation('game:tryout',{station});

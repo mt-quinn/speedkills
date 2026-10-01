@@ -70,7 +70,7 @@ export function shipCard(side, ship, gp) {
     </article>`;
   }).join('');
   return `<section class="pm-ship t${side}" aria-label="${esc(ship.name)} crew">
-    <header class="pm-shiphead"><div><span class="pm-team">${side ? 'BLUE CORNER' : 'AMBER CORNER'}</span><h2 class="pm-name">${esc(ship.name)}</h2></div><span class="pm-doctrine">${esc(st[0])}</span></header>
+    <header class="pm-shiphead"><div><span class="pm-team">SHIP ${side+1}</span><h2 class="pm-name">${esc(ship.name)}</h2></div><span class="pm-doctrine">${esc(st[0])}</span></header>
     <p class="pm-style">${esc(st[1])}</p>
     <div class="pm-roster">${rows}</div>
     <div class="pm-edge"><span>CREW EDGE</span><b>${esc(SKILL[strongest.station] || strongest.station)}</b><span>${esc(strongest.name)} · ${rating(strongest.skill)}</span></div>
