@@ -39,15 +39,15 @@ Economy values are initial tuning defaults, clearly centralized. No production d
 
 # Cloudflare migration — approved 2026-10-01
 
-User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live comparison. Keep Vercel frontend/production Convex unchanged; use an isolated Cloudflare preview backend. Preserve accounts on eventual cutover; preview uses independent test accounts/data.
+User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live comparison. Keep the Vercel frontend and isolated Cloudflare preview. Production cutover was subsequently authorized; preserve accounts during cutover; preview uses independent test accounts/data.
 
 ## Migration phases
-1. Branch, deployment access, simulator feasibility and auth compatibility — in progress.
-2. D1 schema, transactional command/settlement layer, Durable Object lifecycle and private R2 — pending.
-3. Account/auth parity, chat/moderation, client transport and paginated archives — pending.
-4. Runtime integration, fault/security/parity/load checks and deployment docs — pending.
-5. Push branch and publish isolated Vercel/Cloudflare comparison preview — pending.
-6. Production data inventory/rehearsal/cutover — requires readiness evidence and concrete cutover review; comparison preview does not replace production.
+1. Branch, deployment access, simulator feasibility and auth compatibility — complete.
+2. D1 schema, transactional command/settlement layer, Durable Object lifecycle and private R2 — complete.
+3. Account/auth parity, chat/moderation, client transport and paginated archives — complete.
+4. Runtime integration, fault/security/parity/load checks and deployment docs — complete.
+5. Push branch and publish isolated Vercel/Cloudflare comparison preview — complete.
+6. Production data inventory/rehearsal/cutover — authorized by user on 2026-10-01, subject to completing readiness checks. Keep Vercel frontend and preserve production accounts, IDs, balances, and schedules.
 
 ## Migration issues
 - Initial git branch creation denied by filesystem sandbox; retry with approved escalation for Git metadata.
@@ -57,3 +57,9 @@ User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live co
 - Remaining phase-1 production readiness evidence: actual auth/storage inventory, billed CPU/peak-memory profiling, workload/pass thresholds. These do not block isolated game implementation.
 - Phase 2 next: durable game commands, lifecycle, preparation acceptance and settlement. Phase 3–6 remain pending as above.
 - Resolved tooling issues: Miniflare 5 API via supported converter; old runtime removed; auth dependencies isolated to avoid optional framework peer conflict. Deployed resources and current limitations documented in cloudflare/README.md.
+
+## Full implementation checkpoint
+- Account, game/economy, durable preparation/settlement, chat, replay and frontend adapter implemented.
+- Full runtime suite: 16 passing; existing backend: 8 passing; frontend/shared: 71 passing; both TypeScript projects pass.
+- Final import rehearsal matches counts, balances, per-player ledgers and references. Available traces retain checksums; missing historical recordings are explicit.
+- Production resources prepared in maintenance; guarded Convex production remains unfrozen until final capacity gate passes.

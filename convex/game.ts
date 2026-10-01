@@ -9,6 +9,7 @@ import { roster } from './roster';
 import { rotation } from './matchmaking';
 import type { Id } from './_generated/dataModel';
 import { accountPlayer, requirePlayer } from './identity';
+import { control, freezeAtBoundary } from './migration';
 const tokenArg = { token: v.optional(v.string()) }; // Accepted for cached clients; never authorizes access.
 const channel = (ctx: any) => ctx.db.query('channel').withIndex('key', (q: any) => q.eq('key', 'live')).unique();
 async function move(ctx: any, p: any, amount: number, kind: string, note: string, fight?: any) {
@@ -19,6 +20,7 @@ async function move(ctx: any, p: any, amount: number, kind: string, note: string
   await ctx.db.insert('ledger', { player: p._id, kind, amount, balance, note, ...(fight ? { fight } : {}) });
 }
 export async function grantStipend(ctx: any, p: any) {
+  if ((await control(ctx))?.frozen) return false;
   if (p.balance !== 0 || Date.now()-p.lastRecovery < 3600000) return false;
   const wagers=await ctx.db.query('wagers').withIndex('player_fight',(q:any)=>q.eq('player',p._id)).collect();
   if(wagers.some((w:any)=>w.returned===undefined))return false;
@@ -122,6 +124,7 @@ export const home = query({ args: tokenArg, handler: async ctx => {
 }});
 // A scheduled write makes time-gated trace/home queries reactive at combat start.
 export const startBroadcast = internalMutation({args:{fight:v.id('fights')},handler:async(ctx,{fight})=>{
+  if ((await control(ctx))?.frozen) return;
   const ch=await channel(ctx),f=await ctx.db.get(fight);
   if(ch?.current!==fight||!f||f.liveStarted)return;
   if(Date.now()<f.startsAt!){await ctx.scheduler.runAt(f.startsAt!,internal.game.startBroadcast,{fight});return;}
@@ -208,6 +211,7 @@ export const initialize = internalMutation({ args: {}, handler: async ctx => {
   await ctx.scheduler.runAfter(0, internal.simulation.prepare, { generation: 1 });
 }});
 export const preparation = internalQuery({ args: { generation: v.number() }, handler: async (ctx, { generation }) => {
+  if ((await control(ctx))?.frozen) return null;
   const ch = await channel(ctx); if (!ch || ch.generation !== generation || ch.pending) return null;
   const ships = (await ctx.db.query('ships').collect()).filter(s => !s.testing); const last = await ctx.db.query('fights').withIndex('sequence').order('desc').first();
   const pair = ch.queue?.[0];
@@ -216,6 +220,7 @@ export const preparation = internalQuery({ args: { generation: v.number() }, han
 }});
 export const cachedOdds = internalQuery({ args: { key: v.string() }, handler: async (ctx, { key }) => ctx.db.query('odds').withIndex('key', q => q.eq('key', key)).unique() });
 export const stage = internalMutation({ args: { generation: v.number(), data: v.any(), fallback: v.optional(v.any()) }, handler: async (ctx, { generation, data, fallback }) => {
+  if ((await control(ctx))?.frozen) return false;
   const ch = await channel(ctx); if (!ch || ch.generation !== generation || ch.pending) return false;
   async function valid(snapshot: any) { for(const s of snapshot.ships){const current: any=await ctx.db.get(s.id);if(!current||current.testing||current.revision!==s.revision)return false;}return true; }
   if (!ch.queue?.[0]?.every((id: Id<'ships'>, i: number) => id === data.ships[i]?.id) || !await valid(data)) {
@@ -229,15 +234,18 @@ export const stage = internalMutation({ args: { generation: v.number(), data: v.
   return true;
 }});
 export const failed = internalMutation({ args: { generation: v.number(), message: v.string() }, handler: async (ctx, { generation, message }) => {
+  if ((await control(ctx))?.frozen) return;
   const ch = await channel(ctx); if (!ch || ch.generation !== generation || ch.pending) return;
   await ctx.db.patch(ch._id, { error: message.slice(0, 160), preparing: true, attempts: ch.attempts + 1 });
   await ctx.scheduler.runAfter(Math.min(30000, 1000 * 2 ** ch.attempts), internal.simulation.prepare, { generation });
 }});
 export const promote = internalMutation({ args: {}, handler: async ctx => {
+  if ((await control(ctx))?.frozen) return;
   const ch = await channel(ctx); if (!ch) return;
   const current = ch.current && await ctx.db.get(ch.current);
   if (current && Date.now() < current.nextAt!) return;
   if (current && !current.settled) { await ctx.scheduler.runAfter(500, internal.game.promote, {}); return; }
+  if (await freezeAtBoundary(ctx)) return;
   if (!ch.pending) { await ctx.scheduler.runAfter(1000, internal.game.promote, {}); return; }
   const f: any = await ctx.db.get(ch.pending); if (!f) return;
   for (const s of f.ships) { const actual: any = await ctx.db.get(s.id); if (!actual || actual.testing || actual.revision !== s.revision) {
@@ -256,11 +264,13 @@ export const promote = internalMutation({ args: {}, handler: async ctx => {
   await ctx.scheduler.runAt(nextAt, internal.game.promote, {});
 }});
 export const begin = internalMutation({ args: { fight: v.id('fights'), generation: v.number() }, handler: async (ctx, { fight, generation }) => {
+  if ((await control(ctx))?.frozen) return;
   const ch = await channel(ctx); if (ch?.current !== fight || ch.generation !== generation || ch.pending || ch.preparing) return;
   await ensureQueue(ctx,ch);
   await ctx.db.patch(ch._id, { preparing: true }); await ctx.scheduler.runAfter(0, internal.simulation.prepare, { generation });
 }});
 export const finish = internalMutation({ args: { fight: v.id('fights') }, handler: async (ctx, { fight }) => {
+  if ((await control(ctx))?.frozen) return;
   const f = await ctx.db.get(fight); if (!f || f.settled || Date.now() < f.endsAt!) return;
   // Each wager has an explicit returned field; retries cannot credit it twice.
   const wagers = await ctx.db.query('wagers').withIndex('fight', q => q.eq('fight', fight)).collect();
@@ -285,6 +295,7 @@ export const finish = internalMutation({ args: { fight: v.id('fights') }, handle
   if (old) await ctx.storage.delete(old.trace);
 }});
 export const watchdog = internalMutation({ args: {}, handler: async ctx => {
+  if ((await control(ctx))?.frozen) return;
   for(const p of await ctx.db.query('players').withIndex('balance',q=>q.eq('balance',0)).collect())await grantStipend(ctx,p);
   const ch = await channel(ctx); if (!ch) return;
   const f = ch.current && await ctx.db.get(ch.current);

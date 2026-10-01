@@ -1,0 +1,30 @@
+{
+  "runtime": "local-workerd-inspector",
+  "selection": "largest trace among all 45 baseline pairs at seed 1337",
+  "samples": [
+    {
+      "usedSize": 18426064,
+      "totalSize": 23265280,
+      "embedderHeapUsedSize": 515872,
+      "backingStorageSize": 232569
+    },
+    {
+      "usedSize": 23295972,
+      "totalSize": 28147712,
+      "embedderHeapUsedSize": 515872,
+      "backingStorageSize": 5101309
+    },
+    {
+      "usedSize": 23306264,
+      "totalSize": 28147712,
+      "embedderHeapUsedSize": 515872,
+      "backingStorageSize": 10661082
+    }
+  ],
+  "wasmMemoryBytes": 29753344,
+  "rawBytes": 4868740,
+  "compressedBytes": 691001,
+  "conservativeBytes": 78815490,
+  "limitBytes": 134217728,
+  "caveat": "Checkpoint samples, not a continuous production peak; bound adds WASM again and two raw trace buffers conservatively."
+}

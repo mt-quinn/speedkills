@@ -4,10 +4,13 @@ import { ConvexError } from 'convex/values';
 import { username } from './identity';
 import type { MutationCtx } from './_generated/server';
 import { passwordReset } from './passwordReset';
-import { query } from './_generated/server';
+import { query, action, internalMutation } from './_generated/server';
+import { makeFunctionReference } from 'convex/server';
+import { v } from 'convex/values';
+import { assertWritable } from './migration';
 import { ECONOMY } from '../shared/rules.js';
 
-export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+const provider = convexAuth({
   providers: [Password({
     reset: passwordReset,
     profile(params) {
@@ -41,5 +44,20 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     },
   },
 });
+
+export const { auth, isAuthenticated } = provider;
+// Registration wrappers expose _handler at runtime, including the auth library's
+// bundled Convex version. Keep this bridge local rather than exporting bypasses.
+const run = (fn: unknown, ctx: unknown, args: unknown): Promise<any> =>
+  (fn as { _handler: (ctx: unknown, args: unknown) => Promise<any> })._handler(ctx, args);
+// Guard the actual internal auth write, including refreshes already in flight.
+export const store = internalMutation({ args: v.any(), handler: async (ctx, args): Promise<any> => {
+  await assertWritable(ctx); return run(provider.store, ctx, args);
+} });
+export const signIn = action({ args: { provider: v.optional(v.string()), params: v.optional(v.any()), verifier: v.optional(v.string()), refreshToken: v.optional(v.string()), calledBy: v.optional(v.string()) }, handler: async (ctx, args): Promise<any> => {
+  if ((await ctx.runQuery(makeFunctionReference<'query'>('migration:status'), {})).frozen) throw new ConvexError('The league is moving to Cloudflare. Please reconnect shortly.');
+  return run(provider.signIn, ctx, args);
+} });
+export const signOut = action({ args: {}, handler: async (ctx, args): Promise<any> => run(provider.signOut, ctx, args) });
 
 export const options = query({ args: {}, handler: async () => ({ passwordReset: !!(process.env.AUTH_RESEND_KEY && process.env.AUTH_EMAIL_FROM) }) });

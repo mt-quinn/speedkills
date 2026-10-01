@@ -19,7 +19,8 @@ applyShipColors();
 bindFightFullscreen(document.querySelector('#fight-fullscreen'));
 
 const Q = new URLSearchParams(location.search);
-const networkLive = !Q.has('studio') && !Q.has('audit') && !Q.has('auditall') && !Q.has('story');
+if(Q.has('replay'))delete document.body.dataset.screen;
+const networkLive = !Q.has('replay') && !Q.has('studio') && !Q.has('audit') && !Q.has('auditall') && !Q.has('story');
 let liveClock = null;
 const opt = {
   match: Q.get('match'),
@@ -211,14 +212,22 @@ class App {
 }
 
 async function open(i) {
-  const index = await loadIndex();
+  let recording=null;
+  if(Q.has('replay')){
+    const config=await fetch('/live-config.json',{cache:'no-store'}).then(r=>r.json());
+    if(!config.cloudflareUrl)throw new Error('Recordings are unavailable.');
+    const response=await fetch(new URL('/archive/replay/'+encodeURIComponent(Q.get('replay')),config.cloudflareUrl));
+    if(!response.ok)throw new Error('This recording is not available.');
+    recording=await response.json();
+  }
+  const index = recording?[{file:Q.get('replay'),seed:Q.get('replay')}]:await loadIndex();
   if (opt.auditall && i === undefined) return auditAll(index);
   const idx = opt.match !== null && i === undefined ? (isNaN(+opt.match) ? index.findIndex((x) => x.file === opt.match) : +opt.match) : (i ?? 0);
   // (?file=name.json plays a recording that isn't on the card.)
   const file = Q.get('file');
   if (file && i === undefined) { index.push({ file, seed: file }); }
   const entry = file && i === undefined ? index[index.length - 1] : index[(idx + index.length) % index.length];
-  const match = await loadMatch(entry.file);
+  const match = recording?new Match(recording):await loadMatch(entry.file);
   app?.cameraLab?.dispose();
   app?.scene.dispose();
   state.paused = true;

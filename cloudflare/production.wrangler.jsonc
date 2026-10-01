@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "hardburn-api-preview",
+  "name": "hardburn-api-prod",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": [
@@ -15,8 +15,8 @@
     "enabled": true
   },
   "vars": {
-    "ENVIRONMENT": "preview",
-    "ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:5173,https://hardburn-p8cn12i2v-thegameband.vercel.app,https://hardburn-cf-preview-thegameband.vercel.app"
+    "ENVIRONMENT": "production",
+    "ALLOWED_ORIGINS": "https://hardburn.vercel.app"
   },
   "secrets": {
     "required": [
@@ -43,21 +43,21 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "hardburn-preview",
-      "database_id": "1fcc95e4-748c-48d4-a36a-3075f863e108",
+      "database_name": "hardburn-prod",
+      "database_id": "992e7377-d6e2-4774-80c2-6712e72c2f4b",
       "migrations_dir": "migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "TRACES",
-      "bucket_name": "hardburn-traces-preview"
+      "bucket_name": "hardburn-traces-prod"
     }
   ],
   "services": [
     {
       "binding": "SIMULATOR",
-      "service": "hardburn-simulator-preview",
+      "service": "hardburn-simulator-prod",
       "entrypoint": "Simulator"
     }
   ],
@@ -70,7 +70,7 @@
     "producers": [
       {
         "binding": "PREPARATIONS",
-        "queue": "hardburn-preparations-preview"
+        "queue": "hardburn-preparations-prod"
       }
     ]
   }

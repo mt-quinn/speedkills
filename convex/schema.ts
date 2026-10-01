@@ -4,6 +4,7 @@ import { v } from 'convex/values';
 const crew = v.object({ name: v.string(), station: v.string(), skill: v.number(), tolerance: v.optional(v.number()), resistance: v.optional(v.number()) });
 export const shipSnapshot = v.object({ id: v.id('ships'), name: v.string(), style: v.string(), crew: v.array(crew), identity: v.number(), revision: v.number(), owner: v.optional(v.id('players')) });
 export default defineSchema({
+  migrationControl: defineTable({ key: v.string(), requested: v.boolean(), frozen: v.boolean(), frozenAt: v.optional(v.number()) }).index('key', ['key']),
   ...authTables,
   users: defineTable({ name: v.optional(v.string()), email: v.optional(v.string()), emailVerificationTime: v.optional(v.number()), usernameKey: v.optional(v.string()) }).index('email', ['email']).index('usernameKey', ['usernameKey']),
   players: defineTable({ token: v.optional(v.string()), userId: v.optional(v.id('users')), name: v.string(), balance: v.number(), lastChat: v.number(), candidate: v.optional(v.object({ shipId: v.id('ships'), crew, paid: v.number() })), lastRecovery: v.number() }).index('token', ['token']).index('userId', ['userId']).index('balance', ['balance']),

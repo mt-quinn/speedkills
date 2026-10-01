@@ -1,6 +1,7 @@
 import { getAuthUserId, getAuthSessionId } from '@convex-dev/auth/server';
 import { ConvexError } from 'convex/values';
 import type { QueryCtx, MutationCtx } from './_generated/server';
+import { assertWritable } from './migration';
 export async function accountPlayer(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
   if (!userId) return null;
@@ -10,6 +11,7 @@ export async function accountPlayer(ctx: QueryCtx | MutationCtx) {
   return ctx.db.query('players').withIndex('userId', q => q.eq('userId', userId)).unique();
 }
 export async function requirePlayer(ctx: QueryCtx | MutationCtx) {
+  await assertWritable(ctx);
   const p = await accountPlayer(ctx);
   if (!p) throw new ConvexError('Create an account or sign in to continue.');
   return p;

@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-01T22:14:03.105Z",
+  "runtime": "deployed Cloudflare simulator, sanitized wrangler tail",
+  "uncachedJobs": [
+    {
+      "cpuMs": 39074,
+      "wallMs": 41541
+    },
+    {
+      "cpuMs": 26180,
+      "wallMs": 28021
+    },
+    {
+      "cpuMs": 18192,
+      "wallMs": 20058
+    },
+    {
+      "cpuMs": 32121,
+      "wallMs": 35023
+    },
+    {
+      "cpuMs": 38086,
+      "wallMs": 40355
+    },
+    {
+      "cpuMs": 35301,
+      "wallMs": 37491
+    }
+  ],
+  "configuredCpuLimitMs": 60000,
+  "notes": "Observed live staging preparation jobs. Representative measurements, not an exhaustive maximum; local memory bounds are in memory-report.json."
+}

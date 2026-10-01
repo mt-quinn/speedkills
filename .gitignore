@@ -25,6 +25,7 @@ dist/
 viewer2/matches/camera-review/
 .wrangler/
 .dev.vars*
+/.migration-backups/
 cloudflare/generated/
 cloudflare/worker-configuration.d.ts
 cloudflare/simulator-configuration.d.ts

@@ -1,8 +1,10 @@
 import { ConvexClient, ConvexHttpClient } from 'convex/browser';
 import { makeFunctionReference } from 'convex/server';
+import { connectCloudflare } from './cloudflare-client.js';
 const ref = name => makeFunctionReference(name);
 export async function connect() {
   const cfg = await fetch('/live-config.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {});
+  if (cfg.cloudflareUrl) return connectCloudflare(cfg);
   if (!cfg.convexUrl) throw new Error('The live league is not connected yet.');
   const client = new ConvexClient(cfg.convexUrl), authClient = new ConvexHttpClient(cfg.convexUrl);
   const key = `hb-auth:${cfg.convexUrl}`;

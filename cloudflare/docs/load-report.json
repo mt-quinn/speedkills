@@ -1,0 +1,11 @@
+{
+  "time": "2026-10-01T22:30:42.497Z",
+  "viewers": 100,
+  "subscriptionsPerViewer": 3,
+  "connectedMs": 148757,
+  "snapshots": 7677,
+  "commands": 12,
+  "medianCommandMs": 5653,
+  "maxCommandMs": 32197,
+  "result": "latency-target-missed"
+}

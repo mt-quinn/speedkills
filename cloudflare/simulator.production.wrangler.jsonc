@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "hardburn-simulator-preview",
+  "name": "hardburn-simulator-prod",
   "main": "src/simulator.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": [
@@ -17,7 +17,7 @@
   "r2_buckets": [
     {
       "binding": "TRACES",
-      "bucket_name": "hardburn-traces-preview"
+      "bucket_name": "hardburn-traces-prod"
     }
   ],
   "build": {
@@ -26,7 +26,7 @@
   "queues": {
     "consumers": [
       {
-        "queue": "hardburn-preparations-preview",
+        "queue": "hardburn-preparations-prod",
         "max_batch_size": 1,
         "max_batch_timeout": 0,
         "max_retries": 3,
@@ -38,7 +38,7 @@
   "services": [
     {
       "binding": "COMPLETION",
-      "service": "hardburn-api-preview",
+      "service": "hardburn-api-prod",
       "entrypoint": "Completion"
     }
   ]

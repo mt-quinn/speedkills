@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as identity from "../identity.js";
 import type * as lab from "../lab.js";
 import type * as matchmaking from "../matchmaking.js";
+import type * as migration from "../migration.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as roster from "../roster.js";
 import type * as simBinary from "../simBinary.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   identity: typeof identity;
   lab: typeof lab;
   matchmaking: typeof matchmaking;
+  migration: typeof migration;
   passwordReset: typeof passwordReset;
   roster: typeof roster;
   simBinary: typeof simBinary;

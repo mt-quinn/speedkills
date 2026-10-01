@@ -12,6 +12,8 @@ export type SimulationMetadata = {
   duration: number; winner: number | null; stats: FightStats[]; story: string;
 };
 export type SimulationMetrics = { sha256: string; rawBytes: number; compressedBytes: number; wasmMemoryBytes: number };
+export type PreparedSimulation = SimulationMetadata & SimulationMetrics & { traceKey: string };
+type ComputeEnv = Omit<SimulatorEnv, 'COMPLETION'> & { COMPLETION: Service<import('./index').Completion> };
 
 function validate(input: SimulationInput) {
   if (input.ships.length !== 2 || !Number.isSafeInteger(input.seed) || input.seed < 1 || input.seed > 0xffffffff ||
@@ -58,24 +60,38 @@ async function run(input: SimulationInput): Promise<{ compressed: ArrayBuffer; m
   };
 }
 
-export class Simulator extends WorkerEntrypoint<SimulatorEnv> {
+async function prepare(input: SimulationInput, env: ComputeEnv): Promise<PreparedSimulation> {
+  const { metadata, metrics, compressed } = await run(input);
+  const key = `traces/${input.fightId}/${metrics.sha256}.json.gz`;
+  await env.TRACES.put(key, compressed, {
+    httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
+    customMetadata: { sha256: metrics.sha256, rawBytes: String(metrics.rawBytes) },
+  });
+  return { ...metadata, traceKey: key, ...metrics };
+}
+
+export class Simulator extends WorkerEntrypoint<ComputeEnv> {
   async benchmark(input: SimulationInput): Promise<SimulationMetadata & SimulationMetrics> {
     const { metadata, metrics } = await run(input);
     return { ...metadata, ...metrics };
   }
 
-  async prepare(input: SimulationInput): Promise<SimulationMetadata & SimulationMetrics & { traceKey: string }> {
-    const { metadata, metrics, compressed } = await run(input);
-    const key = `traces/${input.fightId}/${metrics.sha256}.json.gz`;
-    await this.env.TRACES.put(key, compressed, {
-      httpMetadata: { contentType: 'application/json', contentEncoding: 'gzip' },
-      customMetadata: { sha256: metrics.sha256, rawBytes: String(metrics.rawBytes) },
-    });
-    return { ...metadata, traceKey: key, ...metrics };
-  }
+  prepare(input: SimulationInput) { return prepare(input, this.env); }
 }
 
 // Only the coordinator's service binding can invoke simulation RPC methods.
 export default {
   fetch() { return new Response('Not found', { status: 404 }); },
-} satisfies ExportedHandler<SimulatorEnv>;
+  async queue(batch: MessageBatch<{ jobId: string }>, env: ComputeEnv) {
+    for (const message of batch.messages) {
+      try {
+        const input = await env.COMPLETION.job(message.body.jobId);
+        if (input) await env.COMPLETION.complete(message.body.jobId, await prepare(input, env));
+        message.ack();
+      } catch {
+        try { await env.COMPLETION.fail(message.body.jobId); message.ack(); }
+        catch { message.retry({ delaySeconds: 30 }); }
+      }
+    }
+  },
+} satisfies ExportedHandler<ComputeEnv, { jobId: string }>;

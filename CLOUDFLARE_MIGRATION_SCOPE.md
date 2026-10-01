@@ -390,3 +390,7 @@ Confirmed hosting decision: retain the frontend on Vercel. Scope defaults: prese
 - WASM modules in Workers: <https://developers.cloudflare.com/workers/runtime-apis/webassembly/javascript/>
 
 Repository evidence: `README.md` (Player accounts), `convex/auth.ts`, `convex/identity.ts`, `convex/passwordReset.ts`, `convex/accounts.test.ts`, `convex/schema.ts`, `convex/game.ts` (owner preview and trace deletion), and `shared/rules.js` (monetary units and phase timing). Local benchmark figures and trace compression averages still require reproduction in the deployed prototype; they are not guarantees.
+
+## Implementation and production authorization update — October 1, 2026
+
+Quinn approved the isolated comparison and then explicitly approved transferring production/main to Cloudflare. The frontend stays on Vercel. The account/game/chat/socket/replay backend and data import tooling are implemented. Runtime parity, imported password compatibility, transactional settlement/recovery, privacy and import reconciliation have passed. Deployment steps and conditional recovery are in `cloudflare/docs/CUTOVER.md`; measurement reports and capacity assumptions are in `cloudflare/docs/`. Actual completion is recorded separately in `cloudflare/docs/cutover-report.json` after the production switch. Original estimates above describe planning assumptions, not a guarantee of the resulting bill or throughput.

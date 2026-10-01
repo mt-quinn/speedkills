@@ -55,6 +55,7 @@ async function start() {
   let dockScene, sceneLoading=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
   let archiveState={view:'fights',query:'',filter:'all',sort:'recent',detailTab:'combat'};
+  let archiveOlder=[], archiveEnd=false, archiveLoading=false;
   let chatShown = localStorage.getItem('hb-chat-visible') === null ? matchMedia('(min-width:761px)').matches : localStorage.getItem('hb-chat-visible') !== 'false';
   let mountedFight, mounting, preparedMount, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
   const readyFrames=new WeakSet();
@@ -109,7 +110,12 @@ async function start() {
     return `<main class="hb-broadcast"><div id="hb-stage" class="phase-${p} ${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? renderResults({fight:f,wager:data.wager}) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="fullscreen" title="Expand only the fight simulation">Fullscreen</button><button data-do="sound">${audioPlaying?'Sound on':audio.muted?'Sound off':'Enable sound'}</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
   function chatPanel() { return `<aside id="hb-chat" data-account="${data.player.id??'guest'}" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div>${data.authenticated?`<div class="hb-chat-identity">Chatting as <b>${esc(data.player.name)}</b></div>`:''}<div id="hb-messages" role="log" aria-live="off"></div>${data.authenticated?`<form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form>`:'<div class="hb-chat-signin"><p>Sign in to join the conversation.</p>'+primary('Create account / sign in','account')+'</div>'}<p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
-  function archivePage() { return renderArchive({rows:archive,state:archiveState,ownShipId:data.ship?.id??data.ship?._id}); }
+  function archivePage() {
+    const page=renderArchive({rows:archive,state:archiveState,ownShipId:data.ship?.id??data.ship?._id});
+    if(!service.archivePages)return page;
+    const selected=archive.find(f=>f.id===archiveState.fightId);
+    return page+`<footer class="ar-scope">${!archiveEnd?`<button data-archive-older ${archiveLoading?'disabled':''}>${archiveLoading?'Loading…':'Load older fights'}</button>`:''}${selected?selected.replayUnavailable?'<span>Recording unavailable</span>':now()<selected.nextAt?'<span>Recording opens after the live broadcast</span>':`<a href="/broadcast.html?replay=${encodeURIComponent(selected.id)}" target="_blank" rel="noopener">Watch recording ↗</a>`:''}</footer>`;
+  }
   function render(force = false, resetArchiveScroll = false) {
     if (!data) return;
     music.setVisible(screen==='broadcast');
@@ -266,6 +272,11 @@ async function start() {
     if(b.hasAttribute('data-color-preset')){saveShipColors(COLOR_PRESETS[Number(b.dataset.colorPreset)].colors);syncShipColors();applyColorPreferences();return;}
     if(b.dataset.setting){const key=b.dataset.setting;if(key==='music'||key==='sfx'){mix=saveAudioMix({[key]:!mix[key]});if(mix[key])audio.muted=false;}else if(key==='chat'){chatShown=!chatShown;localStorage.setItem('hb-chat-visible',String(chatShown));subscribeChat();}else viewerSettings=saveViewerSettings({[key]:!viewerSettings[key]});applyPreferences();syncSettings();return;}
     if(b.hasAttribute('data-archive-export')){const content=archiveCsv(filterFights(archive,archiveState,data.ship?.id??data.ship?._id)),url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='hardburn-results.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    if(b.hasAttribute('data-archive-older')){
+      if(archiveLoading||archiveEnd)return;archiveLoading=true;render(true);
+      try{const page=await service.query('game:archivePage',{before:Math.min(...archive.map(f=>f.sequence))});archiveOlder.push(...page.items);archive=[...new Map([...archive,...page.items].map(f=>[f.id,f])).values()];archiveEnd=page.next===null;}
+      catch(e){error(e);}finally{archiveLoading=false;render(true);}return;
+    }
     if(b.dataset.archiveView){archiveState.view=b.dataset.archiveView;archiveState.detailOpen=false;render(true);return;}
     if(b.dataset.archiveFight||b.dataset.archiveOpenFight){archiveState.view='fights';archiveState.fightId=b.dataset.archiveFight??b.dataset.archiveOpenFight;archiveState.detailOpen=true;archiveState.detailTab='combat';render(true);shell.querySelector('.ar-inspector')?.focus({preventScroll:true});return;}
     if(b.dataset.archiveShip||b.dataset.archiveFocusShip){archiveState.view='ships';archiveState.shipId=b.dataset.archiveShip??b.dataset.archiveFocusShip;archiveState.detailOpen=true;render(true);shell.querySelector('.ar-inspector')?.focus({preventScroll:true});return;}
@@ -341,7 +352,7 @@ async function start() {
       render();
       if(newCandidate&&screen==='hangar') requestAnimationFrame(()=>document.querySelector('.dock-inline-candidate')?.scrollIntoView({block:'nearest',behavior:'smooth'}));
     },error);
-    service.publicSubscribe('game:archive',{},rows=>{archive=rows;if(screen==='archive')render();},error);
+    service.publicSubscribe('game:archive',{},rows=>{archive=[...new Map([...rows,...archiveOlder].map(f=>[f.id,f])).values()];if(screen==='archive')render();},error);
     const calibrate=async()=>{const sent=Date.now();try{const server=await service.action('game:clock');offset=server-(sent+Date.now())/2;}catch{}};
     await calibrate();setInterval(calibrate,20000);
     setInterval(()=>{render();if(screen==='broadcast')syncBroadcast();},250);

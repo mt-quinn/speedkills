@@ -151,3 +151,13 @@
 - Initial Vercel baseline preview ready: https://hardburn-6r7uzy07f-thegameband.vercel.app . Verified HTTP 200 and live-config.json explicitly selecting the development Convex endpoint. Existing Vercel preview protection preserved.
 - Wrangler's R2 download transparently decoded gzip metadata; verified the downloaded JSON checksum against the original simulator. Actual compressed persistence/metadata was separately verified in the runtime test.
 - Removed private temporary benchmark credential and disposable download after verification. The Worker secret remains deployed; future benchmark runs should provision a new private benchmark credential if needed.
+
+## 2026-10-01 — Full Cloudflare implementation and approved production cutover
+- Implemented Better Auth D1 accounts and immutable usernames, exact existing password compatibility, legacy claims, wallet provisioning, reset/revocation and bounded auth routes.
+- Implemented serialized commands, atomic revision guards, durable retry inputs/leases, paged exactly-once settlement, ownership/crew/chat semantics, alarms and watchdog.
+- Added private HTTP replay gates, gzip encoding verification, retained archive recordings, pagination and Vercel transport adapter.
+- Full runtime suite passes 15 tests; original backend 8, frontend/shared 71 and TypeScript pass. Actual browser verified signup/login, live playback and completed replay; gzip double compression discovered and fixed.
+- Rehearsed full private production export import in workerd D1; IDs, credentials, counts, balances, per-player ledger totals and references preserved. Final verification tool compares every imported field remotely without logging records.
+- Deployed isolated production resources in maintenance, with separate secrets; old Convex freeze gate installed while live gameplay continues. Capacity checks precede final freeze/export.
+- Capacity testing exposed synchronous service-RPC simulation blocking the coordinator request tree. Moved preparation to isolated Queues events with private Completion callbacks; retained D1 seed/lease/generation and exactly-once acceptance. Queue duplicate-delivery test passes.
+- Reduced archive query fan-out, parallelized independent reads and added short-lived shared snapshot reads invalidated before every coordinator write. Existing revocation and private wallet tests pass.

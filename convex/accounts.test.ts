@@ -3,7 +3,7 @@ import { describe, expect, test, beforeAll, vi } from 'vitest';
 import { convexTest } from 'convex-test';
 import { generateKeyPair, exportPKCS8, decodeJwt } from 'jose';
 import schema from './schema';
-import { api } from './_generated/api';
+import { api, internal } from './_generated/api';
 const modules = import.meta.glob('./**/*.ts');
 beforeAll(async()=>{
  const {privateKey}=await generateKeyPair('RS256',{extractable:true});
@@ -20,6 +20,23 @@ async function signed(t:any,name='PilotOne') {
  return {p,client:t.withIdentity({subject:decodeJwt(result.tokens.token).sub})};
 }
 describe('account ownership and guest gates',()=>{
+ test('cutover freezes only at a settled boundary and then blocks game, chat and auth refresh writes',async()=>{
+  const t=convexTest(schema,modules),{client}=await signed(t);
+  const channelId=await t.run(ctx=>ctx.db.insert('channel',{key:'live',generation:1,preparing:false,attempts:0,queue:[]}));
+  await t.mutation(internal.migration.requestFreeze,{});
+  expect((await t.query(internal.migration.status,{})).frozen).toBe(false);
+  await client.mutation(api.chat.send,{body:'Before freeze'});
+  await t.mutation(internal.game.promote,{});
+  expect((await t.query(internal.migration.status,{})).frozen).toBe(true);
+  const before=await t.run(ctx=>ctx.db.query('ledger').collect());
+  await expect(client.mutation(api.game.join,{})).rejects.toThrow(/moving to Cloudflare/);
+  await expect(client.mutation(api.chat.send,{body:'After freeze'})).rejects.toThrow(/moving to Cloudflare/);
+  await expect(signup(t,'LatePilot')).rejects.toThrow(/moving to Cloudflare/);
+  await expect(t.mutation(internal.auth.store,{args:{type:'refreshSession',refreshToken:'unused'}})).rejects.toThrow(/moving to Cloudflare/);
+  await t.mutation(internal.game.watchdog,{});
+  expect(await t.run(ctx=>ctx.db.query('ledger').collect())).toEqual(before);
+  expect((await t.run(ctx=>ctx.db.get(channelId)))?.generation).toBe(1);
+ });
  test('spectators watch and read chat without receiving a wallet; browser tokens cannot authorize money or chat',async()=>{
   const t=convexTest(schema,modules);
   const token='a'.repeat(64);
