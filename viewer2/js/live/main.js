@@ -1,5 +1,6 @@
 import { SHIP_COLORS, DEFAULT_SHIP_COLORS, COLOR_PRESETS, normalizeShipColor, readShipColors, applyShipColors, saveShipColors } from '../ship-colors.js';
 import { readAudioMix, saveAudioMix, readViewerSettings, saveViewerSettings, AUDIO_DEFAULTS, VIEW_DEFAULTS } from '../preferences.js';
+import { renderAccount } from './account.js';
 import { renderSettings } from './settings.js';
 import { toggleFightFullscreen } from '../fullscreen.js';
 import { shipBetTotal } from './bet-totals.js';
@@ -50,15 +51,15 @@ async function start() {
   const stations = { pilot:'Pilot', gunner:'Gunner', engineer:'Engineer', ops:'Ops' };
   const skills = { pilot:'Handling', gunner:'Gunnery', engineer:'Engineering', ops:'Defence' };
   const doctrines = { Reference:'Duelist', Knife:'Knife fighter', Counter:'Counterpuncher' };
-  let settingsPane='audio';
-  let dockScene, sceneLoading=false, profileSaving=false, profileSaved=false, profileOpen=false;
+  let settingsPane='audio', authFlow='signUp', authBusy=false, authError='', resetEmail='', passwordReset=false;
+  let dockScene, sceneLoading=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
   let archiveState={view:'fights',query:'',filter:'all',sort:'recent',detailTab:'combat'};
   let chatShown = localStorage.getItem('hb-chat-visible') === null ? matchMedia('(min-width:761px)').matches : localStorage.getItem('hb-chat-visible') !== 'false';
   let mountedFight, mounting, preparedMount, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
   const readyFrames=new WeakSet();
   let draft; try { draft = JSON.parse(sessionStorage.getItem('hb-wager-draft') || 'null'); } catch {}
-  const drafts = { rename:'', message:'', viewer:'' };
+  const drafts = { rename:'', message:'' };
   const now = () => Date.now() + offset;
   const phase = f => !f || now() >= f.nextAt ? 'preparing' : now() < f.startsAt ? 'betting' : now() < f.endsAt ? 'combat' : 'results';
   const primary = (label, action, disabled = false) => `<button class="hb-primary" data-do="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
@@ -95,19 +96,19 @@ async function start() {
     const blankStations=Object.entries(stations).map(([key,label],i)=>`<div class="dock-empty-station"><span class="station-number">0${i+1}</span><b>${label}</b><span class="empty-seat-mark">—</span><small>UNASSIGNED</small></div>`).join('');
     const transactions=`<details class="dock-income-log"><summary>Transaction log <span>+</span></summary><div>${data.transactions.map(t=>`<article><span>${esc(t.note)}</span><b class="${t.amount>0?'positive':''}">${t.amount>0?'+':''}${credits(t.amount)} cr</b></article>`).join('')}</div></details>`;
     const rename=renaming?`<form data-form="rename" class="dock-rename"><label for="ship-name">SHIP REGISTRY / NAME</label><input id="ship-name" name="name" value="${esc(drafts.rename)}" minlength="2" maxlength="24" required><button class="hb-primary" ${s.locked?'disabled':''}>Confirm / ${credits(e.rename)} cr</button><button type="button" data-do="rename-open">Cancel</button></form>`:'';
-    const inspector=!s?`<div class="inspector-heading"><span>SPONSORSHIP</span><b>Sponsor a ship</b></div><p class="dock-intro">Earn enough credits to sponsor your own ship in the fights.</p><div class="dock-sponsor-cost"><span>SHIP + FOUR CREW</span><b>${credits(e.sponsor)}<small>CR</small></b></div><div class="dock-funding"><div><span>AVAILABLE</span><b>${credits(data.player.balance)} cr</b></div><div class="funding-track"><i style="width:${Math.min(100,100*data.player.balance/e.sponsor)}%"></i></div><small>${afford?'READY TO REGISTER':`${credits(e.sponsor-data.player.balance)} CR TO GO`}</small></div>${primary(afford?'Sponsor ship':'Watch & bet',afford?'sponsor':'broadcast')}<div class="dock-sponsor-terms"><span>01</span><p>Watch the live broadcast and bet on a duel.</p><span>02</span><p>Sponsor a ship with your earnings.</p><span>03</span><p>Hire crew. Receive income from wins.</p></div>`:renaming?rename:ownerPanel(s,transactions);
-    return `<main class="dock-layout ${s?'has-ship':'no-ship'} ${pendingStation?'candidate-open':''}"><section class="dock-main"><header class="dock-registration"><div><span class="dock-overline">HANGAR / BERTH 01</span><h1>${s?esc(s.name):'Unregistered'}</h1></div><div class="dock-readiness"><i></i><b>${s?s.locked?'IN CURRENT MATCH':'LEAGUE READY':'BERTH AVAILABLE'}</b><span>${s?doctrines[s.style]:'STANDARD SHIP CLASS'}</span></div></header><div class="dock-scene" id="dock-scene"><div class="dock-scene-fallback"></div><div class="dock-scene-label"><span>01</span><b>${s?'STANDARD / DUEL SHIP':'UNASSIGNED'}</b></div><div class="dock-scene-corner top-left"></div><div class="dock-scene-corner bottom-right"></div>${!s?'<div class="dock-empty-label"><span>BERTH 01</span><b>No ship registered</b></div>':'<div class="dock-orbit-hint">DRAG TO INSPECT</div>'}<div class="dock-scene-scale">15 M <i></i></div></div><section class="dock-crew-deck"><div class="dock-deck-heading"><span>CREW STATIONS</span><b>${s?s.locked?'CREW LOCKED / CURRENT FIGHT':'SELECT A STATION TO SCOUT': 'ASSIGNED WITH YOUR FIRST SHIP'}</b><small>${s?'50 = league average':'FOUR SEATS / ONE CREW'}</small></div><div class="dock-stations">${s?s.crew.map(c=>`<div class="dock-station-slot ${c.station===pendingStation?'has-candidate':''}">${crewTile(c,true)}${c.station===pendingStation?candidatePanel():!pendingStation&&station===c.station?`<button class="dock-inline-scout" data-scout="${c.station}" ${s.locked||data.player.balance<e.tryout?'disabled':''}>Scout candidate <b>${credits(e.tryout)} cr</b></button>`:''}</div>`).join(''):blankStations}</div></section></section><aside class="dock-inspector" aria-label="Ship management">${inspector}${data.player.balance<100&&!data.wager?`<p class="owner-stipend">${now()>=data.player.nextStipendAt?'50-credit refill after your bets settle.':`Next 50-credit refill in ${Math.ceil((data.player.nextStipendAt-now())/60000)} min.`}</p>`:''}<div class="dock-inspector-foot"><span>HARD BURN / LEAGUE SERVICES</span><small>Progress saved to this browser</small></div></aside>${livePanel()}</main>`;
+    const inspector=!s?`<div class="inspector-heading"><span>SPONSORSHIP</span><b>Sponsor a ship</b></div><p class="dock-intro">Earn enough credits to sponsor your own ship in the fights.</p><div class="dock-sponsor-cost"><span>SHIP + FOUR CREW</span><b>${credits(e.sponsor)}<small>CR</small></b></div>${data.authenticated?`<div class="dock-funding"><div><span>AVAILABLE</span><b>${credits(data.player.balance)} cr</b></div><div class="funding-track"><i style="width:${Math.min(100,100*data.player.balance/e.sponsor)}%"></i></div><small>${afford?'READY TO REGISTER':`${credits(e.sponsor-data.player.balance)} CR TO GO`}</small></div>`:''}${data.authenticated?primary(afford?'Sponsor ship':'Watch & bet',afford?'sponsor':'broadcast'):'<p>Create an account to bet and earn credits. New players start with 500 cr.</p>'+primary('Create account','account')}<div class="dock-sponsor-terms"><span>01</span><p>Watch the live broadcast and bet on a duel.</p><span>02</span><p>Sponsor a ship with your earnings.</p><span>03</span><p>Hire crew. Receive income from wins.</p></div>`:renaming?rename:ownerPanel(s,transactions);
+    return `<main class="dock-layout ${s?'has-ship':'no-ship'} ${pendingStation?'candidate-open':''}"><section class="dock-main"><header class="dock-registration"><div><span class="dock-overline">HANGAR / BERTH 01</span><h1>${s?esc(s.name):'Unregistered'}</h1></div><div class="dock-readiness"><i></i><b>${s?s.locked?'IN CURRENT MATCH':'LEAGUE READY':'BERTH AVAILABLE'}</b><span>${s?doctrines[s.style]:'STANDARD SHIP CLASS'}</span></div></header><div class="dock-scene" id="dock-scene"><div class="dock-scene-fallback"></div><div class="dock-scene-label"><span>01</span><b>${s?'STANDARD / DUEL SHIP':'UNASSIGNED'}</b></div><div class="dock-scene-corner top-left"></div><div class="dock-scene-corner bottom-right"></div>${!s?'<div class="dock-empty-label"><span>BERTH 01</span><b>No ship registered</b></div>':'<div class="dock-orbit-hint">DRAG TO INSPECT</div>'}<div class="dock-scene-scale">15 M <i></i></div></div><section class="dock-crew-deck"><div class="dock-deck-heading"><span>CREW STATIONS</span><b>${s?s.locked?'CREW LOCKED / CURRENT FIGHT':'SELECT A STATION TO SCOUT': 'ASSIGNED WITH YOUR FIRST SHIP'}</b><small>${s?'50 = league average':'FOUR SEATS / ONE CREW'}</small></div><div class="dock-stations">${s?s.crew.map(c=>`<div class="dock-station-slot ${c.station===pendingStation?'has-candidate':''}">${crewTile(c,true)}${c.station===pendingStation?candidatePanel():!pendingStation&&station===c.station?`<button class="dock-inline-scout" data-scout="${c.station}" ${s.locked||data.player.balance<e.tryout?'disabled':''}>Scout candidate <b>${credits(e.tryout)} cr</b></button>`:''}</div>`).join(''):blankStations}</div></section></section><aside class="dock-inspector" aria-label="Ship management">${inspector}${data.authenticated&&data.player.balance<100&&!data.wager?`<p class="owner-stipend">${now()>=data.player.nextStipendAt?'50-credit refill after your bets settle.':`Next 50-credit refill in ${Math.ceil((data.player.nextStipendAt-now())/60000)} min.`}</p>`:''}<div class="dock-inspector-foot"><span>HARD BURN / LEAGUE SERVICES</span><small>${data.authenticated?'Progress saved to your account':'Sign in to save your progression'}</small></div></aside>${livePanel()}</main>`;
   }
   function betting() {
     const f=data.fight,w=data.wager;
     if(!draft||draft.fight!==f.id){draft={fight:f.id,side:w?.side??null,amount:String(Math.min(100,Math.floor(data.player.maxBet/100)))};saveDraft();}
-    return renderBetting({fight:f,player:data.player,draft,wager:w,busy});
+    return renderBetting({fight:f,player:data.player,draft,wager:w,busy,authenticated:data.authenticated});
   }
   function viewer() {
     const f = data.fight, p = phase(f);
     return `<main class="hb-broadcast"><div id="hb-stage" class="phase-${p} ${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? renderResults({fight:f,wager:data.wager}) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="fullscreen" title="Expand only the fight simulation">Fullscreen</button><button data-do="sound">${audioPlaying?'Sound on':audio.muted?'Sound off':'Enable sound'}</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
-  function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile" ${profileOpen?'open':''}><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button ${profileSaving?'disabled':''}>${profileSaving?'Saving…':'Save name'}</button><p id="hb-profile-status" role="status">${profileSaved?'Name saved.':''}</p></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
+  function chatPanel() { return `<aside id="hb-chat" data-account="${data.player.id??'guest'}" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div>${data.authenticated?`<div class="hb-chat-identity">Chatting as <b>${esc(data.player.name)}</b></div>`:''}<div id="hb-messages" role="log" aria-live="off"></div>${data.authenticated?`<form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form>`:'<div class="hb-chat-signin"><p>Sign in to join the conversation.</p>'+primary('Create account / sign in','account')+'</div>'}<p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
   function archivePage() { return renderArchive({rows:archive,state:archiveState,ownShipId:data.ship?.id??data.ship?._id}); }
   function render(force = false, resetArchiveScroll = false) {
     if (!data) return;
@@ -121,15 +122,16 @@ async function start() {
     // Incoming bets must not replace the stake form or reset its scroll position.
     const renderData = {...data, now:undefined, fight:data.fight ? {...data.fight, betting:isBetting?undefined:data.fight.betting} : null};
     const key = JSON.stringify([screen,phase(data.fight),renderData,station,renaming,chatShown,archive]);
+    if(!force&&screen==='account'&&shell.querySelector('.hb-account')){lastKey=key;countdown();return;}
     if (!force && key===lastKey) { countdown(); return; }
-    if(!force&&screen==='settings'&&shell.querySelector('.hb-settings')){lastKey=key;shell.querySelector('.hb-wallet b').innerHTML=`${credits(data.player.balance)} <small>cr</small>`;countdown();return;} lastKey=key;
+    if(!force&&screen==='settings'&&shell.querySelector('.hb-settings')){lastKey=key;shell.querySelector('.hb-wallet b').innerHTML=data.authenticated?`${credits(data.player.balance)} <small>cr</small>`:'Spectator';countdown();return;} lastKey=key;
     document.body.dataset.phase=phase(data.fight);
-    const continuing = screen === 'broadcast' && phase(data.fight) === 'combat' && document.body.dataset.screen === 'broadcast' && document.querySelector('#hb-stage.combat') && document.querySelector('#hb-feed')?.dataset.fight === data.fight.id;
+    const continuing = shell.querySelector('#hb-chat')?.dataset.account === (data.player.id??'guest') && screen === 'broadcast' && phase(data.fight) === 'combat' && document.body.dataset.screen === 'broadcast' && document.querySelector('#hb-stage.combat') && document.querySelector('#hb-feed')?.dataset.fight === data.fight.id;
     if (continuing) {
       document.body.classList.toggle('hb-chat-open', chatShown);
       document.querySelector('#hb-chat').hidden = !chatShown;
       const toggle = document.querySelector('.hb-chat-toggle'); toggle.textContent = `Chat ${chatShown ? 'on' : 'off'}`; toggle.setAttribute('aria-pressed',String(chatShown));
-      document.querySelector('.hb-wallet b').innerHTML = `${credits(data.player.balance)} <small>cr</small>`;
+      document.querySelector('.hb-wallet b').innerHTML = data.authenticated?`${credits(data.player.balance)} <small>cr</small>`:'Spectator';
       const n = document.querySelector('#hb-notice'); n.hidden=!notice; if(notice)n.firstChild.textContent=notice;
       renderChat(true); countdown(); return;
     }
@@ -137,7 +139,7 @@ async function start() {
     const archiveScroll=new Map(!resetArchiveScroll&&screen==='archive'?[...shell.querySelectorAll('[data-archive-scroll]')].map(el=>[el.dataset.archiveScroll,el.scrollTop]):[]);
     const active = document.activeElement, focusId = active?.id, selection = active?.selectionStart;
     document.body.dataset.screen = screen; document.body.classList.toggle('hb-chat-open',screen==='broadcast'&&chatShown);
-    shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results'],['settings','Settings']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',settings:'<path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':screen==='settings'?'DEVICE / PREFERENCES':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':screen==='settings'?'SETTINGS':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():screen==='settings'?renderSettings({mix,viewer:viewerSettings,chatShown,colors:SHIP_COLORS,pane:settingsPane}):archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
+    shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results'],['settings','Settings']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',settings:'<path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':screen==='settings'?'DEVICE / PREFERENCES':screen==='account'?'LEAGUE / PLAYER REGISTRY':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':screen==='settings'?'SETTINGS':screen==='account'?'ACCOUNT':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>${data.authenticated?'YOUR CREDITS':'WATCHING FREE'}</span><b>${data.authenticated?credits(data.player.balance)+' <small>cr</small>':'Spectator'}</b></div><button data-do="account" class="hb-account-button">${data.authenticated?esc(data.player.name):'Sign in'}</button>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='account'?renderAccount({player:data.player,authenticated:data.authenticated,flow:authFlow,busy:authBusy,error:authError,legacy:!!localStorage.getItem('hb-session'),passwordReset,resetEmail}):screen==='hangar'?hangar():screen==='broadcast'?viewer():screen==='settings'?renderSettings({mix,viewer:viewerSettings,chatShown,colors:SHIP_COLORS,pane:settingsPane}):archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
     shell.querySelectorAll('[data-archive-scroll]').forEach(el=>{if(archiveScroll.has(el.dataset.archiveScroll))el.scrollTop=archiveScroll.get(el.dataset.archiveScroll);});
     if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selection,selection); } catch {} } }
     renderChat(true); countdown(); syncBroadcast(); syncHangar(); audioStatus();
@@ -150,7 +152,6 @@ async function start() {
   }
   function saveDraft() { sessionStorage.setItem('hb-wager-draft',JSON.stringify(draft)); }
   function countdown() {
-    syncProfile();
     const f = data?.fight; const p = phase(f);
     const end = p==='betting'?f.startsAt:p==='results'?f.nextAt:0;
     const seconds = Math.max(0,Math.ceil((end-now())/1000));
@@ -159,20 +160,12 @@ async function start() {
     const disconnected = service && !service.connected(); const connection = document.querySelector('#hb-connection'); if (connection) connection.hidden=!disconnected;
     if (p==='preparing' && data?.status==='recovering') { const el=shell.querySelector('.hb-preparing p'); if(el)el.textContent='The live broadcast is reconnecting. Your balance and pending decisions are saved.'; }
   }
-  function syncProfile() {
-    const profile=shell.querySelector('.hb-chat-profile');if(!profile)return;
-    const summary=profile.querySelector('summary'),label=`${data.player.name} · edit name`;
-    if(summary.textContent!==label)summary.textContent=label;
-    const button=profile.querySelector('button');button.disabled=profileSaving||busy;
-    button.textContent=profileSaving?'Saving…':'Save name';
-    profile.querySelector('#hb-profile-status').textContent=profileSaved?'Name saved.':'';
-  }
   function renderChat(force = false) {
     if (!chatShown || screen!=='broadcast') return;
     const el = document.querySelector('#hb-messages'); if(!el)return;
     const key=JSON.stringify(chat); if(!force&&key===lastChatKey)return; lastChatKey=key;
     const bottom=el.scrollHeight-el.scrollTop-el.clientHeight<60; let fight;
-    el.innerHTML=chat.map(m=>{ const divider = fight!==m.fight && m.fight?`<div class="hb-chat-divider">${m.fight===data.fight?.id?'CURRENT MATCHUP':'EARLIER MATCHES'}</div>`:'';fight=m.fight;return `${divider}<article class="hb-message"><header><b>${esc(m.name)}</b>${m.ship?`<small>${esc(m.ship)}</small>`:''}${m.player!==data.player.id?`<details><summary aria-label="Message actions">···</summary><button data-mute="${m.player}">Mute viewer</button><button data-report="${m.id}">Report</button></details>`:''}</header><p>${esc(m.body)}</p></article>`;}).join('')||'<p class="hb-chat-empty">No messages yet.</p>';
+    el.innerHTML=chat.map(m=>{ const divider = fight!==m.fight && m.fight?`<div class="hb-chat-divider">${m.fight===data.fight?.id?'CURRENT MATCHUP':'EARLIER MATCHES'}</div>`:'';fight=m.fight;return `${divider}<article class="hb-message"><header><b>${esc(m.name)}</b>${m.ship?`<small>${esc(m.ship)}</small>`:''}${data.authenticated&&m.player!==data.player.id?`<details><summary aria-label="Message actions">···</summary><button data-mute="${m.player}">Mute viewer</button><button data-report="${m.id}">Report</button></details>`:''}</header><p>${esc(m.body)}</p></article>`;}).join('')||'<p class="hb-chat-empty">No messages yet.</p>';
     if(bottom||force)el.scrollTop=el.scrollHeight;
   }
   function subscribeChat() {
@@ -218,7 +211,7 @@ async function start() {
     if(frame&&!audio.muted){frame.contentWindow?.__hbRetryAudio?.();frame.contentWindow?.postMessage({kind:'sound-live',muted:false},location.origin);}
   }
   function error(e) { notice=typeof e.data==='string'?e.data:(e.message||String(e)).replace(/^.*Uncaught ConvexError: /,'').split('\n')[0];render(true); }
-  async function mutation(name,args={}) { if(busy)return;busy=true;countdown();try {await service.call(name,args);notice='';return true;}catch(e){error(e);return false;}finally{busy=false;render(true);} }
+  async function mutation(name,args={}) { if(!data.authenticated){navigate('account');return false;}if(busy)return;busy=true;countdown();try {await service.call(name,args);notice='';return true;}catch(e){error(e);return false;}finally{busy=false;render(true);} }
   function navigate(to) { applyShipColors();if(to==='settings'){mix=readAudioMix();viewerSettings=readViewerSettings();}screen=to;notice='';lastKey='';render();subscribeChat();if(to==='broadcast')feedElement?.contentWindow?.postMessage({kind:'resume-live'},location.origin);else feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:true},location.origin); }
   // Readiness comes from the viewer module, not the iframe's initial about:blank document.
   window.addEventListener('message',e=>{
@@ -255,7 +248,6 @@ async function start() {
       preparedMount={frame,fight:f.id,raw,startsAt:f.startsAt,sentAt:0};sendPreparedMount();
     }catch(e){if(frame.isConnected)error(e);}finally{if(mounting===attempt)mounting=null;}
   }
-  shell.addEventListener('toggle',e=>{if(e.target.isConnected&&e.target.matches('.hb-chat-profile'))profileOpen=e.target.open;},true);
   shell.addEventListener('input',e=>{
     if(e.target.hasAttribute('data-ship-color')||e.target.hasAttribute('data-ship-hex')) {
       editShipColor(e.target);
@@ -264,7 +256,7 @@ async function start() {
     if(e.target.dataset.volume){const key=e.target.dataset.volume;mix=saveAudioMix({[key+'Volume']:Number(e.target.value)/100});if(Number(e.target.value)>0)audio.muted=false;applyPreferences();syncSettings();return;}
     if(e.target.id==='archive-search'){archiveState.query=e.target.value;render(true,true);return;}
     if(e.target.id==='stake'){draft.amount=e.target.value;saveDraft();const p=draft.side==null?null:data.fight.odds[draft.side],stake=Math.round(Number(draft.amount)*100);document.querySelector('#profit').textContent=p==null?'Choose a ship':'+ '+credits(Math.round(stake*.95*(1-p)/p/100)*100)+' cr';document.querySelector('#after-stake').textContent=credits(data.player.balance-stake)+' cr remaining';}
-    if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;if(e.target.id==='viewer-name'){drafts.viewer=e.target.value;profileSaved=false;syncProfile();}
+    if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;
   });
   shell.addEventListener('change',e=>{if(e.target.hasAttribute('data-ship-color')||e.target.hasAttribute('data-ship-hex')){editShipColor(e.target);return;}if(e.target.id==='archive-filter'||e.target.id==='archive-sort'){archiveState[e.target.id==='archive-filter'?'filter':'sort']=e.target.value;archiveState.detailOpen=false;render(true,true);}});
   shell.addEventListener('keydown',e=>{const panel=e.target.closest('[data-side]');if(panel&&['Enter',' '].includes(e.key)){e.preventDefault();panel.click();}});
@@ -279,13 +271,15 @@ async function start() {
     if(b.dataset.archiveShip||b.dataset.archiveFocusShip){archiveState.view='ships';archiveState.shipId=b.dataset.archiveShip??b.dataset.archiveFocusShip;archiveState.detailOpen=true;render(true);shell.querySelector('.ar-inspector')?.focus({preventScroll:true});return;}
     if(b.hasAttribute('data-archive-back')){archiveState.detailOpen=false;render(true);shell.querySelector('.ar-ledger [aria-pressed=true]')?.focus({preventScroll:true});return;}
     if(b.dataset.archiveDetail){archiveState.detailTab=b.dataset.archiveDetail;render(true);return;}
-    if(b.dataset.side!==undefined){if(data.wager||phase(data.fight)!=='betting')return;draft.side=Number(b.dataset.side);saveDraft();render(true);shell.querySelector(`[data-side="${draft.side}"]`)?.focus({preventScroll:true});return;}
+    if(b.dataset.side!==undefined){if(!data.authenticated){navigate('account');return;}if(data.wager||phase(data.fight)!=='betting')return;draft.side=Number(b.dataset.side);saveDraft();render(true);shell.querySelector(`[data-side="${draft.side}"]`)?.focus({preventScroll:true});return;}
     if(b.dataset.station){station=station===b.dataset.station?null:b.dataset.station;render(true);return;}
     if(b.dataset.scout){station=b.dataset.scout;await mutation('game:tryout',{station});return;}
     if(b.dataset.mute){await mutation('chat:mute',{muted:b.dataset.mute});return;}
     if(b.dataset.report){if(await mutation('chat:report',{message:b.dataset.report})){notice='Message reported.';render(true);}return;}
+    if(b.dataset.authFlow){authFlow=b.dataset.authFlow;authError='';render(true);return;}
     const a=b.dataset.do;
-    if(['hangar','broadcast','archive','settings'].includes(a)){e.preventDefault();navigate(a);}
+    if(['hangar','broadcast','archive','settings','account'].includes(a)){e.preventDefault();navigate(a);}
+    else if(a==='sign-out'){authBusy=true;authError='';render(true);try{await service.signOut();draft=null;saveDraft();drafts.message='';}catch(e){authError='Could not sign out. Try again.';}finally{authBusy=false;render(true);}}
     else if(a==='chat'){chatShown=!chatShown;localStorage.setItem('hb-chat-visible',String(chatShown));render(true);subscribeChat();}
     else if(a==='reset-settings'){saveShipColors(DEFAULT_SHIP_COLORS);applyColorPreferences();mix=saveAudioMix(AUDIO_DEFAULTS);viewerSettings=saveViewerSettings(VIEW_DEFAULTS);chatShown=matchMedia('(min-width:761px)').matches;localStorage.removeItem('hb-chat-visible');audio.muted=false;applyPreferences();render(true);}
     else if(a==='preview-credits')await mutation('lab:previewCredits');
@@ -299,15 +293,32 @@ async function start() {
     else if(a==='fullscreen'){const frame=document.querySelector('#hb-feed');if(frame)try{await toggleFightFullscreen(frame);}catch(e){error(e);}}
     else if(a==='sound'){audio.muted=screen==='settings'?!audio.muted:(audioPlaying||music.playing)&&!audio.muted; if(!audio.muted){audio.resume();music.start();} music.updateGate();feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:audio.muted},location.origin);audioStatus();}
   });
+  async function submitAccount(form, fields) {
+    if(authBusy)return;
+    authBusy=true;authError='';
+    const flow=authFlow;
+    form.querySelector('button').disabled=true;
+    try {
+      const signed=await service.signIn({...Object.fromEntries(fields),flow,claimProgress:fields.has('claimProgress')});
+      if(flow==='reset'){resetEmail=String(fields.get('email'));authFlow='reset-verification';}
+      else if(signed){draft=null;saveDraft();navigate('hangar');}
+      else throw new Error('Sign-in was not completed. Please try again.');
+    } catch(e) {
+      if(flow==='reset') {
+        // Do not disclose whether a particular email owns an account.
+        resetEmail=String(fields.get('email'));authFlow='reset-verification';authError='';
+      } else {
+        authError=String(e.data??e.message).replace(/^.*Uncaught (ConvexError|Error): /s,'').replace(/\[Request ID[^]*?\] /,'').split('\n')[0];
+        if(/InvalidAccountId|InvalidSecret|Invalid credentials/.test(authError))authError='Email or password is incorrect.';
+        if(/Account.*already exists/i.test(authError))authError='An account with that email already exists. Sign in instead.';
+      }
+    } finally {authBusy=false;render(true);}
+  }
   shell.addEventListener('submit',async e=>{
     e.preventDefault();const form=e.target,fields=new FormData(form);
+    if(form.dataset.form==='account'){await submitAccount(form,fields);return;}
     if(form.dataset.form==='wager'){await mutation('game:wager',{fight:draft.fight,side:draft.side,stake:Math.round(Number(fields.get('stake'))*100)});}
     if(form.dataset.form==='rename'){await mutation('game:rename',{name:String(fields.get('name'))});if(!notice)renaming=false;render(true);}
-    if(form.dataset.form==='profile') {
-      profileSaving=true;profileSaved=false;profileOpen=true;syncProfile();
-      try { if(await mutation('game:profile',{name:String(fields.get('name'))})){drafts.viewer='';profileSaved=true;} }
-      finally { profileSaving=false;render(true); }
-    }
     if(form.dataset.form==='chat') {
       const body=String(fields.get('body'));
       if(await mutation('chat:send',{body}) && drafts.message===body) {
@@ -322,8 +333,10 @@ async function start() {
   shell.innerHTML='<main class="hb-connecting"><span class="hb-eyebrow">HARD BURN / LEAGUE DOCK</span><h1>Connecting…</h1><p>Connecting to the live league…</p></main>';
   try {
     service=await connect();
+    service.publicSubscribe('auth:options',{},options=>{passwordReset=options.passwordReset;if(screen==='account')render(true);},error);
     service.subscribe('game:home',{},d=>{
-      const old=data?.fight?.id, newCandidate=!data?.player.candidate&&d.player.candidate; data=d;
+      const old=data?.fight?.id, identityChanged=data&&data.player.id!==d.player.id, newCandidate=!data?.player.candidate&&d.player.candidate; data=d;
+      if(identityChanged){lastKey='';draft=null;saveDraft();drafts.message='';render(true);}
       if(old!==d.fight?.id){ traceSubscription?.();traceUrl=null; if(draft&&draft.fight!==d.fight?.id){draft=null;saveDraft();}if(d.fight)traceSubscription=service.publicSubscribe('game:trace',{fight:d.fight.id},url=>{traceUrl=url;syncBroadcast();},error); }
       render();
       if(newCandidate&&screen==='hangar') requestAnimationFrame(()=>document.querySelector('.dock-inline-candidate')?.scrollIntoView({block:'nearest',behavior:'smooth'}));

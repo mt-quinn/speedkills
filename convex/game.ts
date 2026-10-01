@@ -8,12 +8,9 @@ import { crewName } from '../shared/crew-names.js';
 import { roster } from './roster';
 import { rotation } from './matchmaking';
 import type { Id } from './_generated/dataModel';
-const tokenArg = { token: v.string() };
+import { accountPlayer, requirePlayer } from './identity';
+const tokenArg = { token: v.optional(v.string()) }; // Accepted for cached clients; never authorizes access.
 const channel = (ctx: any) => ctx.db.query('channel').withIndex('key', (q: any) => q.eq('key', 'live')).unique();
-async function player(ctx: any, token: string) {
-  const p = await ctx.db.query('players').withIndex('token', (q: any) => q.eq('token', token)).unique();
-  if (!p) throw new ConvexError('Your session has expired. Reload to reconnect.'); return p;
-}
 async function move(ctx: any, p: any, amount: number, kind: string, note: string, fight?: any) {
   if (!Number.isSafeInteger(amount) || amount % 100 !== 0) throw new Error('Credit transfers must use whole credits.');
   const balance = p.balance + amount;
@@ -100,18 +97,14 @@ async function preserveSchedule(ctx: any, shipId: any) {
 export const initializeQueue = internalMutation({args:{},handler:async ctx=>{
   const ch=await channel(ctx);if(ch)await ensureQueue(ctx,ch);
 }});
-export const join = mutation({ args: tokenArg, handler: async (ctx, { token }) => {
-  if (!/^[a-f0-9]{64}$/.test(token)) throw new ConvexError('Invalid session.');
-  const exists = await ctx.db.query('players').withIndex('token', q => q.eq('token', token)).unique();
-  if (exists) { await grantStipend(ctx,exists); return; }
-  const id = await ctx.db.insert('players', { token, name: `Spectator ${token.slice(0, 5).toUpperCase()}`, balance: ECONOMY.starting, lastChat: 0, lastRecovery: 0 });
-  await ctx.db.insert('ledger', { player: id, kind: 'welcome', amount: ECONOMY.starting, balance: ECONOMY.starting, note: 'Welcome credits' });
+export const join = mutation({ args: tokenArg, handler: async ctx => {
+  const p = await requirePlayer(ctx); await grantStipend(ctx, p);
 }});
-export const home = query({ args: tokenArg, handler: async (ctx, { token }) => {
-  const p = await player(ctx, token); const ch = await channel(ctx); const f = ch?.current && await ctx.db.get(ch.current);
-  const ship = await own(ctx, p);
-  const wager = f && await ctx.db.query('wagers').withIndex('player_fight', q => q.eq('player', p._id).eq('fight', f._id)).unique();
-  const transactions = await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p._id)).order('desc').take(12);
+export const home = query({ args: tokenArg, handler: async ctx => {
+  const p = await accountPlayer(ctx); const ch = await channel(ctx); const f = ch?.current && await ctx.db.get(ch.current);
+  const ship = p ? await own(ctx, p) : null;
+  const wager = p && f && await ctx.db.query('wagers').withIndex('player_fight', q => q.eq('player', p!._id).eq('fight', f._id)).unique();
+  const transactions = p ? await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p!._id)).order('desc').take(12) : [];
   // Only expose completed appearances; queued matchups and outcomes stay private.
   const recent = ship ? await ctx.db.query('fights').withIndex('sequence').order('desc').take(100) : [];
   const shipActivity = recent.filter(row => row.settled && row.endsAt! <= Date.now() && row.ships.some((s: any) => s.id === ship!._id)).slice(0, 5).map(row => {
@@ -122,8 +115,8 @@ export const home = query({ args: tokenArg, handler: async (ctx, { token }) => {
   const nextPair = queueIndex >= 0 ? ch!.queue![queueIndex] : null;
   const opponent: any = nextPair && ship ? await ctx.db.get(nextPair.find((id: Id<'ships'>) => id !== ship._id)!) : null;
   const upcoming = nextPair ? { fightsRemaining: queueIndex+1, opponent: opponent?.name ?? 'Opponent unavailable' } : null;
-  const lastOwnerIncome = ship ? await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p._id)).filter(q => q.eq(q.field('kind'), 'owner')).order('desc').first() : null;
-  return { now: Date.now(), player: { id: p._id, name: p.name, balance: p.balance, maxBet: maxBet(p.balance), nextStipendAt: p.lastRecovery+3600000, candidate: p.candidate ?? null }, ship: ship ? { ...ship, locked: crewLocked(ship._id, f, Date.now()) } : null,
+  const lastOwnerIncome = ship ? await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p!._id)).filter(q => q.eq(q.field('kind'), 'owner')).order('desc').first() : null;
+  return { now: Date.now(), authenticated: !!p, player: p ? { id: p._id, name: p.name, balance: p.balance, maxBet: maxBet(p.balance), nextStipendAt: p.lastRecovery+3600000, candidate: p.candidate ?? null } : { id: null, name: 'Spectator', balance: 0, maxBet: 0, nextStipendAt: 0, candidate: null }, ship: ship ? { ...ship, locked: crewLocked(ship._id, f, Date.now()) } : null,
     fight: await publicFight(ctx, f, Date.now()), wager: wager ?? null, transactions, shipActivity, lastOwnerIncome, upcoming, economy: ECONOMY,
     status: ch?.error ? 'recovering' : ch?.current ? 'ready' : 'preparing' };
 }});
@@ -148,15 +141,15 @@ export const archive = query({ args: {}, handler: async ctx => {
   return Promise.all(rows.filter(f => f.endsAt && f.endsAt <= Date.now()).slice(0, 30).map(f => publicFight(ctx, f, Date.now())));
 }});
 export const wager = mutation({ args: { ...tokenArg, fight: v.id('fights'), side: v.number(), stake: v.number() }, handler: async (ctx, a) => {
-  const p = await player(ctx, a.token); const ch = await channel(ctx); const f = await ctx.db.get(a.fight);
+  const p = await requirePlayer(ctx); const ch = await channel(ctx); const f = await ctx.db.get(a.fight);
   if (!f || ch?.current !== f._id) throw new ConvexError('This matchup is no longer open.');
-  const old = await ctx.db.query('wagers').withIndex('player_fight', q => q.eq('player', p._id).eq('fight', f._id)).unique();
+  const old = await ctx.db.query('wagers').withIndex('player_fight', q => q.eq('player', p!._id).eq('fight', f._id)).unique();
   let w; try { w = betCheck(f, Date.now(), a.side, a.stake, p.balance, old, maxBet(p.balance)); } catch (e: any) { throw new ConvexError(e.message); }
   await move(ctx, p, -w.stake, 'stake', `Backed ${f.ships[w.side].name}`, f._id);
   await ctx.db.insert('wagers', { player: p._id, fight: f._id, ...w });
 }});
-export const sponsor = mutation({ args: tokenArg, handler: async (ctx, { token }) => {
-  const p = await player(ctx, token); if (await own(ctx, p)) throw new ConvexError('Your berth already has a ship.');
+export const sponsor = mutation({ args: tokenArg, handler: async ctx => {
+  const p = await requirePlayer(ctx); if (await own(ctx, p)) throw new ConvexError('Your berth already has a ship.');
   const r = roster.ships[Math.floor(Math.random() * roster.ships.length)];
   const name = ['Wayfarer', 'Redshift', 'Starling', 'Longshot', 'Peregrine', 'Afterglow'][Math.floor(Math.random() * 6)] + ' ' + (100 + Math.floor(Math.random() * 900));
   await move(ctx, p, -ECONOMY.sponsor, 'sponsor', `Sponsored ${name}`);
@@ -179,8 +172,8 @@ export const sponsor = mutation({ args: tokenArg, handler: async (ctx, { token }
     }
   }
 }});
-export const tryout = mutation({ args: { ...tokenArg, station: v.string() }, handler: async (ctx, { token, station }) => {
-  const p = await player(ctx, token); const s = await editable(ctx, p);
+export const tryout = mutation({ args: { ...tokenArg, station: v.string() }, handler: async (ctx, { station }) => {
+  const p = await requirePlayer(ctx); const s = await editable(ctx, p);
   if (p.candidate) throw new ConvexError('Decide on your current candidate first.');
   if (!STATIONS.includes(station)) throw new ConvexError('Choose a crew station.');
   const aboard = new Set(s.crew.map((c: any) => c.name));
@@ -188,25 +181,23 @@ export const tryout = mutation({ args: { ...tokenArg, station: v.string() }, han
   await move(ctx, p, -ECONOMY.tryout, 'tryout', `${station} candidate tryout`);
   await ctx.db.patch(p._id, { candidate: { shipId: s._id, crew: c, paid: ECONOMY.tryout } });
 }});
-export const decide = mutation({ args: { ...tokenArg, accept: v.boolean() }, handler: async (ctx, { token, accept }) => {
-  const p = await player(ctx, token); const c = p.candidate;
+export const decide = mutation({ args: { ...tokenArg, accept: v.boolean() }, handler: async (ctx, { accept }) => {
+  const p = await requirePlayer(ctx); const c = p.candidate;
   if (!c) throw new ConvexError('No pending candidate.');
   if (accept) { const s = await editable(ctx, p); await ctx.db.patch(s._id, { crew: s.crew.map((old: any) => old.station === c.crew.station ? c.crew : old), revision: s.revision + 1 }); await preserveSchedule(ctx, s._id); }
   await ctx.db.patch(p._id, { candidate: undefined });
 }});
-export const rename = mutation({ args: { ...tokenArg, name: v.string() }, handler: async (ctx, { token, name }) => {
-  const p = await player(ctx, token); const s = await editable(ctx, p); const clean = name.trim();
+export const rename = mutation({ args: { ...tokenArg, name: v.string() }, handler: async (ctx, { name }) => {
+  const p = await requirePlayer(ctx); const s = await editable(ctx, p); const clean = name.trim();
   if (clean.length < 2 || clean.length > 24 || /[<>\x00-\x1f]/.test(clean)) throw new ConvexError('Use 2–24 characters for the ship name.');
   if (clean === s.name) throw new ConvexError('That is already your ship’s name.');
   await move(ctx, p, -ECONOMY.rename, 'rename', `${s.name} → ${clean}`); await ctx.db.patch(s._id, { name: clean, revision: s.revision + 1 }); await preserveSchedule(ctx, s._id);
 }});
-export const profile = mutation({ args: { ...tokenArg, name: v.string() }, handler: async (ctx, { token, name }) => {
-  const p = await player(ctx, token); const clean = name.trim();
-  if (clean.length < 2 || clean.length > 24 || /[<>\x00-\x1f]/.test(clean)) throw new ConvexError('Use 2–24 characters for your viewer name.');
-  await ctx.db.patch(p._id, { name: clean });
+export const profile = mutation({ args: { ...tokenArg, name: v.string() }, handler: async ctx => {
+  await requirePlayer(ctx); throw new ConvexError('Your account username is used in chat.');
 }});
-export const recovery = mutation({ args: tokenArg, handler: async (ctx, { token }) => {
-  const p = await player(ctx, token);
+export const recovery = mutation({ args: tokenArg, handler: async ctx => {
+  const p = await requirePlayer(ctx);
   if(!await grantStipend(ctx,p))throw new ConvexError('A 50-credit refill is available at zero balance, with no unsettled bets, at most once per hour.');
 }});
 export const initialize = internalMutation({ args: {}, handler: async ctx => {

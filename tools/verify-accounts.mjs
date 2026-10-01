@@ -1,0 +1,25 @@
+// Real deployment smoke test. Use development only; creates a named test account.
+import { ConvexHttpClient } from 'convex/browser';
+import { makeFunctionReference as ref } from 'convex/server';
+import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
+const url='https://resolute-crocodile-221.convex.cloud';
+const a=new ConvexHttpClient(url),b=new ConvexHttpClient(url),guest=new ConvexHttpClient(url);
+const username='AccountCheck_'+Date.now().toString(36),email=username.toLowerCase()+'@example.com',password=randomBytes(24).toString('hex');
+const signup=await a.action(ref('auth:signIn'),{provider:'password',params:{flow:'signUp',username,email,password}});
+a.setAuth(signup.tokens.token);
+const first=await a.query(ref('game:home'),{});
+assert.equal(first.player.balance,50000);assert.equal(first.player.name,username);
+const login=await b.action(ref('auth:signIn'),{provider:'password',params:{flow:'signIn',email,password}});
+b.setAuth(login.tokens.token);
+const second=await b.query(ref('game:home'),{});assert.equal(first.player.id,second.player.id);
+const refreshed=await guest.action(ref('auth:signIn'),{refreshToken:login.tokens.refreshToken});assert.ok(refreshed.tokens.token);
+b.setAuth(refreshed.tokens.token);assert.equal((await b.query(ref('game:home'),{})).player.id,first.player.id);
+assert.equal((await guest.query(ref('game:home'),{})).authenticated,false);
+await assert.rejects(guest.mutation(ref('chat:send'),{body:'must not send'}));
+await b.action(ref('auth:signOut'),{});
+assert.equal((await b.query(ref('game:home'),{})).authenticated,false);
+const signedOutRefresh=await guest.action(ref('auth:signIn'),{refreshToken:refreshed.tokens.refreshToken});assert.equal(signedOutRefresh.tokens,null);
+await writeFile('/private/tmp/hb-account-test-login.json',JSON.stringify({email,password,username}),{mode:0o600});
+console.log('Verified live dev signup, cross-device identity, token refresh, revoked session, spectator access and guest chat rejection.');

@@ -14,6 +14,8 @@
     "test:camera:suite": "node viewer2/tools/camera-suite.mjs"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.96",
     "convex": "^1.42.0"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 // Internal, development-only tooling for exercising ownership without grinding credits.
 import { internalMutation, internalQuery, mutation } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
+import { requirePlayer } from './identity';
 import { grantStipend } from './game';
 import { ECONOMY, maxBet, betCheck } from '../shared/rules.js';
 function devOnly() { if (process.env.CONVEX_CLOUD_URL !== 'https://resolute-crocodile-221.convex.cloud') throw new ConvexError('Lab tooling is disabled outside the development deployment.'); }
@@ -16,8 +17,8 @@ export const status = internalQuery({ args: {}, handler: async ctx => {
  return {channel:ch,active:f?{id:f._id,sequence:f.sequence,opensAt:f.opensAt,startsAt:f.startsAt,endsAt:f.endsAt,nextAt:f.nextAt}:null};
 }});
 
-export const previewCredits = mutation({ args: { token: v.string() }, handler: async (ctx, { token }) => {
- devOnly(); const p = await ctx.db.query('players').withIndex('token', q => q.eq('token',token)).unique(); if(!p)throw new Error('Join first.');
+export const previewCredits = mutation({ args: { token: v.optional(v.string()) }, handler: async (ctx, { token }) => {
+ devOnly(); const p = await requirePlayer(ctx);
  const old=await ctx.db.query('ledger').withIndex('player',q=>q.eq('player',p._id)).filter(q=>q.eq(q.field('kind'),'lab')).first();if(old)return;
  await ctx.db.patch(p._id,{balance:p.balance+400000});await ctx.db.insert('ledger',{player:p._id,kind:'lab',amount:400000,balance:p.balance+400000,note:'Design preview credits'});
 }});

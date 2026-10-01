@@ -8,11 +8,15 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as crons from "../crons.js";
 import type * as game from "../game.js";
+import type * as http from "../http.js";
+import type * as identity from "../identity.js";
 import type * as lab from "../lab.js";
 import type * as matchmaking from "../matchmaking.js";
+import type * as passwordReset from "../passwordReset.js";
 import type * as roster from "../roster.js";
 import type * as simBinary from "../simBinary.js";
 import type * as simulation from "../simulation.js";
@@ -24,11 +28,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   chat: typeof chat;
   crons: typeof crons;
   game: typeof game;
+  http: typeof http;
+  identity: typeof identity;
   lab: typeof lab;
   matchmaking: typeof matchmaking;
+  passwordReset: typeof passwordReset;
   roster: typeof roster;
   simBinary: typeof simBinary;
   simulation: typeof simulation;
