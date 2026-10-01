@@ -68,3 +68,23 @@ test('component repair tags remain independent when several PDC mounts or thrust
  assert.deepEqual(flags.map(f=>[f.part,f.progress]),[['rcs_bow_port',0],['pdc_dorsal',.25],['pdc_port',0]]);
  delete r.repair;assert.equal(systemFlags(r,[],0,3).every(f=>f.progress===0),true); // older recording
 });
+
+test('exchange markers reveal only past damage and hold results without depending on playback history',async()=>{
+ const {exchangeView}=await import('../js/exchange-view.js');
+ const x={n:1,t0:2,t1:6,winner:1,hits:[{t:3,who:0,p:3},{t:6,who:1,p:12}]};
+ assert.equal(exchangeView([x],1).exchange,null);
+ assert.deepEqual(exchangeView([x],4).status,['edge','trading']);
+ assert.deepEqual(exchangeView([x],7).wins,[0,0]);
+ assert.deepEqual(exchangeView([x],7.5).status,['lost','won']);
+ assert.deepEqual(exchangeView([x],12).wins,[0,1]);
+ assert.equal(exchangeView([x],13.5).exchange,null);
+ assert.deepEqual(exchangeView([x],4).status,['edge','trading']); // backward seek
+ assert.equal(exchangeView([x],20,20).exchange,null);
+});
+test('exchange markers distinguish even trades and keep win tallies bounded',async()=>{
+ const {exchangeView}=await import('../js/exchange-view.js');
+ const xs=Array.from({length:40},(_,i)=>({n:i+1,t0:i*10,t1:i*10+4,winner:i===39?null:i%2,hits:[]}));
+ const state=exchangeView(xs,396);
+ assert.deepEqual(state.status,['even','even']);assert.deepEqual(state.wins,[20,19]);
+ assert.deepEqual(exchangeView(xs,392).status,['trading','trading']);
+});

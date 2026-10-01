@@ -2,8 +2,8 @@ import { geeResistance } from './gee.js';
 // Broadcast furniture. Information lives where the eye already is: each ship carries a plate
 // (name, what it's doing, hull, crew, what's broken, its PDC burst, its news and its radio),
 // joined to the ship by a leader line. Scene objects are labelled in place (torpedo salvos,
-// shrapnel). The scoreboard holds the score: clock, tug, exchanges. Fight-wide news (exchange
-// results, the lead, the result) sits under the scoreboard.
+// shrapnel). Exchange advantage and results stay in the scoreboard beside each ship.
+// Fight-wide news is reserved for major events and the final result.
 import * as THREE from 'three';
 import { TEAM_CSS } from './scene.js';
 import { PART_LABEL } from './data.js';
@@ -12,6 +12,7 @@ import { defence, tactical, decisive } from './broadcast.js';
 import { voiceState, voiceRequests, chooseVoice } from './voices.js';
 import { SalvoLedger, magazine, shipOpportunity } from './fight-facts.js';
 import { systemFlags } from './system-flags.js';
+import { exchangeView } from './exchange-view.js';
 import { placeFightCards } from './fight-layout.js';
 
 const $ = (s) => document.querySelector(s);
@@ -61,10 +62,11 @@ export class Hud {
     sb.innerHTML = '';
     const side = (i) => {
       const s = el('div', `sb-side t${i}`);
-      const style = el('div', 'sb-style', STYLE[this.m.ships[i].style] || this.m.ships[i].style);
-      const pips = el('span', 'sb-pips');
-      if (i === 0) style.prepend(pips); else style.append(pips);
-      (this.exPips ||= [])[i] = pips;
+      const style = el('div', 'sb-style');
+      const status = el('b', 'sb-ex-status', STYLE[this.m.ships[i].style] || this.m.ships[i].style);
+      const tally = el('span', 'sb-ex-tally');
+      style.append(status, tally);
+      (this.exchangeSides ||= [])[i] = { status, tally, side: s };
       // Hull integrity, draining toward the
       // centre. During an exchange, what it has lost so far is a bright chunk at the bar's end,
       // labelled; the chunk drains once the exchange is called.
@@ -291,42 +293,23 @@ export class Hud {
     this.onVoice?.(v, i);
   }
 
-  // Exchange results: announced 1.5 s after each ends (not the last one — the result card has
-  // it), and tallied as pips on the scoreboard.
+  // Time-derived so joining, pausing and seeking show the same exchange state.
   exchanges(t) {
-    const last = this.lastExT;
-    this.lastExT = t;
-    const won = [0, 0];
-    const lead = (tt) => { const h = this.m.hullAt(tt), d = h[0] - h[1]; return Math.abs(d) < 0.03 ? null : d > 0 ? 0 : 1; };
-    for (const x of this.m.exchanges) {
-      const at = x.t1 + 1.5;
-      if (at <= t && x.winner !== null) won[x.winner]++;
-      // (Only when crossing the moment in playback: a seek doesn't replay old news.)
-      if (last === undefined || t - last > 1 || !(at > last && at <= t) || x.t1 >= this.endT - 0.5) continue;
-      const before = lead(Math.max(0, x.t0 - 0.5)), after = lead(at);
-      const swung = after !== null && after !== before;
-      // Small exchanges count on the tally but get a line only if they swung the lead.
-      if (x.dmg[0] + x.dmg[1] < 8 && !swung) continue;
-      // Hull losses match the scoreboard; system and crew damage stay on ship cards.
-      const lost = this.m.exchangeHullLoss(x,x.t1).map(v=>Math.round(v));
-      const kind = x.kind.toUpperCase();
-      const head = x.winner === null ? `${kind} ${x.n} · even` : `${this.names[x.winner]} wins ${kind} ${x.n}`;
-      const order = x.winner === 1 ? [1, 0] : [0, 1];
-      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}% hull`).join(' · ') + (swung ? ` · ${this.names[after]} has more hull remaining` : '');
-      this.say(t, { head, sub }, { team: x.winner, prio: 2, key: 'ex', hold: 3.4 });
+    const view = exchangeView(this.m.exchanges, t, this.endT);
+    for (let i = 0; i < 2; i++) {
+      const {status, tally, side} = this.exchangeSides[i];
+      const state = view.exchange ? view.status[i] : 'idle';
+      const text = {won:'▲ WON',lost:'▼ LOST',even:'EVEN',edge:'▲ EDGE',trading:'TRADING'}[state]
+        || STYLE[this.m.ships[i].style] || this.m.ships[i].style;
+      if (status.textContent !== text) status.textContent = text;
+      status.dataset.state = state;
+      const wins = `${view.wins[i]} EX WON`;
+      if (tally.textContent !== wins) tally.textContent = wins;
+      tally.title = `${this.names[i]}: ${view.wins[i]} exchanges won`;
+      side.dataset.exchange = state;
+      status.title = state === 'idle' ? text : `${view.phase === 'result' ? 'Completed' : 'Current'} exchange ${view.exchange.n}. Advantage includes hull, system and crew damage.`;
     }
-    for (let i = 0; i < 2; i++) { const s = '■'.repeat(won[i]); if (this.exPips[i].textContent !== s) this.exPips[i].textContent = s; }
-  }
-
-  // Story beat: the lead changing hands (during an exchange it's told with the exchange).
-  leadBeat(t) {
-    const h = this.m.hullAt(t);
-    const d = h[0] - h[1];
-    const now = d > 0.03 ? 0 : d < -0.03 ? 1 : this.leader ?? null;
-    if (this.leader !== undefined && this.leader !== null && now !== null && now !== this.leader && !this.m.exchangeAt(t) && t < this.endT) {
-      this.say(t, `${this.names[now]} now has more hull remaining`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
-    }
-    if (now !== null) this.leader = now;
+    return view;
   }
 
   // The result card: who won, how and when, and the fight in a few numbers each.
@@ -366,7 +349,6 @@ export class Hud {
 
   update(t, st, cam) {
     this.endT ??= (this.m.events.find((e) => e.k === 'end') || { t: Infinity }).t;
-    this.leadBeat(t);
     this.showResult(t);
     for (const [key, fn] of [['pending', (q) => this.say(t, q.text, q.opts)], ['flagPending', (q) => this.flag(t, q.i, q.text, q.opts)]]) {
       const p = this[key];
@@ -392,9 +374,9 @@ export class Hud {
       const html = `${dist}${rt}`;
       if (html !== this.lastRange) { this.rangeTxt.innerHTML = html; this.lastRange = html; }
     }
-    this.exchanges(t);
-    // The live exchange (and its call, 1.5 s after it ends): each ship's loss in it so far.
-    const ex = t <= this.endT + 0.5 ? this.m.exchangeAt(t) : null;
+    const exchange = this.exchanges(t);
+    // Keep the exchange's actual hull losses visible through its compact result hold.
+    const ex = exchange.exchange;
     const sc = ex ? this.m.exchangeHullLoss(ex, t) : [0, 0];
     for (let i = 0; i < 2; i++) {
       const B = this.bars[i];
@@ -410,11 +392,12 @@ export class Hud {
       if (B.delta.textContent !== dt) B.delta.textContent = dt;
     }
     if (ex && t < this.endT) {
-      this.leadTxt.textContent = `exchange ${ex.n}`;
-      this.leadTxt.className = 'sb-lead live';
+      const kind = {'torpedo trade':'TORPEDO', 'gun duel':'GUNS', 'close-in brawl':'BRAWL'}[ex.kind] || 'EXCHANGE';
+      this.leadTxt.textContent = `EX ${String(ex.n).padStart(2,'0')} · ${kind}`;
+      this.leadTxt.className = `sb-lead ${exchange.phase === 'live' ? 'live' : 'settled'}`;
     } else {
-      this.leadTxt.textContent = t >= this.endT ? (this.m.raw.winner === null ? 'draw' : `${this.names[this.m.raw.winner]} wins`) : Math.abs(d) < 0.03 ? 'hull even' : `${this.names[d > 0 ? 0 : 1]} · more hull`;
-      this.leadTxt.className = `sb-lead ${t >= this.endT ? (this.m.raw.winner === null ? '' : 't' + this.m.raw.winner) : Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
+      this.leadTxt.textContent = t >= this.endT ? (this.m.raw.winner === null ? 'draw' : 'fight decided') : Math.abs(d) < 0.03 ? 'hull even' : d > 0 ? '← hull lead' : 'hull lead →';
+      this.leadTxt.className = `sb-lead ${t >= this.endT || Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
     }
     const ended = t >= this.endT;
     this.liveTorpedoes=this.m.objects(t,'tp');
