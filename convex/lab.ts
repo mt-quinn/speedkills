@@ -2,7 +2,7 @@
 import { internalMutation, internalQuery, mutation } from './_generated/server';
 import { v, ConvexError } from 'convex/values';
 import { grantStipend } from './game';
-import { ECONOMY, betCheck } from '../shared/rules.js';
+import { ECONOMY, maxBet, betCheck } from '../shared/rules.js';
 function devOnly() { if (process.env.CONVEX_CLOUD_URL !== 'https://resolute-crocodile-221.convex.cloud') throw new ConvexError('Lab tooling is disabled outside the development deployment.'); }
 export const grant = internalMutation({ args: { token: v.string() }, handler: async (ctx, { token }) => {
  devOnly(); const p = await ctx.db.query('players').withIndex('token', q => q.eq('token',token)).unique(); if(!p) throw new Error('Join first.');
@@ -44,9 +44,10 @@ export const creditAudit = internalQuery({args:{},handler:async ctx=>{
 export const verifyEconomy = internalMutation({args:{},handler:async ctx=>{
  devOnly();const now=Date.now(),f={opensAt:now-1,startsAt:now+60000,endsAt:now+120000,odds:[.5,.5]};
  if(ECONOMY.starting!==50000||ECONOMY.recovery!==5000)throw new Error('Economy defaults incorrect.');
- betCheck(f,now,0,10000,50000,null,ECONOMY.newPlayerMaxBet);
- let capped=false;try{betCheck(f,now,0,10100,50000,null,ECONOMY.newPlayerMaxBet);}catch{capped=true;}if(!capped)throw new Error('Spectator cap failed.');
- betCheck(f,now,0,10100,50000,null);
+ betCheck(f,now,0,10000,50000,null,maxBet(50000));
+ let capped=false;try{betCheck(f,now,0,10100,50000,null,maxBet(50000));}catch{capped=true;}if(!capped)throw new Error('Spectator cap failed.');
+ betCheck(f,now,0,25000,100000,null);
+ betCheck(f,now,0,50000,200000,null);
  const id=await ctx.db.insert('players',{token:'economy-check-'+now,name:'Economy verification',balance:0,lastChat:0,lastRecovery:0});
  const p:any=await ctx.db.get(id),ch=await ctx.db.query('channel').first();
  const wager=ch?.current?await ctx.db.insert('wagers',{player:id,fight:ch.current,side:0,stake:100,payout:200}):null;
@@ -54,5 +55,5 @@ export const verifyEconomy = internalMutation({args:{},handler:async ctx=>{
  if(!await grantStipend(ctx,p)||p.balance!==5000)throw new Error('First refill failed.');
  p.balance=0;await ctx.db.patch(id,{balance:0});if(await grantStipend(ctx,p))throw new Error('Hourly limit failed.');
  p.lastRecovery=now-3600001;await ctx.db.patch(id,{lastRecovery:p.lastRecovery});if(!await grantStipend(ctx,p)||p.balance!==5000)throw new Error('Hourly refill failed.');
- return{startingCredits:500,spectatorCap:100,ownerCapRemoved:true,refillCredits:50,hourlyLimit:true,unsettledBetProtection:!!wager};
+ return{startingCredits:500,balanceCaps:[100,250,500],refillCredits:50,hourlyLimit:true,unsettledBetProtection:!!wager};
 }});

@@ -5,7 +5,7 @@ The hangar is the home screen. One shared live broadcast cycles through 60 secon
 ## Economy
 
 - New browser accounts receive 500 credits. Existing accounts retain their balances.
-- Spectators can bet up to 100 credits per fight. Sponsoring a ship removes this cap; bets still cannot exceed the available balance.
+- The per-fight bet limit follows the available balance for every player: below 1,000 credits, 100; from 1,000 to 1,999, 250; at 2,000 or more, 500. Bets also cannot exceed the available balance.
 - Zero balances receive a 50-credit refill, at most once per hour. Unsettled bets prevent a refill. Settlement and reconnect check eligibility; the minute watchdog handles hourly eligibility while a session stays open.
 - Sponsorship costs 2,000 credits and includes a default name and four crew. Renaming costs 50 credits; scouting one candidate costs 100 credits. A paid candidate persists until hired or rejected.
 - Betting profit has a 5% margin. Winning owners receive 1% of winning bettor profit, excluding returned stakes. The prototype includes simulated spectator betting in that income calculation.

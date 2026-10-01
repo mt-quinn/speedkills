@@ -1,6 +1,9 @@
 // Whole fictional credits, stored in legacy scaled units (100 units = 1 credit).
 // Every monetary value must be a multiple of 100; awards round once at source.
-export const ECONOMY = Object.freeze({ starting: 50000, sponsor: 200000, tryout: 10000, rename: 5000, recovery: 5000, newPlayerMaxBet: 10000, margin: 0.05, ownerShare: 0.01 });
+export const ECONOMY = Object.freeze({ starting: 50000, sponsor: 200000, tryout: 10000, rename: 5000, recovery: 5000, margin: 0.05, ownerShare: 0.01 });
+export function maxBet(balance) {
+  return Math.min(balance, balance < 100000 ? 10000 : balance < 200000 ? 25000 : 50000);
+}
 export const TIMING = Object.freeze({ betting: 60000, results: 15000 });
 export const STATIONS = ['pilot', 'gunner', 'engineer', 'ops'];
 export function phase(fight, now) {
@@ -14,12 +17,12 @@ export function quote(stake, probability) {
   const p = Math.max(0.05, Math.min(0.95, probability));
   return Math.round(stake * (1 + (1 - ECONOMY.margin) * (1 - p) / p) / 100) * 100;
 }
-export function betCheck(fight, now, side, stake, balance, existing, maxStake = Infinity) {
+export function betCheck(fight, now, side, stake, balance, existing, maxStake = maxBet(balance)) {
   if (phase(fight, now) !== 'betting' || now < fight.opensAt) throw new Error('Betting has closed for this fight.');
   if (![0, 1].includes(side)) throw new Error('Choose a ship.');
   if (existing) throw new Error('Your wager is already locked.');
   if (!Number.isSafeInteger(stake) || stake < 100 || stake % 100 !== 0 || stake > balance) throw new Error('Use whole credits, at least 1 credit and within your balance.');
-  if (stake > maxStake) throw new Error('Bets are limited to 100 credits per fight until you sponsor a ship.');
+  if (stake > maxStake) throw new Error(`Your current maximum bet is ${Math.round(maxStake / 100)} credits per fight.`);
   return { side, stake, payout: quote(stake, fight.odds[side]) };
 }
 export function settlement(wager, winner) {

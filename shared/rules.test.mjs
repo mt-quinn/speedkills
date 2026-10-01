@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { phase, betCheck, settlement, ownerIncome, crewLocked, candidate, quote } from './rules.js';
+import { phase, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, quote } from './rules.js';
 const f = { opensAt: 1000, startsAt: 61000, endsAt: 160000, nextAt: 175000, odds: [.4, .6], ships: [{id:'a'}, {id:'b'}] };
 test('global phases use exact server boundaries', () => {
  assert.equal(phase(f, 60999), 'betting'); assert.equal(phase(f, 61000), 'combat'); assert.equal(phase(f, 160000), 'results');
@@ -34,8 +34,10 @@ test('money awards round to whole credits, including owner shares', () => {
  assert.throws(()=>quote(150,.5));
 });
 
-test('spectators can bet up to 100 credits; ownership removes the cap',()=>{
- assert.doesNotThrow(()=>betCheck(f,2000,0,10000,50000,null,10000));
- assert.throws(()=>betCheck(f,2000,0,10100,50000,null,10000));
- assert.doesNotThrow(()=>betCheck(f,2000,0,10100,50000,null));
+test('bet limits follow balance tiers, including exact thresholds',()=>{
+ for (const [balance, cap] of [[0,0],[5000,5000],[99900,10000],[100000,25000],[199900,25000],[200000,50000],[1000000,50000]]) {
+  assert.equal(maxBet(balance),cap);
+  if(cap)assert.doesNotThrow(()=>betCheck(f,2000,0,cap,balance,null));
+  assert.throws(()=>betCheck(f,2000,0,cap+100,balance,null));
+ }
 });

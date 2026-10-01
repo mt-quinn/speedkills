@@ -64,3 +64,10 @@
 - End-to-end transition verification exposed a second cause: the time-gated trace query had cached null during betting and had no database write at combat start to invalidate it. Added an idempotent scheduled start mutation (with watchdog recovery) that updates the current fight and refreshes trace/home subscriptions at startsAt.
 - Deployed the start event to development and production and scheduled it for existing current matches.
 - Verified cloud match 27 with a locked one-credit test wager in an isolated account: betting changed to the live renderer without reload, loading was hidden only after mount acknowledgement, and no expiry notice appeared.
+
+## 2026-09-30 — Audio activation and balance-based wager limits
+- Persistent capture listeners retry audio on pointer, touch, keyboard, form, focus and scroll interactions, plus focus/visibility recovery. Suspended/interrupted contexts also attempt immediate recovery.
+- One parent-owned Web Audio context survives the hangar, betting and per-fight viewer frames. Trusted shell gestures resume it synchronously; frame initialization is guarded while assets load. Removed viewers stop/disconnect their sources without discarding the unlocked context.
+- Live sound status requires loaded sources and a running context. The broadcast sound control reports actual playback; explicit mute persists across fights and ordinary interactions.
+- Wager caps now apply to all players based on available balance: <1,000 cr = 100; 1,000–1,999 cr = 250; >=2,000 cr = 500, bounded by available funds. Server validation and UI use the same cap.
+- Validation: 19 unit checks passed, TypeScript passed, development economy check confirmed all tiers and stipend rules. Cloud-connected UI confirmed sound activation from a hangar navigation gesture, mute persistence after chat toggle, and successful unmute. Convex development and production deployed.

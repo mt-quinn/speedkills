@@ -1,7 +1,7 @@
 import { mutation, query, internalMutation, internalQuery, action } from './_generated/server';
 import { internal } from './_generated/api';
 import { v, ConvexError } from 'convex/values';
-import { ECONOMY, TIMING, phase, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote } from '../shared/rules.js';
+import { ECONOMY, TIMING, phase, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote } from '../shared/rules.js';
 import { roster } from './roster';
 import { rotation } from './matchmaking';
 import type { Id } from './_generated/dataModel';
@@ -118,7 +118,7 @@ export const home = query({ args: tokenArg, handler: async (ctx, { token }) => {
   const opponent: any = nextPair && ship ? await ctx.db.get(nextPair.find((id: Id<'ships'>) => id !== ship._id)!) : null;
   const upcoming = nextPair ? { fightsRemaining: queueIndex+1, opponent: opponent?.name ?? 'Opponent unavailable' } : null;
   const lastOwnerIncome = ship ? await ctx.db.query('ledger').withIndex('player', q => q.eq('player', p._id)).filter(q => q.eq(q.field('kind'), 'owner')).order('desc').first() : null;
-  return { now: Date.now(), player: { id: p._id, name: p.name, balance: p.balance, maxBet: ship ? p.balance : Math.min(p.balance, ECONOMY.newPlayerMaxBet), nextStipendAt: p.lastRecovery+3600000, candidate: p.candidate ?? null }, ship: ship ? { ...ship, locked: crewLocked(ship._id, f, Date.now()) } : null,
+  return { now: Date.now(), player: { id: p._id, name: p.name, balance: p.balance, maxBet: maxBet(p.balance), nextStipendAt: p.lastRecovery+3600000, candidate: p.candidate ?? null }, ship: ship ? { ...ship, locked: crewLocked(ship._id, f, Date.now()) } : null,
     fight: publicFight(f, Date.now()), wager: wager ?? null, transactions, shipActivity, lastOwnerIncome, upcoming, economy: ECONOMY,
     status: ch?.error ? 'recovering' : ch?.current ? 'ready' : 'preparing' };
 }});
@@ -146,7 +146,7 @@ export const wager = mutation({ args: { ...tokenArg, fight: v.id('fights'), side
   const p = await player(ctx, a.token); const ch = await channel(ctx); const f = await ctx.db.get(a.fight);
   if (!f || ch?.current !== f._id) throw new ConvexError('This matchup is no longer open.');
   const old = await ctx.db.query('wagers').withIndex('player_fight', q => q.eq('player', p._id).eq('fight', f._id)).unique();
-  let w; try { w = betCheck(f, Date.now(), a.side, a.stake, p.balance, old, await own(ctx,p) ? Infinity : ECONOMY.newPlayerMaxBet); } catch (e: any) { throw new ConvexError(e.message); }
+  let w; try { w = betCheck(f, Date.now(), a.side, a.stake, p.balance, old, maxBet(p.balance)); } catch (e: any) { throw new ConvexError(e.message); }
   await move(ctx, p, -w.stake, 'stake', `Backed ${f.ships[w.side].name}`, f._id);
   await ctx.db.insert('wagers', { player: p._id, fight: f._id, ...w });
 }});

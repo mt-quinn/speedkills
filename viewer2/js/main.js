@@ -7,6 +7,7 @@ import { Director } from './director.js';
 import { Hud } from './hud.js';
 import { Critic } from './critic.js';
 import { Audio } from './audio.js';
+import { audioHost, captureAudioInteractions } from './audio-context.js';
 import { CamControl } from './camctl.js';
 import { rememberResult } from './history.js';
 
@@ -53,9 +54,9 @@ class App {
       else {
         sound = new Audio(match, this.scene);
         sound.onState = () => soundUI();
-        // Desktop: start the audio right away (it plays where the browser allows autoplay; where
-        // it doesn't, the first click or key resumes it). Phones wait for the first tap.
-        if (matchMedia('(pointer: fine)').matches && (sound.musicOn || sound.sfxOn)) sound.enable();
+        // Reuse any context unlocked in the league shell; keep retrying if autoplay is blocked.
+        sound.userOff = audioHost().muted;
+        if (!sound.userOff && (sound.musicOn || sound.sfxOn)) sound.enable();
         setTimeout(soundUI, 0);
       }
       this.audio = sound;
@@ -366,8 +367,8 @@ function toggleSound(force) {
   if (!sound) return;
   const on = force ?? !sound.playing;
   if (on && !sound.musicOn && !sound.sfxOn) sound.setMix({ music: true, sfx: true });
+  sound.userOff = !on; audioHost().muted = !on;
   if (on) sound.enable(); else sound.disable();
-  sound.userOff = !on;
   soundUI();
 }
 function toggleMix(which) {
@@ -377,13 +378,14 @@ function toggleMix(which) {
   if (!sound.playing) sound.setMix({ music: which === 'music', sfx: which === 'sfx' });
   else sound.setMix({ [which]: !sound[which === 'music' ? 'musicOn' : 'sfxOn'] });
   // (Either on needs the audio running; both off is the same as muted.)
+  sound.userOff = !(sound.musicOn || sound.sfxOn); audioHost().muted = sound.userOff;
   if (sound.musicOn || sound.sfxOn) sound.enable(); else sound.disable();
-  sound.userOff = !(sound.musicOn || sound.sfxOn);
   soundUI();
 }
 function soundUI() {
   if (!sound) return;
   const live = sound.playing;
+  if (networkLive && parent !== window) parent.postMessage({kind:'broadcast-audio',playing:live,muted:!!sound.userOff},location.origin);
   // (The hint shows whenever sound is wanted but not yet audible — held by the browser, or on a
   // phone before the first tap — unless the viewer switched it off themselves.)
   const blocked = !live && (sound.musicOn || sound.sfxOn) && !sound.userOff;
@@ -397,12 +399,16 @@ function soundUI() {
   bm.querySelector('span').textContent = m ? 'music on' : 'music off'; bm.classList.toggle('on', m); bm.setAttribute('aria-pressed', m);
   bf.querySelector('span').textContent = f ? 'effects on' : 'effects off'; bf.classList.toggle('on', f); bf.setAttribute('aria-pressed', f);
 }
-const firstGesture = (e) => {
-  window.removeEventListener('pointerdown', firstGesture); window.removeEventListener('keydown', firstGesture);
-  // (Starts the audio, or resumes it where the browser held an early start suspended.)
-  if (sound && !sound.playing && !(e.key === 'm') && !(e.target && e.target.closest && e.target.closest('[data-a=music], [data-a=sfx]')) && (sound.musicOn || sound.sfxOn)) { sound.enable(); soundUI(); }
-};
-window.addEventListener('pointerdown', firstGesture); window.addEventListener('keydown', firstGesture);
+function retrySound(e) {
+  const host = audioHost();
+  if (host.muted || e?.key?.toLowerCase() === 'm' || e?.target?.closest?.('[data-a=music], [data-a=sfx], [data-a=sound], #sound')) return;
+  if (!sound) { host.resume(); return; }
+  if (!sound.playing && !sound.userOff && (sound.musicOn || sound.sfxOn)) { sound.enable(); soundUI(); }
+}
+captureAudioInteractions(retrySound);
+window.__hbRetryAudio = () => retrySound();
+window.__hbDisposeAudio = () => sound?.dispose();
+window.addEventListener('pagehide', () => sound?.dispose());
 
 // ---------- Layout and touch controls ----------
 

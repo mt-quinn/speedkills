@@ -1,6 +1,7 @@
 // Broadcast audio (Web Audio): event one-shots, continuous engine / railgun-charge / PDC layers
 // driven by the fight's state, slow-motion treatment, and the music bed with ducking.
 import * as THREE from 'three';
+import { audioHost } from './audio-context.js';
 
 const FILES = ['bgm', 'engine', 'explosion', 'pdc', 'rail_charge', 'rail_fire', 'torpedo_launch'];
 
@@ -39,7 +40,7 @@ function loopable(ctx, buf, xf = 0.05) {
 export class Audio {
   constructor(match, scene) {
     this.m = match; this.scene = scene;
-    this.enabled = false; this.ready = false;
+    this.enabled = false; this.ready = false; this.host = audioHost(); this.sources = [];
     let mix = null;
     try { mix = JSON.parse(localStorage.getItem('sk-audio') || 'null'); } catch (e) { /* none */ }
     this.musicOn = mix ? !!mix.music : true; this.sfxOn = mix ? !!mix.sfx : true;
@@ -53,7 +54,7 @@ export class Audio {
 
   // Actually audible: switched on, and the browser has let the audio context run (most
   // browsers hold it suspended until the first click or key press).
-  get playing() { return this.enabled && !!this.ctx && this.ctx.state === 'running'; }
+  get playing() { return this.enabled && this.ready && (this.musicOn || this.sfxOn) && !!this.ctx && this.ctx.state === 'running' && this.sources.length > 0; }
 
   // Music / effects on or off (remembered on this device).
   setMix({ music = this.musicOn, sfx = this.sfxOn } = {}) {
@@ -65,14 +66,30 @@ export class Audio {
     this.bgmGate.gain.setTargetAtTime(music ? 1 : 0, now, 0.15);
   }
 
-  async enable() {
-    if (this.ready) { this.enabled = true; this.ctx.resume(); this.master.gain.setTargetAtTime(0.9, this.ctx.currentTime, 0.1); return; }
+  enable() {
+    if (this.disposed) return;
     this.enabled = true;
-    const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    ctx.onstatechange = () => this.onState && this.onState();
+    // Resume synchronously inside every gesture, even while assets are still loading.
+    const ctx = this.ctx = this.host.resume();
+    if (!ctx) return;
+    if (this.master) this.master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.1);
+    if (!this.loading) this.loading = this.initialise(ctx).catch(() => {
+      this.dispose(); this.onState?.();
+    });
+    this.onState?.();
+    return this.loading;
+  }
+
+  async initialise(ctx) {
+    this.stateListener = () => {
+      this.onState?.();
+      if (this.enabled && !this.host.muted && ['suspended', 'interrupted'].includes(ctx.state)) this.host.resume();
+    };
+    ctx.addEventListener('statechange', this.stateListener);
     this.master = ctx.createGain(); this.master.gain.value = 0.9;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.25;
+    this.compressor = comp;
     this.master.connect(comp).connect(ctx.destination);
     // Effects bus: a low-pass that closes in slow motion.
     this.sfx = ctx.createGain();
@@ -93,6 +110,7 @@ export class Audio {
         } catch (e) { /* try the next format */ }
       }
     }));
+    if (this.disposed) return;
     this.buf.engineLoop = this.buf.engine && loopable(ctx, this.buf.engine, 0.2);
     this.buf.chargeLoop = this.buf.rail_charge && loopable(ctx, this.buf.rail_charge, 0.06);
     // Continuous layers, one per ship: engine and railgun charge.
@@ -100,10 +118,13 @@ export class Audio {
     // Music bed.
     if (this.buf.bgm) {
       const s = ctx.createBufferSource(); s.buffer = this.buf.bgm; s.loop = true;
-      s.connect(this.bgmBus); s.start();
+      s.connect(this.bgmBus); s.start(); this.sources.push(s);
       this.bgmBus.gain.setTargetAtTime(0.32, ctx.currentTime, 1.5);
     }
     this.voices = {};
+    this.ready = true;
+    this.master.gain.setTargetAtTime(this.enabled ? .9 : 0, ctx.currentTime, .1);
+    this.onState?.();
     try {
       const response = await fetch('sfx/voices/index.json');
       if (response.ok) {
@@ -117,12 +138,21 @@ export class Audio {
         }));
       }
     } catch { /* subtitles remain available without recordings */ }
-    this.ready = true;
   }
 
   disable() {
     this.enabled = false;
-    if (this.ready) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
+    if (this.master) this.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
+    this.onState?.();
+  }
+
+  dispose() {
+    this.disposed = true; this.enabled = false;
+    this.ctx?.removeEventListener('statechange', this.stateListener);
+    if (this.voiceSource) { try { this.voiceSource.stop(); } catch {} }
+    for (const source of this.sources) { try { source.stop(); source.disconnect(); } catch {} }
+    this.sources = [];
+    this.master?.disconnect(); this.compressor?.disconnect();
   }
 
   makeLayers() {
@@ -133,7 +163,7 @@ export class Audio {
       const gain = ctx.createGain(); gain.gain.value = 0;
       const pan = ctx.createStereoPanner();
       src.connect(filt).connect(gain).connect(pan).connect(this.sfx);
-      src.start(ctx.currentTime + Math.random() * 0.1);
+      src.start(ctx.currentTime + Math.random() * 0.1); this.sources.push(src);
       return { src, filt, gain, pan };
     };
     const engine = this.buf.engineLoop ? mk(this.buf.engineLoop) : null;
@@ -144,7 +174,7 @@ export class Audio {
     if (charge) {
       lfo = ctx.createOscillator(); lfo.frequency.value = 7;
       const depth = ctx.createGain(); depth.gain.value = 0;
-      lfo.connect(depth).connect(charge.gain.gain); lfo.start();
+      lfo.connect(depth).connect(charge.gain.gain); lfo.start(); this.sources.push(lfo);
       charge.lfoDepth = depth;
     }
     return { engine, charge };

@@ -1,4 +1,5 @@
 import { connect } from './client.bundle.js';
+import { audioHost, captureAudioInteractions } from '../audio-context.js';
 import { portrait } from '../portraits.js';
 import { shipCard, rating, hold10 } from '../prematch.js';
 const query = new URLSearchParams(location.search);
@@ -9,6 +10,24 @@ if (query.has('studio') || query.has('audit') || query.has('auditall') || query.
 }
 async function start() {
   const shell = document.querySelector('#league-shell');
+  const audio = audioHost();
+  let audioPlaying = false;
+  function audioStatus() {
+    const button = shell.querySelector('[data-do="sound"]');
+    if (button) {
+      button.textContent = audioPlaying ? 'Sound on' : audio.muted ? 'Sound off' : 'Enable sound';
+      button.setAttribute('aria-pressed', String(audioPlaying));
+    }
+  }
+  function retryAudio(event) {
+    if (audio.muted || event?.target?.closest?.('[data-do="sound"]')) return;
+    if (!audioPlaying || audio.context?.state !== 'running') {
+      audio.resume();
+      // Direct same-origin call retains the gesture; postMessage alone loses it.
+      document.querySelector('#hb-feed')?.contentWindow?.__hbRetryAudio?.();
+    }
+  }
+  captureAudioInteractions(retryAudio);
   const credits = n => Math.round(n / 100).toLocaleString();
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const gp = { dose_k: .005, dose_recover: .02, blackout: 1 };
@@ -67,7 +86,7 @@ async function start() {
     const stake = Math.round(Number(draft.amount) * 100), p = draft.side === null ? null : f.odds[draft.side];
     const profit = p == null || !Number.isFinite(stake) ? null : Math.round(stake * .95 * (1-p)/p / 100) * 100;
     return `<section class="hb-match-dossier"><div class="hb-section-head"><div><span class="hb-eyebrow">MATCH ${String(f.sequence).padStart(4,'0')} / BETTING OPEN</span><h1>Place a bet.</h1></div><div class="hb-window"><b data-countdown></b><span>UNTIL BETTING CLOSES</span></div></div><div class="pm-vs">${f.ships.map((s,i) => shipCard(i,s,gp)).join('')}</div><div class="hb-market">${f.ships.map((s,i) => `<button class="hb-selection t${i} ${draft.side === i ? 'selected' : ''}" data-side="${i}" ${w ? 'disabled' : ''}><span>${esc(s.name)}</span><b>${Math.round(f.odds[i]*100)}%<small>win probability</small></b></button>`).join('')}</div><p class="hb-odds-note">${f.oddsSamples} simulations of this crew matchup · fixed payout · 5% margin on profit · payouts rounded to whole credits</p>
-      ${w ? `<div class="hb-locked-wager"><span class="hb-eyebrow">WAGER LOCKED</span><h2>${credits(w.stake)} cr on ${esc(f.ships[w.side].name)}</h2><p>Profit if it wins: ${credits(w.payout-w.stake)} cr. Your stake is included in the total return of ${credits(w.payout)} cr.</p></div>` : `<form class="hb-wager-form" data-form="wager"><label for="stake">Your stake <span>Balance ${credits(data.player.balance)} cr</span><input id="stake" name="stake" type="number" min="1" step="1" max="${Math.floor(data.player.maxBet/100)}" value="${esc(draft.amount)}" required></label><div class="hb-wager-quote"><span>Profit if you win</span><b id="profit">${profit == null ? 'Choose a ship' : `${credits(profit)} cr`}</b><small id="after-stake">Balance after placing: ${credits(data.player.balance-(Number.isFinite(stake)?stake:0))} cr</small></div>${primary('Place & lock bet', 'place-bet', draft.side === null || busy)}<p>One wager per fight. Locked bets cannot be changed. ${!data.ship?'Maximum 100 cr per fight until you sponsor a ship. ':''}You can also watch without betting.</p></form>`}</section>`;
+      ${w ? `<div class="hb-locked-wager"><span class="hb-eyebrow">WAGER LOCKED</span><h2>${credits(w.stake)} cr on ${esc(f.ships[w.side].name)}</h2><p>Profit if it wins: ${credits(w.payout-w.stake)} cr. Your stake is included in the total return of ${credits(w.payout)} cr.</p></div>` : `<form class="hb-wager-form" data-form="wager"><label for="stake">Your stake <span>Balance ${credits(data.player.balance)} cr</span><input id="stake" name="stake" type="number" min="1" step="1" max="${Math.floor(data.player.maxBet/100)}" value="${esc(draft.amount)}" required></label><div class="hb-wager-quote"><span>Profit if you win</span><b id="profit">${profit == null ? 'Choose a ship' : `${credits(profit)} cr`}</b><small id="after-stake">Balance after placing: ${credits(data.player.balance-(Number.isFinite(stake)?stake:0))} cr</small></div>${primary('Place & lock bet', 'place-bet', draft.side === null || busy)}<p>One wager per fight. Locked bets cannot be changed. Maximum ${credits(data.player.maxBet)} cr with your current balance. You can also watch without betting.</p></form>`}</section>`;
   }
   function results(f, personal = false) {
     if (f.winner === undefined) return '<p>Confirming the result…</p>';
@@ -76,7 +95,7 @@ async function start() {
   }
   function viewer() {
     const f = data.fight, p = phase(f);
-    return `<main class="hb-broadcast"><div id="hb-stage" class="${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay"></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="sound">Toggle sound</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
+    return `<main class="hb-broadcast"><div id="hb-stage" class="${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay"></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="sound">${audioPlaying?'Sound on':audio.muted?'Sound off':'Enable sound'}</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
   function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile" ${profileOpen?'open':''}><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button ${profileSaving?'disabled':''}>${profileSaving?'Saving…':'Save name'}</button><p id="hb-profile-status" role="status">${profileSaved?'Name saved.':''}</p></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
   function archivePage() { return `<main class="hb-archive"><div class="hb-page-title"><span class="hb-eyebrow">LEAGUE RECORD</span><h1>Finished fights.</h1><p>Completed matches and combat statistics.</p></div>${archive.length ? archive.map(f=>`<details class="hb-archive-entry"><summary><span>#${String(f.sequence).padStart(4,'0')}</span><b>${esc(f.ships.map(s=>s.name).join(' vs '))}</b><strong>${f.winner===null?'Draw':esc(f.ships[f.winner].name)+' won'}</strong></summary>${results(f)}</details>`).join('') : '<p>Completed fights will appear here.</p>'}</main>`; }
@@ -94,12 +113,12 @@ async function start() {
       const n = document.querySelector('#hb-notice'); n.hidden=!notice; if(notice)n.firstChild.textContent=notice;
       renderChat(true); countdown(); return;
     }
-    if (feedElement) { feedElement=null; mountedFight=null; preparedMount=null; }
+    if (feedElement) { feedElement.contentWindow?.__hbDisposeAudio?.(); audioPlaying=false; feedElement=null; mountedFight=null; preparedMount=null; }
     const active = document.activeElement, focusId = active?.id, selection = active?.selectionStart;
     document.body.dataset.screen = screen; document.body.classList.toggle('hb-chat-open',screen==='broadcast'&&chatShown);
     shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
     if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selection,selection); } catch {} } }
-    renderChat(true); countdown(); syncBroadcast(); syncHangar();
+    renderChat(true); countdown(); syncBroadcast(); syncHangar(); audioStatus();
   }
   async function syncHangar() {
     const element=document.querySelector('#dock-scene');if(!element)return;
@@ -145,6 +164,7 @@ async function start() {
   window.addEventListener('message',e=>{
     const frame=document.querySelector('#hb-feed');
     if(e.origin!==location.origin||!frame||e.source!==frame.contentWindow)return;
+    if(e.data?.kind==='broadcast-audio'){audioPlaying=!!e.data.playing;audio.muted=!!e.data.muted;audioStatus();}
     if(e.data?.kind==='broadcast-ready'){readyFrames.add(frame);syncBroadcast();}
     if(e.data?.kind==='broadcast-mounted'&&e.data.fight===data?.fight?.id&&frame.dataset.fight===e.data.fight){
       mountedFight=e.data.fight;preparedMount=null;document.querySelector('#broadcast-loading')?.setAttribute('hidden','');
@@ -198,7 +218,7 @@ async function start() {
     else if(a==='rename-open'){renaming=!renaming;drafts.rename||=data.ship.name;render(true);}
     else if(a==='dismiss'){notice='';render(true);}
     else if(a==='recovery')await mutation('game:recovery');
-    else if(a==='sound')feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:false},location.origin);
+    else if(a==='sound'){audio.muted=audioPlaying&&!audio.muted; if(!audio.muted)audio.resume(); feedElement?.contentWindow?.postMessage({kind:'sound-live',muted:audio.muted},location.origin);audioStatus();}
   });
   shell.addEventListener('submit',async e=>{
     e.preventDefault();const form=e.target,fields=new FormData(form);
