@@ -1,4 +1,5 @@
 // Hard Burn broadcast viewer: plays back recorded duels.
+import { bindFightFullscreen } from './fullscreen.js';
 import * as THREE from 'three';
 import { loadIndex, loadMatch, loadLeague, Match } from './data.js';
 import { showPrematch, settle, loadPicks, savePicks, recordText } from './prematch.js';
@@ -10,6 +11,8 @@ import { Audio } from './audio.js';
 import { audioHost, captureAudioInteractions } from './audio-context.js';
 import { CamControl } from './camctl.js';
 import { rememberResult } from './history.js';
+
+bindFightFullscreen(document.querySelector('#fight-fullscreen'));
 
 const Q = new URLSearchParams(location.search);
 const networkLive = !Q.has('studio') && !Q.has('audit') && !Q.has('auditall') && !Q.has('story');

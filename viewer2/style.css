@@ -520,3 +520,15 @@ body.portrait #timebadge {top:auto;bottom:calc(100vh - var(--dock-top) + 8px)}
 body.portrait .sb-cap {letter-spacing:0;font-size:8px}
 .pl-crew i.crew-face {pointer-events:auto}
 .pl-crew i.crew-face:focus-visible {outline:2px solid #fff;outline-offset:2px}
+
+/* A restored system is news, distinct from the persistent red disabled list. */
+.pl-restored { margin:4px -11px 0;padding:3px 11px;background:#3d8056;color:#f0f3e8;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase; }
+.pl-restored:empty { display:none; }
+body.portrait .pl-restored { margin-left:-9px;margin-right:-9px;padding:3px 9px;font-size:11.5px;letter-spacing:.04em; }
+#fight-fullscreen { position:fixed;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:60;min-height:36px;padding:5px 12px;border:1px solid #53646c;background:#13212ae6;color:#e0e6df;font:600 12px 'Saira Condensed',sans-serif;letter-spacing:.06em;cursor:pointer; }
+#fight-fullscreen[hidden] { display:none; }
+#fight-fullscreen:hover { background:#293e4a; }
+#fight-fullscreen:focus-visible { outline:2px solid #dfc18c;outline-offset:3px; }
+body.portrait #fight-fullscreen { top:calc(124px + env(safe-area-inset-top));bottom:auto;right:8px; }
+body.touch #fight-fullscreen { min-height:44px; }
+@media(max-height:520px) { .pl-restored { margin-left:-8px;margin-right:-8px;padding:2px 8px;font-size:11px; } }

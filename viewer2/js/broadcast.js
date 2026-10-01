@@ -49,3 +49,14 @@ export function decisive(raw) {
   }
   return { start, end: t + 1.4, story };
 }
+
+// Derive temporary system news from recording time, including joining mid-fight/seeking.
+export function recentRestorations(events, ship, t, hold = 3.5) {
+  const restored = new Map();
+  for (const e of events) {
+    if (e.ship !== ship || e.t > t || e.t <= t - hold) continue;
+    if (e.k === 'repaired') restored.set(e.part, e.t);
+    else if (e.k === 'part_lost') restored.delete(e.part);
+  }
+  return [...restored.keys()];
+}

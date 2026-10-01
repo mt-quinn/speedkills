@@ -64,3 +64,5 @@ body[data-screen] > :not(#league-shell):not(script) { display:none!important; }
 .hb-lab { position:fixed;bottom:12px;left:12px;z-index:55;display:flex;align-items:center;gap:12px;padding:10px;background:#263f37;border:1px solid #8ca990;font-size:9px; }.hb-lab button { font-size:10px!important;padding:5px 9px!important; }
 
 #league-shell #hb-profile-status { margin:7px 0 0;font-size:10px;color:#c2d1b8;min-height:15px; }
+
+#hb-feed:fullscreen { width:100vw;height:100dvh;border:0;background:#070a12; }

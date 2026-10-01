@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { TEAM_CSS } from './scene.js';
 import { PART_LABEL } from './data.js';
 import { portrait } from './portraits.js';
-import { defence, tactical, decisive } from './broadcast.js';
+import { defence, tactical, decisive, recentRestorations } from './broadcast.js';
 import { voiceState, voiceRequests, chooseVoice } from './voices.js';
 
 const $ = (s) => document.querySelector(s);
@@ -27,6 +27,7 @@ const OUTS = [['drive', [0]], ['thrusters', [1, 2, 3, 4]], ['reactor', [5]], ['g
 export class Hud {
   constructor(match, scene, opts = {}) {
     this.m = match; this.scene = scene; this.opts = opts;
+    this.systemEvents = match.events.filter(e => e.k === 'repaired' || e.k === 'part_lost');
     this.names = match.ships.map((s) => s.name.toUpperCase());
     this.buildScoreboard();
     $('#cards').innerHTML = '';
@@ -113,12 +114,14 @@ export class Hud {
     const ammo = el('span', 'pl-ammo', '');
     meta.append(crew, ammo);
     const outs = el('div', 'pl-outs');
+    const restored = el('div', 'pl-restored');
+    restored.setAttribute('role', 'status');
     const acc = el('div', 'pl-acc');
     const flag = el('div', 'pl-flag');
     const chat = el('div', 'pl-chat');
-    p.append(head, plan, hull, meta, outs, acc, flag, chat);
+    p.append(head, plan, hull, meta, outs, restored, acc, flag, chat);
     $('#tags').append(p);
-    return { p, rail, plan, hullFill, hullTxt, dots, ammo, outs, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
+    return { p, rail, plan, hullFill, hullTxt, dots, ammo, outs, restored, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
   }
 
   // What you're looking at: the scene's visual language, for the opening seconds.
@@ -435,6 +438,9 @@ export class Hud {
       if (grew) { P.outs.classList.remove('fresh'); void P.outs.offsetWidth; P.outs.classList.add('fresh'); P.outsFreshUntil = t + 2.5; }
     }
     if (P.outsFreshUntil && t > P.outsFreshUntil) { P.outs.classList.remove('fresh'); P.outsFreshUntil = 0; }
+    // Restoration news has its own green row, so it never hides a casualty warning.
+    const restoration = recentRestorations(this.systemEvents, i, t).map(part => `${PART_LABEL[part] || part} restored`).join(' · ');
+    if (P.restored.textContent !== restoration) P.restored.textContent = restoration;
     // PDC burst: its running tally.
     const b = t <= this.endT + 2 ? this.m.burstAt(i, t) : null;
     const txt = !b ? '' : b.mode === 'ship' ? `PDC engaging ship` : `PDC interception · ${b.hits} torpedoes down`;

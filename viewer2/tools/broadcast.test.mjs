@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { defence, tactical, decisive } from '../js/broadcast.js';
+import { defence, tactical, decisive, recentRestorations } from '../js/broadcast.js';
 import { VOICES, chooseVoice, voiceRequests, voiceState } from '../js/voices.js';
 import { rememberResult, loadHistory, form, meetings } from '../js/history.js';
 import { settle, record, loadPicks, savePicks } from '../js/prematch.js';
@@ -88,4 +88,19 @@ test('incoming torpedoes use current positions, not later hits', () => {
   assert.match(tactical([a,b],['A','B'],[tp]), /1 torpedo closing on A/);
   tp.p[0] += 5000;
   assert.equal(tactical([a,b],['A','B'],[tp]),'');
+});
+
+test('restoration tags follow simulation time and clear on a new system loss', () => {
+  const events = [
+    {t:10,k:'repaired',ship:0,part:'drive'},
+    {t:11,k:'repaired',ship:0,part:'sensors'},
+    {t:12,k:'part_lost',ship:0,part:'drive'},
+    {t:12,k:'repaired',ship:1,part:'railgun'},
+  ];
+  assert.deepEqual(recentRestorations(events,0,9),[]);
+  assert.deepEqual(recentRestorations(events,0,11),['drive','sensors']);
+  assert.deepEqual(recentRestorations(events,0,12),['sensors']);
+  assert.deepEqual(recentRestorations(events,0,14.5),[]);
+  assert.deepEqual(recentRestorations(events,1,12),['railgun']);
+  assert.deepEqual(recentRestorations(events,0,10),['drive']); // backwards seek
 });

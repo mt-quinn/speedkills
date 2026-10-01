@@ -104,3 +104,9 @@
 - New names were already active for sponsorship/scouting. Replaced the static roster with generated Terran names and added an idempotent migration for every legacy persistent crew/candidate, preserving stats and already announced match recordings.
 - Verified 29 JS checks and TypeScript; development migration replaced 48 crew names. Cloud-backed archive UI confirmed totals and actual owner earnings.
 - Production backend deployed; all 40 legacy production crew names migrated.
+
+## 2026-09-30 — Repair news and simulation fullscreen
+- Added green system-restored tags to each ship plate for 3.5 seconds of simulation time. Tags derive from repair/loss events, support joining mid-fight and seeking, combine simultaneous repairs, and clear immediately on a renewed loss.
+- Added a live viewer fullscreen button targeting only the simulation iframe, with fullscreen permission, full-viewport styling and an exit control inside the sim. Standard Escape exit remains available.
+- Verified a recorded bow-thruster repair appears green beside a red sensor-out tag. Fullscreen entry/exit worked in the browser. All 30 JS tests passed, including restoration timing, renewed loss, multiple systems and backward seeking.
+- Verified the actual cloud-connected live iframe enters fullscreen with the league navigation/chat absent, exposes its own exit button, and returns to the same running fight. TypeScript passed.
