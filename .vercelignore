@@ -5,5 +5,9 @@ node_modules/
 dist/
 .convex/
 .env*
+/.migration-backups/
+.wrangler/
+.dev.vars*
+cloudflare/generated/
 viewer2/js/live/client.bundle.js
 viewer2/live-config.json
