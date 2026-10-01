@@ -161,3 +161,11 @@
 - Deployed isolated production resources in maintenance, with separate secrets; old Convex freeze gate installed while live gameplay continues. Capacity checks precede final freeze/export.
 - Capacity testing exposed synchronous service-RPC simulation blocking the coordinator request tree. Moved preparation to isolated Queues events with private Completion callbacks; retained D1 seed/lease/generation and exactly-once acceptance. Queue duplicate-delivery test passes.
 - Reduced archive query fan-out, parallelized independent reads and added short-lived shared snapshot reads invalidated before every coordinator write. Existing revocation and private wallet tests pass.
+
+## 2026-10-01 — Production migration complete
+- Final deployed capacity check passed the stated 100-viewer/three-subscription workload: command median 1,647 ms, observed maximum 3,811 ms, no errors. The two-second worst-case aspiration was not met; numeric acceptance and limitations are documented.
+- Convex froze after fight 471 settled. Imported and compared every field of 1,010 records, preserving credentials/IDs, per-player ledger balances and valid pending fight 472; two surviving recordings passed R2 and HTTP checksums.
+- Main now contains the migration; Vercel production environment and custom domains select the Cloudflare API. Browser rendered production live playback and subsequent betting.
+- An initial manual Vercel deploy included private migration backups in build source. Static output did not contain them; unauthenticated source access returned 403. Added exclusions, verified a clean replacement, rotated auth/operator secrets before reopening and removed the affected deployment. Project-member access was not audited; provider physical erasure is not claimed.
+- Cloudflare reopened at 23:15:10.871 UTC. Verified four new settled fights, five complete preparation jobs, balances/ledger both 843,500 units and zero unsettled wagers on completed fights. Convex remains frozen. Live counts continue to advance.
+- Cutover report records current resources, deployment IDs, recovery retention and incident details.

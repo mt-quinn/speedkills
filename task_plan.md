@@ -47,7 +47,7 @@ User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live co
 3. Account/auth parity, chat/moderation, client transport and paginated archives — complete.
 4. Runtime integration, fault/security/parity/load checks and deployment docs — complete.
 5. Push branch and publish isolated Vercel/Cloudflare comparison preview — complete.
-6. Production data inventory/rehearsal/cutover — authorized by user on 2026-10-01, subject to completing readiness checks. Keep Vercel frontend and preserve production accounts, IDs, balances, and schedules.
+6. Production data inventory/rehearsal/cutover — complete. Production/main now uses Cloudflare, with the Vercel frontend retained and production accounts, IDs, balances, ships and history preserved.
 
 ## Migration issues
 - Initial git branch creation denied by filesystem sandbox; retry with approved escalation for Git metadata.
@@ -63,3 +63,10 @@ User approved CLOUDFLARE_MIGRATION_SCOPE.md and requested a branch-based live co
 - Full runtime suite: 16 passing; existing backend: 8 passing; frontend/shared: 71 passing; both TypeScript projects pass.
 - Final import rehearsal matches counts, balances, per-player ledgers and references. Available traces retain checksums; missing historical recordings are explicit.
 - Production resources prepared in maintenance; guarded Convex production remains unfrozen until final capacity gate passes.
+
+## Final migration checkpoint — complete
+- Frozen export verified against 1,010 imported records; original credential hashes and IDs preserved. Two surviving recordings copied and checksummed.
+- Production reopened; four subsequent fights settled and five preparation jobs completed. Aggregate wallet and ledger totals match; completed fights have no unsettled wagers.
+- Main integrated and production Vercel configuration points to Cloudflare. Isolated comparison preview retained.
+- Corrected private Vercel source-upload incident before reopening: excluded backups, verified replacement upload, rotated Cloudflare secrets and removed affected deployment. Details and limits are in the cutover report.
+- Frozen Convex and protected export retained for recovery; no endpoint-only rollback after reopening.

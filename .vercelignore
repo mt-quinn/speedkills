@@ -5,7 +5,8 @@ node_modules/
 dist/
 .convex/
 .env*
-/.migration-backups/
+.migration-backups/
+.migration-backups/**
 .wrangler/
 .dev.vars*
 cloudflare/generated/

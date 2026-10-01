@@ -19,3 +19,7 @@ Keep the frozen Convex deployment and the protected export for at least seven da
 ## Operational checks
 
 Use authenticated `/internal/status` for phase, revision, alarm, maintenance, sourceHash and reopening/write markers. Use `/health` for backend/readiness only. Pause via the operator control route before any repair requiring a stable snapshot. Investigate simulation exceptions, a running preparation lease older than five minutes, a missing alarm, unsettled wagers after the result window, repeat credits, or sustained command latency above two seconds. Secrets and private dumps must stay out of Git, logs and public artifacts.
+
+## Executed cutover
+
+Completed October 1, 2026. Convex froze at settled fight 471; the verified import preserved the pending fight 472. Cloudflare reopened at 2026-10-01T23:15:10.871Z. The maintenance window lasted approximately 27 minutes, longer than estimated because a private Vercel build-source upload of migration backups required replacement, secret rotation and deployment removal before reopening. `.vercelignore` now explicitly excludes those files. See `cutover-report.json` for incident scope and verification limits. Production subsequently completed four fights with matching aggregate balances/ledger and no unsettled wagers on completed fights. The frontend remains on Vercel at https://www.hardburn.fun.

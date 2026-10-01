@@ -1,6 +1,6 @@
 {
-  "recordedAt": "2026-10-01T22:54:44.905Z",
-  "status": "verified import, paused before frontend switch",
+  "recordedAt": "2026-10-01T23:32:53.584667+00:00",
+  "status": "complete: production live on Cloudflare; frontend retained on Vercel",
   "source": {
     "sourceSha256": "3a31f20d2e17f4cc4276251c1c41b257c7532d6e5eff66f01962633fa4a516ed",
     "frozen": true,
@@ -28,14 +28,15 @@
     "sessionsImported": 0,
     "perPlayerLedger": "match",
     "lastAnnouncedSequence": 471,
-    "queueSha256": "c9c359654df79a434e62f770f016db89922697c357527b9d18dd9588002baa29"
+    "queueSha256": "c9c359654df79a434e62f770f016db89922697c357527b9d18dd9588002baa29",
+    "frozenAt": 1790894894863
   },
   "oldBackend": "glad-dogfish-932.convex.cloud, frozen at settled fight 471",
-  "frontend": "https://hardburn.vercel.app",
+  "frontend": "https://www.hardburn.fun",
   "api": "https://hardburn-api-prod.quinn-a19.workers.dev",
   "previousVercelDeployment": "dpl_3CVqVFfxNpG9UDFf45L8jq1u1pPN",
   "previousVercelURL": "https://hardburn-ltr2e1l3p-thegameband.vercel.app",
-  "productionWorkerVersion": "847e68c1-7f96-457a-8455-584c5171a471",
+  "productionWorkerVersion": "09c873f9-520c-4d50-b40c-1a95753cdcd5",
   "productionSimulatorVersion": "332b4185-67ec-4a24-bcf0-4f6f70b6000c",
   "backups": "owner-only, Git-ignored .migration-backups/2026-10-01/",
   "sessions": "not imported; existing email/password reissue sessions",
@@ -52,6 +53,34 @@
     "R2ReadBackChecksums": "match",
     "HTTPCompletedReplay": "match",
     "pendingReplay": "private",
-    "authWrites": "blocked"
+    "authWrites": "blocked during import; reopened after verification"
+  },
+  "productionVercelDeployment": "dpl_6pHVDMR1cUceRonFFjWcWR2bX3Sk",
+  "reopenedAt": 1790896510871,
+  "postCutoverVerification": {
+    "newCompletedFights": 4,
+    "completedPreparationJobs": 5,
+    "balanceTotal": 843500,
+    "ledgerAmountTotal": 843500,
+    "unsettledCompletedWagers": 0,
+    "credentialAccounts": 2,
+    "browser": "production custom domain rendered imported live fight 472 and subsequent betting for fight 474",
+    "oldBackendFrozen": true,
+    "scope": "observed checkpoint; live counts continue to advance"
+  },
+  "comparisonPreview": "https://hardburn-cf-preview-thegameband.vercel.app",
+  "recovery": "Convex remains frozen; protected source export retained at least seven days. After reopening, recovery requires forward repair or reconciled reverse migration.",
+  "deploymentSourceIncident": {
+    "summary": "The first manual Vercel production deployment uploaded protected migration backups into private build source because .vercelignore overrode Git ignore rules.",
+    "affectedDeployment": "dpl_BUqWVbPJffgYs88KNfwZFH4ri7xA",
+    "data": "Frozen export, imported account records including password hashes, and initial Cloudflare operator/auth secrets. No plaintext player passwords.",
+    "publicOutput": "Backups absent from static dist; unauthenticated source API returned 403.",
+    "remediation": [
+      "Explicit backup, local-secret and generated-file exclusions added to .vercelignore.",
+      "Replacement deployment verified to contain zero private backup files; an empty backup directory entry has no files.",
+      "AUTH_SECRET and BENCHMARK_KEY rotated before reopening; old operator key rejected, new key accepted.",
+      "Affected deployment removed after replacement; authenticated API confirms it is unavailable."
+    ],
+    "limits": "Project-member download access was not audited. Provider physical erasure beyond normal deployment deletion was not verified."
   }
 }

@@ -394,3 +394,7 @@ Repository evidence: `README.md` (Player accounts), `convex/auth.ts`, `convex/id
 ## Implementation and production authorization update — October 1, 2026
 
 Quinn approved the isolated comparison and then explicitly approved transferring production/main to Cloudflare. The frontend stays on Vercel. The account/game/chat/socket/replay backend and data import tooling are implemented. Runtime parity, imported password compatibility, transactional settlement/recovery, privacy and import reconciliation have passed. Deployment steps and conditional recovery are in `cloudflare/docs/CUTOVER.md`; measurement reports and capacity assumptions are in `cloudflare/docs/`. Actual completion is recorded separately in `cloudflare/docs/cutover-report.json` after the production switch. Original estimates above describe planning assumptions, not a guarantee of the resulting bill or throughput.
+
+## Completion — October 1, 2026
+
+Production/main is migrated and live at https://www.hardburn.fun. Vercel hosts the frontend; Cloudflare Workers, Durable Objects, D1, private R2 and Queues run the backend. Heavy preparation runs in separate Queue consumer invocations. Accounts and game data were reconciled before reopening; subsequent automatic preparation and settlement were verified. The isolated comparison preview remains available. Convex stays frozen for recovery. The final cutover report includes the corrected private build-source upload incident and its verification limits.
