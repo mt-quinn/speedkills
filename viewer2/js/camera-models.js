@@ -19,18 +19,20 @@ export class CameraModels {
     barrel.rotateX(Math.PI/2); barrel.translate(0,0,-1.45); parts.push(barrel);
     this.body = mergeGeometries(parts); parts.forEach(g=>g.dispose());
     this.lens = new THREE.CircleGeometry(.43,12); this.lens.rotateY(Math.PI); this.lens.translate(0,0,-1.89);
-    this.bodyMaterial = new THREE.MeshStandardMaterial({color:0x81929c,roughness:.65,metalness:.35,fog:false});
-    this.lensMaterial = new THREE.MeshBasicMaterial({color:0x8ca7b0,transparent:true,opacity:.65});
+    this.bodyMaterial = new THREE.MeshStandardMaterial({color:0x81929c,roughness:.65,metalness:.35,fog:false,transparent:true,depthWrite:false});
+    this.lensMaterial = new THREE.MeshBasicMaterial({color:0x8ca7b0,transparent:true,opacity:.65,depthWrite:false});
     this.guideMaterial = new THREE.ShaderMaterial({
       transparent:true,depthWrite:false,depthTest:true,
-      uniforms:{color:{value:new THREE.Color(0x80959f)},highlight:{value:0}},
+      uniforms:{color:{value:new THREE.Color(0x80959f)},highlight:{value:0},opacity:{value:1}},
       vertexShader:`attribute float along; varying float vAlong;
         void main(){vAlong=along;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-      fragmentShader:`uniform vec3 color; uniform float highlight; varying float vAlong;
+      fragmentShader:`uniform vec3 color; uniform float highlight; uniform float opacity; varying float vAlong;
         void main(){if(fract(vAlong*11.)>.48)discard;
-          float fade=pow(1.-vAlong,2.5);gl_FragColor=vec4(mix(color,vec3(.75,.93,1.),highlight),(.32+.4*highlight)*fade);}`,
+          float fade=pow(1.-vAlong,2.5);gl_FragColor=vec4(mix(color,vec3(.75,.93,1.),highlight),(.32+.4*highlight)*fade*opacity);}`,
     });
     this.models=[]; this.projected=new THREE.Vector3();
+    this.cameraPoint=new THREE.Vector3();this.shipPoint=new THREE.Vector3();
+    this.guideStart=new THREE.Vector3();this.guideEnd=new THREE.Vector3();
   }
   make() {
     const group=new THREE.Group();
@@ -45,7 +47,7 @@ export class CameraModels {
     guide.frustumCulled=false; group.add(guide); this.root.add(group);
     return {group,geometry,bodyMaterial,lensMaterial,guideMaterial};
   }
-  update(engine,viewer,worldCamera,height,onAirRig=null) {
+  update(engine,viewer,worldCamera,height,onAirRig=null,ships=[]) {
     if(!engine)return;
     const aspect=engine.viewport.width/Math.max(1,engine.viewport.height);
     for(let i=0;i<engine.drones.length;i++) {
@@ -68,6 +70,10 @@ export class CameraModels {
       // predict damage/outcomes or stall emergency coverage recoveries for it.
       const pending=engine.pendingCut;
       this.projected.copy(d.pos).add(this.root.position).project(viewer);
+      const opacity=this.shipClearance(d,scale,x,y,length,viewer,ships);
+      m.bodyMaterial.opacity=opacity;m.lensMaterial.opacity=.65*opacity;
+      m.guideMaterial.uniforms.opacity.value=opacity;
+      m.group.visible=m.group.visible&&opacity>0;
       const inView=m.group.visible&&Math.abs(this.projected.x)<.98&&Math.abs(this.projected.y)<.98&&Math.abs(this.projected.z)<1;
       const highlight=inView&&pending?.i===i?THREE.MathUtils.smoothstep(engine.current.t-pending.since,0,.25):0;
       m.bodyMaterial.emissive.setRGB(.035+.25*highlight,.045+.5*highlight,.05+.6*highlight);
@@ -80,6 +86,44 @@ export class CameraModels {
       }
       m.geometry.attributes.position.needsUpdate=true;
     }
+  }
+  // Work in optical coordinates so floating origins, zoom and manual orbit
+  // all protect the actual ship silhouette, rather than a world-distance guess.
+  shipClearance(drone,scale,x,y,length,viewer,ships) {
+    const cameraPoint=(out,p)=>out.copy(p).add(this.root.position).applyMatrix4(viewer.matrixWorldInverse);
+    const body=cameraPoint(this.cameraPoint,drone.pos),depth=-body.z;
+    if(depth<=viewer.near)return 1;
+    let opacity=1;
+    for(const ship of ships) {
+      const target=cameraPoint(this.shipPoint,ship.position),shipDepth=-target.z;
+      if(shipDepth<=viewer.near)continue;
+      // Enclose the rendered hull, not the much smaller simulation hull.
+      const radius=16*ship.scale.x;
+      const protectedRadius=radius/Math.max(viewer.near,shipDepth-radius);
+      const sx=target.x/shipDepth,sy=target.y/shipDepth;
+      const fade=(px,py,pz,extra=0)=>{
+        if(pz<=viewer.near||pz>=shipDepth)return;
+        const gap=Math.hypot(px-sx,py-sy)-protectedRadius-extra;
+        // Fully absent before overlap; a generous spatial shoulder fades the
+        // whole assembly smoothly as it approaches either ship's sightline.
+        opacity=Math.min(opacity,THREE.MathUtils.smoothstep(gap,0,Math.max(.012,protectedRadius*.75)));
+      };
+      fade(body.x/depth,body.y/depth,depth,3*scale/Math.max(viewer.near,depth-3*scale));
+      const start=this.guideStart.set(0,0,-1.9).multiplyScalar(scale).applyQuaternion(drone.quat).add(drone.pos);
+      cameraPoint(start,start);
+      for(let k=0;k<4;k++) {
+        const end=this.guideEnd.set((k%2?1:-1)*x,(k<2?1:-1)*y,-1.9-length)
+          .multiplyScalar(scale).applyQuaternion(drone.quat).add(drone.pos);
+        cameraPoint(end,end);
+        const az=-start.z,bz=-end.z;
+        if(az<=viewer.near||bz<=viewer.near)continue; // proximity culling handles near-plane guides
+        const ax=start.x/az,ay=start.y/az,bx=end.x/bz,by=end.y/bz;
+        const dx=bx-ax,dy=by-ay;
+        const f=THREE.MathUtils.clamp(((sx-ax)*dx+(sy-ay)*dy)/Math.max(1e-12,dx*dx+dy*dy),0,1);
+        fade(ax+f*dx,ay+f*dy,1/((1-f)/az+f/bz),.003);
+      }
+    }
+    return opacity;
   }
   dispose() {
     // Per-model clones and shared geometries are disposed by Scene's traversal.

@@ -45,6 +45,35 @@ test('camera hardware and POV stay outside the lens exclusion zone without bound
  assert.equal(m.group.visible,false,'scaled guide bounds are excluded too');
  models.dispose();root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 });
+test('foreground drones fade before overlapping ships, while drones beyond ships remain visible',()=>{
+ const root=new THREE.Group(), models=new CameraModels(root), camera=new THREE.PerspectiveCamera(40,16/9,5,20000);
+ camera.updateMatrixWorld();
+ const ship=new THREE.Group();ship.position.set(0,0,-1000);ship.scale.setScalar(5);
+ const drone={pos:new THREE.Vector3(0,0,-500),quat:new THREE.Quaternion(),fov:1};
+ const e={drones:[drone],viewport:{width:1600,height:900},pendingCut:{i:0,since:10},current:{t:10.4}};
+ const update=()=>models.update(e,camera,new THREE.Vector3(),900,null,[ship]);
+ update();const m=models.models[0];
+ assert.equal(m.group.visible,false);assert.equal(m.bodyMaterial.opacity,0);
+ assert.equal(m.lensMaterial.opacity,0);assert.equal(m.guideMaterial.uniforms.opacity.value,0);
+ drone.pos.x=65;update();assert.ok(m.bodyMaterial.opacity>0&&m.bodyMaterial.opacity<1,'spatial fade before overlap');
+ drone.pos.x=200;update();assert.equal(m.bodyMaterial.opacity,1);
+ drone.pos.set(0,0,-1500);update();assert.equal(m.group.visible,true);assert.equal(m.bodyMaterial.opacity,1,'behind ship is allowed');
+ // The same projection survives shifting the scene origin and camera together.
+ root.position.set(-400,80,0);camera.position.copy(root.position);camera.updateMatrixWorld();
+ drone.pos.set(0,0,-500);update();assert.equal(m.bodyMaterial.opacity,0);
+ // Protect either ship, and the enlarged hull at long range.
+ ship.position.set(0,0,-10000);ship.scale.setScalar(40);drone.pos.set(0,0,-8000);update();
+ assert.equal(m.group.visible,false);
+ // A POV guide can cross the ship even with the drone body off its silhouette.
+ root.position.set(0,0,0);camera.position.set(0,0,0);camera.updateMatrixWorld();
+ ship.position.set(0,0,-1000);ship.scale.setScalar(5);drone.pos.set(200,0,-500);
+ drone.fov=90;drone.quat.setFromRotationMatrix(new THREE.Matrix4().lookAt(drone.pos,ship.position,new THREE.Vector3(0,1,0)));
+ update();
+ // Put the ship on one of the actual guide rays to isolate guide clearance.
+ const end=new THREE.Vector3(-24*16/9,-24,-25.9).multiplyScalar(m.group.scale.x).applyQuaternion(drone.quat).add(drone.pos);
+ ship.position.copy(end).multiplyScalar(2);update();assert.equal(m.guideMaterial.uniforms.opacity.value,0);
+ models.dispose();root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+});
 test('camera flight and optics respect independent physical limits',()=>{
  const e=engine();let prev;
  for(let t=0;t<match.duration;t+=1/30){e.at(t);const now=e.drones.map(d=>({pos:d.pos.clone(),vel:d.vel.clone(),body:d.body.clone(),quat:d.quat.clone(),fov:d.fov,focus:d.focus,omega:d.angularVelocity.clone()}));

@@ -599,7 +599,6 @@ export class Scene {
     // Floating origin at the fight's middle.
     this.mid.copy(st.ships[0].pos).add(st.ships[1].pos).multiplyScalar(0.5);
     this.root.position.copy(this.mid).negate();
-    this.cameraModels.update(this.cameraEngine,this.camera,this.camWorld,window.innerHeight,this.shot?.manual?null:this.shot?.rig);
     if (this.planeCenter.lengthSq() === 0) this.planeCenter.copy(this.mid);
     this.planeCenter.lerp(this.mid, 0.02); // plane follows the fight's middle, slowly (never rotates)
     this.plane.position.copy(this.planeCenter);
@@ -737,6 +736,8 @@ export class Scene {
       l.material.color.copy(TEAM[sl.owner]).lerp(WHITE, 0.75);
       l.material.linewidth = sl.extra > 1.01 ? 6.0 : 4.0;
     }
+
+    this.cameraModels.update(this.cameraEngine,this.camera,this.camWorld,window.innerHeight,this.shot?.manual?null:this.shot?.rig,this.ships);
 
     // Torpedoes: motes with ribbon trails; red when close and inbound.
     const seen = new Set();
