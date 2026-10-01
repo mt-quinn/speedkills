@@ -1,3 +1,4 @@
+import { readViewerSettings } from './preferences.js';
 // The 3D broadcast scene: ships, weapons, the fight plane and its drop lines.
 import * as THREE from 'three';
 import { CameraFocusPass } from './camera-focus.js';
@@ -189,6 +190,7 @@ export class Scene {
     this.root = new THREE.Group(); // floating origin: everything relative to the fight's middle
     this.scene.add(this.root);
     this.cameraModels = new CameraModels(this.root);
+    this.viewerSettings=readViewerSettings();
 
     // Light: a fixed key from "sun" direction so shading shows orientation; soft fill.
     const key = new THREE.DirectionalLight('#fff4e6', 2.2);
@@ -737,7 +739,8 @@ export class Scene {
       l.material.linewidth = sl.extra > 1.01 ? 6.0 : 4.0;
     }
 
-    this.cameraModels.update(this.cameraEngine,this.camera,this.camWorld,window.innerHeight,this.shot?.manual?null:this.shot?.rig,this.ships);
+    if(this.viewerSettings.cameraDrones)this.cameraModels.update(this.cameraEngine,this.camera,this.camWorld,window.innerHeight,this.shot?.manual?null:this.shot?.rig,this.ships);
+    else for(const model of this.cameraModels.models)model.group.visible=false;
 
     // Torpedoes: motes with ribbon trails; red when close and inbound.
     const seen = new Set();
@@ -1024,7 +1027,7 @@ export class Scene {
     if(gap>0 && gap<.5) this.renderStats.fps += (1/gap-this.renderStats.fps)*.05;
     this._now = now;
     const shot = this.shot;
-    this.focusPass.enabled = this.depthFocusSupported && !!shot && !shot.manual && shot.aperture > .015;
+    this.focusPass.enabled = this.depthFocusSupported && this.viewerSettings.depthOfField && !!shot && !shot.manual && shot.aperture > .015;
     if (shot) {
       this.focusPass.material.uniforms.focusDistance.value = shot.focus;
       this.focusPass.material.uniforms.aperture.value = shot.aperture;

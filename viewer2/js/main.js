@@ -1,3 +1,4 @@
+import { readAudioMix, readViewerSettings } from './preferences.js';
 // Hard Burn broadcast viewer: plays back recorded duels.
 import { bindFightFullscreen } from './fullscreen.js';
 import * as THREE from 'three';
@@ -570,6 +571,15 @@ if (networkLive) {
     }
     if (message?.kind === 'resume-live') resumeBroadcast();
     if (message?.kind === 'sound-live') muteBroadcast(message.muted);
+    if (message?.kind === 'settings-live') applySettings();
   });
   if(parent!==window)parent.postMessage({kind:'broadcast-ready'},location.origin);
 }
+
+function applySettings() {
+  sound?.setMix(readAudioMix());
+  if(sound){sound.userOff=audioHost().muted;if(!sound.userOff&&(sound.musicOn||sound.sfxOn))sound.enable();else sound.disable();}
+  if(app)app.scene.viewerSettings=readViewerSettings();
+  soundUI();
+}
+window.__hbApplySettings=applySettings;

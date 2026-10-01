@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import {readAudioMix,saveAudioMix,MUSIC_LEVEL,THRUST_LEVEL} from '../js/preferences.js';
 
 const engineSource = (await readFile(new URL('../js/audio.js', import.meta.url), 'utf8'))
   .replace(/^import .*;$/gm, '').replace('export class Audio', 'globalThis.BroadcastAudio = class Audio');
 const hostSource = (await readFile(new URL('../js/audio-context.js', import.meta.url), 'utf8'))
   .replaceAll('export function ', 'function ');
 const musicSource = (await readFile(new URL('../js/session-music.js', import.meta.url), 'utf8'))
-  .replace('export class SessionMusic','class SessionMusic').replace('export function sessionMusic','function sessionMusic');
+  .replace(/^import .*;$/gm,'').replace('export class SessionMusic','class SessionMusic').replace('export function sessionMusic','function sessionMusic');
 
 test('session music keeps one streaming playhead through screens, fights and mute changes',async()=>{
  let graphs=0,plays=0,gain=0;
@@ -16,14 +17,16 @@ test('session music keeps one streaming playhead through screens, fights and mut
  const node={connect(){return this;},gain:{value:0,setTargetAtTime(value){gain=value;}}};
  const context={state:'running',currentTime:0,destination:{},createMediaElementSource(){graphs++;return node;},createGain(){return node;}};
  const host={context,muted:false,getContext(){return context;}};
- const sandbox={window:{Audio:function(){return media;}},document:{body:{append(){}}},host};
+ const sandbox={readAudioMix,MUSIC_LEVEL,window:{Audio:function(){return media;}},document:{body:{append(){}}},host};
  vm.runInNewContext(musicSource+'\nglobalThis.music=sessionMusic(host);',sandbox);
  const m=sandbox.music;await m.start();assert.equal(gain,0);assert.equal(media.loop,true);
- media.currentTime=83;m.setVisible(true);assert.equal(gain,.28);
+ media.currentTime=83;m.setVisible(true);assert.equal(gain,MUSIC_LEVEL);
  m.setVisible(false);media.currentTime=114;m.setVisible(true);await m.start();
  assert.equal(media.currentTime,114);assert.equal(plays,1);assert.equal(graphs,1);
  host.muted=true;m.updateGate();assert.equal(gain,0);assert.equal(media.paused,false);
- host.muted=false;m.updateGate();assert.equal(gain,.28);
+ host.muted=false;m.updateGate();assert.equal(gain,MUSIC_LEVEL);
+ m.setVolume(.5);assert.equal(gain,MUSIC_LEVEL*.5);assert.equal(media.currentTime,114);
+ m.setVolume(0);assert.equal(m.playing,false);assert.equal(gain,0);
  m.setEnabled(false);assert.equal(gain,0);assert.equal(media.currentTime,114);
  vm.runInNewContext('globalThis.again=sessionMusic(host);',sandbox);assert.equal(sandbox.again,m);
 });
@@ -36,7 +39,7 @@ test('gestures retry suspended audio during loading without duplicating its audi
     createGain: node, createBiquadFilter: node,
     createDynamicsCompressor() { graphs++; return { ...node(), threshold: parameter(), knee: parameter(), ratio: parameter(), attack: parameter(), release: parameter() }; },
     addEventListener() {}, removeEventListener() {} };
-  const sandbox = { sessionMusic:()=>({setEnabled(){},setVisible(){},start(){}}),audioHost: () => ({ resume() { resumes++; return context; } }),
+  const sandbox = { readAudioMix,saveAudioMix,THRUST_LEVEL,sessionMusic:()=>({setEnabled(){},setVolume(){},setVisible(){},start(){}}),audioHost: () => ({ resume() { resumes++; return context; } }),
     localStorage: {getItem: () => null}, fetch: () => new Promise(() => {}), THREE: {} };
   vm.runInNewContext(engineSource, sandbox);
   const audio = new sandbox.BroadcastAudio({}, {});
@@ -64,4 +67,16 @@ test('activation listeners survive early failed interactions and include keyboar
   assert.equal(contexts,1); assert.equal(resumes,attempts);
   window.__hbAudioHost.context.state = 'running'; listeners.get('click')({isTrusted:true}); assert.equal(resumes,attempts);
   window.__hbAudioHost.context.state = 'suspended'; listeners.get('visibilitychange')(); assert.equal(resumes,attempts+1);
+});
+
+test('SFX volume changes reach the effects and comms gate without resetting audio',()=>{
+ let gain;
+ const sandbox={readAudioMix,saveAudioMix,THRUST_LEVEL,audioHost:()=>({music:{setEnabled(){},setVolume(){}}})};
+ vm.runInNewContext(engineSource,sandbox);
+ const audio=new sandbox.BroadcastAudio({},{});audio.ctx={currentTime:12};
+ audio.sfxGate={gain:{setTargetAtTime(value){gain=value;}}};
+ audio.setMix({sfxVolume:.35,musicVolume:.6});assert.equal(gain,.35);
+ audio.setMix({sfx:false});assert.equal(gain,0);assert.equal(audio.sfxVolume,.35);assert.equal(audio.musicVolume,.6);
+ audio.setMix({sfx:true});assert.equal(gain,.35);
+ assert.equal(THRUST_LEVEL,1.15);assert.equal(MUSIC_LEVEL,.28*1.15);
 });

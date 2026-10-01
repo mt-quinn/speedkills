@@ -1,3 +1,4 @@
+import { readAudioMix, saveAudioMix, THRUST_LEVEL } from './preferences.js';
 // Broadcast audio (Web Audio): event one-shots, continuous engine / railgun-charge / PDC layers
 // driven by the fight's state and slow-motion treatment. Music belongs to the session.
 import * as THREE from 'three';
@@ -42,9 +43,9 @@ export class Audio {
   constructor(match, scene) {
     this.m = match; this.scene = scene;
     this.enabled = false; this.ready = false; this.host = audioHost(); this.sources = [];
-    let mix = null;
-    try { mix = JSON.parse(localStorage.getItem('sk-audio') || 'null'); } catch (e) { /* none */ }
-    this.musicOn = mix ? !!mix.music : true; this.sfxOn = mix ? !!mix.sfx : true;
+    const mix=readAudioMix();
+    this.musicOn=mix.music;this.sfxOn=mix.sfx;
+    this.musicVolume=mix.musicVolume;this.sfxVolume=mix.sfxVolume;
     this.lastLaunch = [-1, -1];
     this.nextPdc = [0, 0];
     this.prevG = [0, 0]; this.onset = [0, 0];
@@ -55,16 +56,15 @@ export class Audio {
 
   // Actually audible: switched on, and the browser has let the audio context run (most
   // browsers hold it suspended until the first click or key press).
-  get playing() { return !!(this.enabled && this.ctx?.state === 'running' && ((this.sfxOn && this.ready && this.sources.length > 0) || (this.musicOn && this.host.music?.playing))); }
+  get playing() { return !!(this.enabled && this.ctx?.state === 'running' && ((this.sfxOn && this.sfxVolume>0 && this.ready && this.sources.length > 0) || (this.musicOn && this.host.music?.playing))); }
 
   // Music / effects on or off (remembered on this device).
-  setMix({ music = this.musicOn, sfx = this.sfxOn } = {}) {
-    this.musicOn = music; this.sfxOn = sfx;
-    this.host.music?.setEnabled(music);
-    try { localStorage.setItem('sk-audio', JSON.stringify({ music, sfx })); } catch (e) { /* private mode */ }
-    if (!this.ready) return;
-    const now = this.ctx.currentTime;
-    this.sfxGate.gain.setTargetAtTime(sfx ? 1 : 0, now, 0.08);
+  setMix(patch={}) {
+    const mix=saveAudioMix({music:this.musicOn,sfx:this.sfxOn,musicVolume:this.musicVolume,sfxVolume:this.sfxVolume,...patch});
+    this.musicOn=mix.music;this.sfxOn=mix.sfx;
+    this.musicVolume=mix.musicVolume;this.sfxVolume=mix.sfxVolume;
+    this.host.music?.setEnabled(mix.music);this.host.music?.setVolume(mix.musicVolume);
+    if(this.sfxGate)this.sfxGate.gain.setTargetAtTime(mix.sfx?mix.sfxVolume:0,this.ctx.currentTime,.08);
   }
 
   enable() {
@@ -73,7 +73,7 @@ export class Audio {
     // Resume synchronously inside every gesture, even while assets are still loading.
     const ctx = this.ctx = this.host.resume();
     if (!ctx) return;
-    const music=sessionMusic(this.host);music.setEnabled(this.musicOn);
+    const music=sessionMusic(this.host);music.setEnabled(this.musicOn);music.setVolume(this.musicVolume);
     if(!this.host.musicManaged)music.setVisible(true);
     music.start();
     if (this.master) this.master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.1);
@@ -99,7 +99,7 @@ export class Audio {
     this.sfx = ctx.createGain();
     this.sfxFilter = ctx.createBiquadFilter(); this.sfxFilter.type = 'lowpass'; this.sfxFilter.frequency.value = 20000;
     // Effects gate; the session player owns the music gate.
-    this.sfxGate = ctx.createGain(); this.sfxGate.gain.value = this.sfxOn ? 1 : 0;
+    this.sfxGate = ctx.createGain(); this.sfxGate.gain.value = this.sfxOn ? this.sfxVolume : 0;
     this.sfx.connect(this.sfxFilter).connect(this.sfxGate).connect(this.master);
     this.buf = {}; this.norm = {};
     await Promise.all(FILES.map(async (f) => {
@@ -318,7 +318,7 @@ export class Audio {
       if (rise > 0) this.onset[i] = Math.min(1, this.onset[i] + (rise / 5) * (dt / 0.25));
       this.onset[i] *= Math.exp(-dt / 0.6);
       this.prevG[i] += (g - this.prevG[i]) * Math.min(1, dt / 0.25);
-      eng[i] = g > 0.3 ? (0.08 + 0.34 * (1 - Math.exp(-g / 6)) + 0.6 * this.onset[i]) * att : 0;
+      eng[i] = g > 0.3 ? THRUST_LEVEL * (0.08 + 0.34 * (1 - Math.exp(-g / 6)) + 0.6 * this.onset[i]) * att : 0;
       if (L.engine) {
         L.engine.filt.frequency.setTargetAtTime(Math.min(7000, 450 + 350 * g), now, 0.12);
         L.engine.pan.pan.setTargetAtTime(pan, now, 0.1);

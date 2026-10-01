@@ -1,7 +1,9 @@
+import { readAudioMix, MUSIC_LEVEL } from './preferences.js';
 // One streaming player owned by the league shell, independent of fight frames.
 export class SessionMusic {
   constructor(host) {
     this.host=host;this.visible=false;this.enabled=true;this.starting=null;
+    const mix=readAudioMix();this.enabled=mix.music;this.volume=mix.musicVolume;
     // Versioned URL bypasses the previous track's day-long CDN/browser cache.
     this.media=new window.Audio('/sfx/bgm.opus?v=20261001-477');
     this.media.loop=true;this.media.preload='auto';
@@ -25,11 +27,12 @@ export class SessionMusic {
   }
   setVisible(visible){this.visible=visible;this.updateGate();}
   setEnabled(enabled){this.enabled=enabled;this.updateGate();}
+  setVolume(volume){this.volume=volume;this.updateGate();}
   updateGate(){
-    const level=this.visible&&this.enabled&&!this.host.muted ? .28 : 0;
+    const level=this.visible&&this.enabled&&!this.host.muted ? MUSIC_LEVEL*this.volume : 0;
     this.media.dataset.level=String(level);
     if(this.gate)this.gate.gain.setTargetAtTime(level,this.host.context.currentTime,.15);
   }
-  get playing(){return !this.media.paused&&this.host.context?.state==='running'&&this.visible&&this.enabled&&!this.host.muted;}
+  get playing(){return !this.media.paused&&this.host.context?.state==='running'&&this.visible&&this.enabled&&this.volume>0&&!this.host.muted;}
 }
 export function sessionMusic(host){return host.music ||= new SessionMusic(host);}
