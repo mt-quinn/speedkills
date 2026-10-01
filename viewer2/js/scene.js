@@ -1,6 +1,7 @@
 // The 3D broadcast scene: ships, weapons, the fight plane and its drop lines.
 import * as THREE from 'three';
 import { CameraFocusPass } from './camera-focus.js';
+import { CameraModels } from './camera-models.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -187,6 +188,7 @@ export class Scene {
     this.camera = new THREE.PerspectiveCamera(38, 16 / 9, 5, 200000);
     this.root = new THREE.Group(); // floating origin: everything relative to the fight's middle
     this.scene.add(this.root);
+    this.cameraModels = new CameraModels(this.root);
 
     // Light: a fixed key from "sun" direction so shading shows orientation; soft fill.
     const key = new THREE.DirectionalLight('#fff4e6', 2.2);
@@ -577,6 +579,7 @@ export class Scene {
 
   dispose() {
     window.removeEventListener('resize', this.onResize);
+    this.cameraModels.dispose();
     const geometries = new Set(), materials = new Set();
     this.scene.traverse((o) => { if (o.geometry) geometries.add(o.geometry); if (o.material) for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m); });
     for (const g of geometries) g.dispose();
@@ -596,6 +599,7 @@ export class Scene {
     // Floating origin at the fight's middle.
     this.mid.copy(st.ships[0].pos).add(st.ships[1].pos).multiplyScalar(0.5);
     this.root.position.copy(this.mid).negate();
+    this.cameraModels.update(this.cameraEngine,this.camera,this.camWorld,window.innerHeight);
     if (this.planeCenter.lengthSq() === 0) this.planeCenter.copy(this.mid);
     this.planeCenter.lerp(this.mid, 0.02); // plane follows the fight's middle, slowly (never rotates)
     this.plane.position.copy(this.planeCenter);

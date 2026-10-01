@@ -4,9 +4,25 @@ import fs from 'node:fs';
 import * as THREE from 'three';
 import { Match } from '../js/data.js';
 import { CameraDrones, CAMERA_DEFAULTS, circleOfConfusion, shotContrast } from '../js/camera-drones.js';
+import { CameraModels } from '../js/camera-models.js';
 const match=new Match(JSON.parse(fs.readFileSync(new URL('../matches/L40000.json',import.meta.url))));
 const viewport={width:1600,height:900,stage:{left:0,right:1600,top:112,bottom:884}};
 const engine=()=>new CameraDrones(match,new THREE.Vector3(0,1,0),viewport,{},true);
+test('camera models follow optics, scale at distance and cue only visible pending cuts',()=>{
+ const root=new THREE.Group(), models=new CameraModels(root), camera=new THREE.PerspectiveCamera(40,16/9,5,20000);
+ camera.updateMatrixWorld();
+ const drone={pos:new THREE.Vector3(0,0,-1000),quat:new THREE.Quaternion(),fov:35};
+ const e={drones:[drone],viewport:{width:1600,height:900},pendingCut:{i:0,since:10},current:{t:10.4}};
+ models.update(e,camera,new THREE.Vector3(),900);
+ const m=models.models[0]; assert.ok(m.group.visible);assert.equal(m.guideMaterial.uniforms.highlight.value,1);
+ assert.ok(m.group.position.equals(drone.pos));assert.ok(m.group.quaternion.equals(drone.quat));
+ const scale=m.group.scale.x, width=m.geometry.attributes.position.array[3];
+ drone.pos.z=-2000;drone.fov=60;models.update(e,camera,new THREE.Vector3(),900);
+ assert.ok(Math.abs(m.group.scale.x/scale-2)<1e-6);assert.ok(Math.abs(m.geometry.attributes.position.array[3])>Math.abs(width));
+ drone.pos.x=20000;models.update(e,camera,new THREE.Vector3(),900);assert.equal(m.guideMaterial.uniforms.highlight.value,0);
+ drone.pos.set(0,0,0);models.update(e,camera,new THREE.Vector3(),900);assert.equal(m.group.visible,false);
+ models.dispose();root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+});
 test('camera flight and optics respect independent physical limits',()=>{
  const e=engine();let prev;
  for(let t=0;t<match.duration;t+=1/30){e.at(t);const now=e.drones.map(d=>({pos:d.pos.clone(),vel:d.vel.clone(),body:d.body.clone(),quat:d.quat.clone(),fov:d.fov,focus:d.focus,omega:d.angularVelocity.clone()}));

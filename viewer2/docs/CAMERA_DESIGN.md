@@ -49,3 +49,8 @@ Numerical telemetry is sampled at 5Hz. Live render samples are bounded to 12000.
 Final results and rendered-review observations are recorded in `CAMERA_REVIEW.md`. Numerical gates constrain failure modes; they do not prove subjective excitement.
 
 `npm run camera:demo` generates four local review recordings under the ignored `matches/camera-review/` directory and prints camera-lab links. Native `target/release/league` must already be built.
+# Visible observer hardware
+
+Each observer is rendered as a small neutral 3D camera with a lens, body and handle. Its optical quaternion and position come from the existing drone simulation. Apparent height is roughly 18 CSS pixels, smaller than the combat silhouettes. Four dashed frustum rays follow its current field of view and fade rapidly; they do not extend to the fight subjects. Models use normal depth testing, and hardware immediately around the viewing lens is hidden.
+
+During a sustained editorial cut proposal, the incoming camera and its rays brighten briefly in cool white. This cue appears only when that camera is inside the current view; there are no off-screen markers. Emergency recovery cuts retain immediate timing. Shared geometry and reusable buffers keep the overlay lightweight, and scene disposal cleans up its resources.
