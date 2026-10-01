@@ -45,7 +45,7 @@ export class CameraModels {
     guide.frustumCulled=false; group.add(guide); this.root.add(group);
     return {group,geometry,bodyMaterial,lensMaterial,guideMaterial};
   }
-  update(engine,viewer,worldCamera,height) {
+  update(engine,viewer,worldCamera,height,onAirRig=null) {
     if(!engine)return;
     const aspect=engine.viewport.width/Math.max(1,engine.viewport.height);
     for(let i=0;i<engine.drones.length;i++) {
@@ -54,7 +54,15 @@ export class CameraModels {
       const worldHeight=2*distance*Math.tan(THREE.MathUtils.degToRad(viewer.fov/2));
       // About 18 CSS px tall, bounded near the lens; ships occupy 3–11% of height.
       const scale=Math.max(1,worldHeight*Math.min(.028,18/height)/2.1);
-      m.group.visible=distance>scale*8;
+      const length=24, y=Math.tan(THREE.MathUtils.degToRad(d.fov/2))*length, x=y*aspect;
+      // Cull the entire assembly, including the long POV rays. A centre-only
+      // body check lets guides (or enlarged hardware) cross the near plane.
+      const exclusion=Math.max(50,scale*Math.hypot(x,y,1.9+length)+viewer.near*2);
+      // Hysteresis prevents a drone skimming this boundary from flickering.
+      m.nearCamera=distance<=exclusion*(m.nearCamera?1.2:1);
+      // Playback interpolates optics between simulation ticks. The rig that
+      // supplied this shot must stay hidden even when its simulated pose differs.
+      m.group.visible=i!==onAirRig&&!m.nearCamera;
       m.group.position.copy(d.pos); m.group.quaternion.copy(d.quat); m.group.scale.setScalar(scale);
       // The sustained editorial proposal is the incoming-camera cue. Do not
       // predict damage/outcomes or stall emergency coverage recoveries for it.
@@ -65,7 +73,6 @@ export class CameraModels {
       m.bodyMaterial.emissive.setRGB(.035+.25*highlight,.045+.5*highlight,.05+.6*highlight);
       m.lensMaterial.color.setRGB(.55+.2*highlight,.65+.28*highlight,.69+.31*highlight);
       m.guideMaterial.uniforms.highlight.value=highlight;
-      const length=24, y=Math.tan(THREE.MathUtils.degToRad(d.fov/2))*length, x=y*aspect;
       const p=m.geometry.attributes.position.array;
       for(let k=0;k<4;k++) {
         const at=k*6; p[at]=0;p[at+1]=0;p[at+2]=-1.9;

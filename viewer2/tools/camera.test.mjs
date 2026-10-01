@@ -23,6 +23,28 @@ test('camera models follow optics, scale at distance and cue only visible pendin
  drone.pos.set(0,0,0);models.update(e,camera,new THREE.Vector3(),900);assert.equal(m.group.visible,false);
  models.dispose();root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 });
+test('camera hardware and POV stay outside the lens exclusion zone without boundary flicker',()=>{
+ const root=new THREE.Group(), models=new CameraModels(root), camera=new THREE.PerspectiveCamera(40,16/9,5,20000);
+ camera.updateMatrixWorld();
+ const drone={pos:new THREE.Vector3(0,0,-1000),quat:new THREE.Quaternion(),fov:35};
+ const e={drones:[drone],viewport:{width:1600,height:900},pendingCut:{i:0,since:10},current:{t:10.4}};
+ const update=(rig=null)=>models.update(e,camera,new THREE.Vector3(),900,rig);
+ update(0); const m=models.models[0];
+ assert.equal(m.group.visible,false,'on-air rig stays hidden despite interpolation offset');
+ assert.equal(m.guideMaterial.uniforms.highlight.value,0);
+ update();assert.equal(m.group.visible,true,'manual view can see distant hardware');
+ drone.pos.z=-40;update();assert.equal(m.group.visible,false);
+ drone.pos.z=-55;update();assert.equal(m.group.visible,false,'boundary hysteresis retains exclusion');
+ drone.pos.z=-65;update();assert.equal(m.group.visible,true);
+ // Wide POV guides extend well beyond the camera body, even at modest distance.
+ drone.fov=120;drone.pos.z=-80;update();assert.equal(m.group.visible,false);
+ assert.equal(m.guideMaterial.uniforms.highlight.value,0,'nearby incoming rig cannot highlight');
+ drone.pos.z=-1000;update();assert.equal(m.group.visible,true);
+ // Account for enlarged silhouettes in small viewports and wide broadcast lenses.
+ camera.fov=120;models.update(e,camera,new THREE.Vector3(),300);
+ assert.equal(m.group.visible,false,'scaled guide bounds are excluded too');
+ models.dispose();root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+});
 test('camera flight and optics respect independent physical limits',()=>{
  const e=engine();let prev;
  for(let t=0;t<match.duration;t+=1/30){e.at(t);const now=e.drones.map(d=>({pos:d.pos.clone(),vel:d.vel.clone(),body:d.body.clone(),quat:d.quat.clone(),fov:d.fov,focus:d.focus,omega:d.angularVelocity.clone()}));
