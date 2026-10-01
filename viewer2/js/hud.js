@@ -46,7 +46,6 @@ export class Hud {
     this.shrapTags = [0, 1, 2].map(() => { const t = el('div', 'slabel shrap', 'shrapnel'); t.style.display = 'none'; $('#tags').append(t); return t; });
     this.mLabels = [0, 1, 2].map(() => { const t = el('div', 'mlabel'); t.style.display = 'none'; $('#tags').append(t); return t; });
     this.torpTags = [0, 1, 2, 3].map(() => { const t = el('div', 'slabel torp'); t.style.display = 'none'; $('#tags').append(t); return t; });
-    this.buildLegend();
     this.callouts = []; // {text, t0, until, prio, key, node}
     this.stats = { captionsShown: 0, maxSimultaneous: 0, shortest: Infinity, chars: 0 };
     this.platePos = [null, null];
@@ -145,20 +144,6 @@ export class Hud {
     p.append(head,hull,meta,ammo,action,signal,outs,flag,chat);
     $('#tags').append(p);
     return { p, bet, weapons, signal, mounts, rail, plan, hullFill, hullTxt, dots, ammo, outs, systemTags, acc, flag, chat, flagState: null, lastAmmo: '' };
-  }
-
-  // What you're looking at: the scene's visual language, for the opening seconds.
-  buildLegend() {
-    const lg = $('#legend');
-    lg.innerHTML = `
-      <span><svg viewBox="0 0 24 12"><path d="M2 6 L20 2 L16 6 L20 10 Z" fill="currentColor"/></svg>ship · flame = thrust</span>
-      <span><svg viewBox="0 0 24 12"><line x1="1" y1="6" x2="9" y2="6" stroke="currentColor" stroke-width="2.4"/><path d="M15 2h-2v2M21 2h2v2M15 10h-2v-2M21 10h2v-2" fill="none" stroke="#ff3b5c" stroke-width="1.4"/></svg>railgun charge · lock</span>
-      <span><svg viewBox="0 0 24 12"><path d="M4 6 L14 2 L11 6 L14 10 Z" fill="#fff"/><line x1="14" y1="6" x2="23" y2="6" stroke="currentColor" stroke-width="1.5" opacity=".6"/></svg>torpedo</span>
-      <span><svg viewBox="0 0 24 12"><path d="M1 10 Q12 -3 23 10" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3"/></svg>PDC rounds</span>
-      <span><svg viewBox="0 0 24 12"><g stroke="#ffa070" stroke-width="1.4"><line x1="3" y1="3" x2="7" y2="4"/><line x1="10" y1="8" x2="14" y2="9"/><line x1="15" y1="2" x2="19" y2="3"/><line x1="6" y1="9" x2="9" y2="10"/></g></svg>shrapnel</span>
-      <span><svg viewBox="0 0 24 12"><line x1="12" y1="0" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><ellipse cx="12" cy="11" rx="5" ry="1.4" fill="none" stroke="currentColor"/></svg>height above the plane</span>
-      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="var(--a)"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: hull integrity · white = hull lost this exchange</span>`;
-    this.legend = lg;
   }
 
   // Fight-wide news under the scoreboard: exchange results, the lead, the result. `text` may be
@@ -358,8 +343,6 @@ export class Hud {
     }
     this.callouts = this.callouts.filter((c) => { if (c.until <= t) { this.retire(c, t, c.prio >= 5); return false; } return true; });
     this.stats.maxSimultaneous = Math.max(this.stats.maxSimultaneous, this.callouts.length);
-    // Legend: the opening seconds only.
-    this.legend.style.opacity = t < 7 ? 1 : Math.max(0, 1 - (t - 7) / 0.8);
     // Scoreboard.
     const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
     this.clock.textContent = `${mm}:${String(ss).padStart(2, '0')}`;

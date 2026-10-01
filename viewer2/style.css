@@ -203,11 +203,6 @@ body.story *, body.story *::before, body.story *::after { animation: none !impor
   text-transform: uppercase; white-space: nowrap; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95); pointer-events: none; }
 .slabel.shrap { color: #ff9a70; }
 .slabel.torp { color: var(--team); } .slabel.torp.hot { color: var(--threat); }
-/* Legend: the visual language, for the opening seconds */
-#legend { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; gap: 22px; padding: 8px 16px; background: rgba(7, 10, 18, 0.72);
-  font-family: 'Saira Condensed', sans-serif; font-size: 14px; letter-spacing: 0.06em; color: var(--ink); white-space: nowrap; pointer-events: none; transition: opacity 0.4s; }
-#legend span { display: flex; align-items: center; gap: 7px; }
-#legend svg { width: 26px; height: 13px; color: #9fb4dc; }
 #inset, #cards { display: none; }
 
 /* ---- Playback controls: a sheet from the bottom (thumb zone), shown on tap ---- */
@@ -289,8 +284,6 @@ body.portrait .pl-flag { font-size: 13px; margin: 5px -9px -7px -12px; padding: 
 body.portrait #dock .plate.t1 .pl-flag { margin: 5px -12px -7px -9px; }
 body.portrait .pl-chat { top: auto; bottom: calc(100% + 6px); width: 100%; font-size: 12px; white-space: normal; line-height: 1.25; }
 body.portrait .slabel { font-size: 11px; letter-spacing: 0.08em; }
-body.portrait #legend { bottom: auto; top: calc(80px + env(safe-area-inset-top)); width: calc(100vw - 16px); display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 8px; padding: 8px 10px; font-size: 11.5px; white-space: normal; }
-body.portrait #legend svg { width: 20px; flex: none; }
 body.portrait #controls { bottom: calc(8px + env(safe-area-inset-bottom)); }
 
 #dock { transition: opacity 0.2s; }
@@ -310,7 +303,6 @@ body.portrait.ctl-open #dock { opacity: 0; }
   .pl-outs.fresh { font-size: 11px; margin-left: -8px; margin-right: -8px; padding: 2px 8px; }
   .pl-flag { font-size: 12px; margin: 4px -8px -6px -11px; padding: 3px 8px 4px 11px; }
   .pl-chat { font-size: 11.5px; width: 220px; }
-  #legend { font-size: 11px; gap: 12px; padding: 5px 10px; bottom: 10px; } #legend svg { width: 18px; }
   #result { top: 58px; min-width: 0; padding: 8px 16px 10px; } .res-head { font-size: 26px; } .res-sub { font-size: 11px; margin: 3px 0 6px; } .res-row { font-size: 11px; }
   #controls { width: min(520px, calc(100vw - 16px)); padding: 6px 12px 4px; bottom: calc(6px + env(safe-area-inset-bottom)); }
   .ct-title { margin-bottom: 0; font-size: 13px; } .sc-track { height: 28px; }
@@ -350,8 +342,6 @@ body.portrait .pl-hull { margin-left: 28px; } body.portrait .pl-hull b { font-si
 body.portrait #dock .plate.t1 .pl-hull { margin-left: 34px; margin-right: 28px; }
 body.portrait #dock .plate.t1 .pl-hull b { right: auto; left: calc(100% + 5px); }
 
-body.portrait #legend span:last-child { grid-column: 1 / -1; }
-#legend { flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); }
 
 /* Range between the ships (scoreboard centre) */
 .sb-range { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; color: var(--ink); line-height: 1; white-space: nowrap; }

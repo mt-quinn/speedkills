@@ -3,6 +3,7 @@ import { readViewerSettings } from './preferences.js';
 // The 3D broadcast scene: ships, weapons, the fight plane and its drop lines.
 import * as THREE from 'three';
 import { CameraFocusPass } from './camera-focus.js';
+import { effectDepth } from './effect-depth.js';
 import { CameraModels } from './camera-models.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -27,8 +28,9 @@ const SHIP_LEN = 24; // model metres, nose +Z
 // default 1×1 resolution draws a 3 px line three screens wide.
 const RES = new THREE.Vector2(window.innerWidth, window.innerHeight);
 
-function line2(color, width, opacity = 1, dashed = false) {
+function line2(color, width, opacity = 1, dashed = false, physical = false) {
   const mat = new LineMaterial({ color, linewidth: width, transparent: true, opacity, depthWrite: false, dashed, dashSize: 60, gapSize: 40 });
+  if (physical) effectDepth(mat);
   mat.resolution = RES;
   const l = new Line2(new LineGeometry(), mat);
   l.frustumCulled = false;
@@ -138,7 +140,7 @@ function shipModel(team) {
   const tip = new THREE.Mesh(new THREE.SphereGeometry(1.3, 10, 8), new THREE.MeshBasicMaterial({ color: WHITE }));
   tip.position.set(0, 0.2, 14.2);
   g.add(tip);
-  const plume = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1, 10, 1, true), new THREE.MeshBasicMaterial({ color: c.clone().lerp(WHITE, 0.35), transparent: true, opacity: 0.8, depthWrite: true, side: THREE.DoubleSide }));
+  const plume = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1, 10, 1, true), new THREE.MeshBasicMaterial({ color: c.clone().lerp(WHITE, 0.35), transparent: true, opacity: 0.8, alphaTest: .015, depthWrite: true, side: THREE.DoubleSide }));
   plume.rotation.x = -Math.PI / 2;
   g.add(plume);
   // Shards for a breakup: each facet of the dart as its own piece (hidden until destroyed).
@@ -204,9 +206,10 @@ export class Scene {
     this.makeSky();
     this.plane = this.makePlane();
     this.ships = [0, 1].map((i) => { const m = shipModel(i); this.root.add(m); return m; });
-    this.chargeLines = [0, 1].map((i) => { const l = line2(TEAM[i], 2.0, 0); this.root.add(l); return l; });
-    this.chargeBg = [0, 1].map((i) => { const l = line2(TEAM[i], 2.2, 0); this.root.add(l); return l; });
+    this.chargeLines = [0, 1].map((i) => { const l = line2(TEAM[i], 2.0, 0, false, true); this.root.add(l); return l; });
+    this.chargeBg = [0, 1].map((i) => { const l = line2(TEAM[i], 2.2, 0, false, true); this.root.add(l); return l; });
     this.lockBatch = segBatch(64, 2.2);
+    effectDepth(this.lockBatch.material);
     this.root.add(this.lockBatch);
     this._lp = new Float32Array(64 * 6); this._lc = new Float32Array(64 * 6);
     this.lockOn = [];
@@ -215,9 +218,10 @@ export class Scene {
     this.velLines = [0, 1].map((i) => { const l = line2(TEAM[i], 1.2, 0.35, true); this.root.add(l); return l; });
     this.rocks = this.makeRocks();
     // Ship paths: where each ship has been in the last few seconds (world-fixed).
-    this.paths = [0, 1].map(() => { const l = line2(WHITE, 2.0, 1); l.material.vertexColors = true; l.material.blending = THREE.AdditiveBlending; this.root.add(l); return l; });
+    this.paths = [0, 1].map(() => { const l = line2(WHITE, 2.0, 1, false, true); l.material.vertexColors = true; l.material.blending = THREE.AdditiveBlending; this.root.add(l); return l; });
     // PDC tracers.
     this.tracers = segBatch(1500, 1.8);
+    effectDepth(this.tracers.material);
     this.root.add(this.tracers);
     this._tp = new Float32Array(1500 * 6); this._tc = new Float32Array(1500 * 6);
     this.measureBatch = segBatch(200, 1.7);
@@ -225,6 +229,7 @@ export class Scene {
     this._mp = new Float32Array(200 * 6); this._mc = new Float32Array(200 * 6);
     this.measureLabels = [];
     this.shrapnel = segBatch(1600, 1.6);
+    effectDepth(this.shrapnel.material);
     this.root.add(this.shrapnel);
     this._sp = new Float32Array(1600 * 6); this._sc = new Float32Array(1600 * 6);
     this.shrapTags = [];
@@ -246,10 +251,12 @@ export class Scene {
       target.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
     }
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.3, 0.55);
-    this.composer.addPass(this.bloom);
+    // Focus physical geometry first, then bloom the focused image. Glow outside
+    // silhouettes has no geometry depth and must not be focused as background.
     this.focusPass = new CameraFocusPass(this.camera);
     this.composer.addPass(this.focusPass);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.35, 0.3, 0.55);
+    this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.resize();
     this.onResize = () => this.resize();
@@ -734,7 +741,7 @@ export class Scene {
 
     // Railgun rounds: the one long, bright, solid streak on the screen.
     for (const sl of m.objects(t, 'sl')) {
-      const l = this.get('slug', () => { const line=line2(WHITE, 4.0, 1); line.material.depthWrite=true; return line; });
+      const l = this.get('slug', () => line2(WHITE, 4.0, 1, false, true));
       const dir = sl.vel.clone().normalize();
       setLine(l, [sl.pos.clone().addScaledVector(dir, -Math.max(220, this.screenScale(sl.pos, 0.08, 1))), sl.pos]);
       l.material.color.copy(TEAM[sl.owner]).lerp(WHITE, 0.75);
@@ -770,7 +777,7 @@ export class Scene {
         ring.material.opacity = 0.9 * (1 - k);
       }
       if (tr.length > 1) {
-        const l = this.get('trail', () => line2(WHITE, 1.6, 0.6));
+        const l = this.get('trail', () => line2(WHITE, 1.6, 0.6, false, true));
         // Fixed point count (resampled), so the line's buffers never need rebuilding.
         const pts = tr.map((x) => x.p).concat([tp.pos]);
         const N = 32, rs = [];
@@ -995,11 +1002,11 @@ export class Scene {
   // a diagram of a hit, not a fireball. `size` is the final ring as a fraction of screen height.
   flash(pos, color, size = 0.03, life = 0.5, delay = 0) {
     const grp = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ color, transparent: true, alphaTest: .015, depthWrite: true, side: THREE.DoubleSide }));
     const spokes = [];
     for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + 0.2; spokes.push(new THREE.Vector3(Math.cos(a) * 0.3, Math.sin(a) * 0.3, 0), new THREE.Vector3(Math.cos(a) * 0.7, Math.sin(a) * 0.7, 0)); }
     const burst = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(spokes), new THREE.LineBasicMaterial({ color: WHITE, transparent: true }));
-    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.18, 16), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, depthWrite: false }));
+    const dot = new THREE.Mesh(new THREE.CircleGeometry(0.18, 16), new THREE.MeshBasicMaterial({ color: WHITE, transparent: true, alphaTest: .015, depthWrite: true }));
     grp.add(ring, burst, dot);
     grp.position.copy(pos);
     this.root.add(grp);
@@ -1014,7 +1021,7 @@ export class Scene {
     } });
   }
   streak(a, b, color, life = 0.6) {
-    const obj = line2(color, 3, 1);
+    const obj = line2(color, 3, 1, false, true);
     setLine(obj, [a, b]);
     this.root.add(obj);
     this.fx.push({ obj, born: this._now, life, tick: (k, o) => { o.material.opacity = 1 - k; o.material.linewidth = 3 * (1 - k) + 1; } });
