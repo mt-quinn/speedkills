@@ -17,4 +17,4 @@ export async function simulator(bytes) {
     }
   };
 }
-export function oddsKey(ships) { return JSON.stringify(['wasm-tactics-v4', ships.map(s => [s.style, s.identity, s.crew.map(c => [c.skill, geeResistance(c)])])]); }
+export function oddsKey(ships) { return JSON.stringify(['wasm-tactics-v5', ships.map(s => [s.style, s.identity, s.crew.map(c => [c.skill, geeResistance(c)])])]); }

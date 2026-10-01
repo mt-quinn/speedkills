@@ -607,6 +607,25 @@ fn spectacle_round_robin() {
 
 #[test]
 #[ignore]
+fn league_engagements() {
+    // Real persistent identities and crew stats, not just freshly seeded default pilots.
+    use std::io::Write;
+    let n: u64 = std::env::var("GATE_N").ok().and_then(|v| v.parse().ok()).unwrap_or(20);
+    let ships = crate::league::roster();
+    std::fs::create_dir_all("../../runs/duel").unwrap();
+    let mut log = std::fs::File::create("../../runs/duel/league-engagements.jsonl").unwrap();
+    for (i,a) in ships.iter().enumerate() {
+        for b in &ships[i+1..] {
+            for k in 0..n {
+                let m = if k%2==0 {crate::league::fight(8000+k,a,b)} else {crate::league::fight(8000+k,b,a)};
+                writeln!(log,"{}",m.to_json()).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+#[ignore]
 fn salvo_vs_closing_speed() {
     // Hull damage a full salvo does (direct hits and debris) by launch range, against a fresh,
     // stationary defender with an engineer (so what's measured is the salvo, not attrition).
@@ -863,6 +882,26 @@ fn knife_fighters_force_a_closer_engagement_than_counterpunchers() {
     }
     assert!(range[0]<1400.0,"knife stopped at {:.0} m",range[0]);
     assert!(range[1]>range[0]+700.0,"doctrines converged: {range:?}");
+}
+
+#[test]
+fn knife_mirrors_close_reopen_and_reengage_instead_of_parking() {
+    use crate::pilot::{Pilot,Style};
+    let mut dynamic=0;
+    for seed in 5000..5004 {
+        let m=crate::diag::run_pilots(seed,[Pilot::seeded(Style::Knife,seed*2),Pilot::seeded(Style::Knife,seed*2+1)]);
+        let mut stage=0;
+        for r in &m.range_history {
+            match stage {
+                0 if r[1]<1000.0 => stage=1,
+                1 if r[1]>1800.0 => stage=2,
+                2 if r[1]<1000.0 => {stage=3;break;},
+                _ => (),
+            }
+        }
+        if stage==3 {dynamic+=1;}
+    }
+    assert!(dynamic>=3,"only {dynamic}/4 Knife mirrors closed, separated and reengaged");
 }
 
 #[test]

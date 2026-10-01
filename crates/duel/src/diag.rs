@@ -102,6 +102,7 @@ pub struct SideDiag {
 
 #[derive(Clone, Debug, Default)]
 pub struct MatchDiag {
+    pub range_history: Vec<[f64; 3]>,
     pub stationary_exchange_time: f64,
     pub longest_stationary_exchange: f64,
     pub fast_passes: u32,
@@ -160,9 +161,10 @@ impl MatchDiag {
             )
         };
         format!(
-            "{{\"stationary_exchange_time\":{:.2},\"longest_stationary_exchange\":{:.2},\"fast_passes\":{},\"reentries\":{},\"seed\":{},\"winner\":{},\"reason\":\"{}\",\"finish_cause\":\"{}\",\"finish_last10\":\"{}\",\"lead_changes\":{},\"merges\":[{}],\"winner_trailed\":{},\"health\":[{}],\"duration\":{:.2},\"start_dist\":{:.0},\"min_dist\":{:.0},\"time_within_4km\":{:.1},\"time_within_1200m\":{:.1},\"sides\":[{},{}]}}",
+            "{{\"stationary_exchange_time\":{:.2},\"longest_stationary_exchange\":{:.2},\"fast_passes\":{},\"reentries\":{},\"seed\":{},\"winner\":{},\"reason\":\"{}\",\"finish_cause\":\"{}\",\"finish_last10\":\"{}\",\"lead_changes\":{},\"merges\":[{}],\"winner_trailed\":{},\"health\":[{}],\"duration\":{:.2},\"start_dist\":{:.0},\"range_history\":[{}],\"min_dist\":{:.0},\"time_within_4km\":{:.1},\"time_within_1200m\":{:.1},\"sides\":[{},{}]}}",
             self.stationary_exchange_time,self.longest_stationary_exchange,self.fast_passes,self.reentries,self.seed, self.winner.map_or("null".into(), |w| w.to_string()), self.reason, self.finish_cause, self.finish_last10, self.lead_changes, self.merges.iter().map(|m| format!("[{:.1},{:.0},{:.2},{},{}]", m.0, m.1, m.2, m.3[0], m.3[1])).collect::<Vec<_>>().join(","), self.winner_trailed,
             self.health.iter().map(|h| format!("[{:.3},{:.3}]", h[0], h[1])).collect::<Vec<_>>().join(","), self.duration, self.start_dist,
+            self.range_history.iter().map(|r| format!("[{:.1},{:.0},{:.0}]",r[0],r[1],r[2])).collect::<Vec<_>>().join(","),
             self.min_dist, self.time_within_4km, self.time_within_1200m, side(&self.sides[0]), side(&self.sides[1]),
         )
     }
@@ -284,6 +286,8 @@ pub fn run_spec(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass
         let t = w.t;
         if w.tick % 120 == 0 {
             d.health.push([health_index(&w.ships[0]), health_index(&w.ships[1])]);
+            let rel=w.ships[1].pos-w.ships[0].pos;let rv=w.ships[1].vel-w.ships[0].vel;
+            d.range_history.push([w.t,rel.len(),-rv.dot(rel.normalized_or(Vec3::Z))]);
         }
         // Rounds in flight: exact closest approach to their target within this step, and how
         // hard the target is jinking across the round's path.

@@ -167,13 +167,22 @@ impl Pilot {
                 // The required displacement sets the burn, not a fixed maneuver timer. The
                 // slight forward cant makes useful transverse thrust possible before a full
                 // ninety-degree rotation. Stop after the round's closest approach.
-                let required = (2.0 * (s.class.radius * 1.5 - predicted.len()).max(0.0)
-                    / (eta * eta).max(0.04)
-                    / G)
-                    .clamp(10.0, 20.0);
-                self.tactics.escape_direction = (los * 0.65 + side * 0.76).normalized_or(side);
-                self.tactics.escape_g = required;
-                self.tactics.escape_until = w.t + eta + 0.1;
+                let required = 2.0 * (s.class.radius * 1.2 - predicted.len()).max(0.0)
+                    / (eta * eta).max(0.001) / G;
+                // Don't spend crew lives on a dodge that cannot clear the hull before
+                // impact. At point blank the pilot must fight through the shot instead.
+                let escape_direction = (los * 0.65 + side * 0.76).normalized_or(side);
+                let turn_delay = s.forward().dot(escape_direction).clamp(-1.0,1.0).acos()
+                    / s.class.max_rate.max(0.1);
+                let usable = (eta - turn_delay).max(0.0);
+                let reachable = 0.5 * s.rcs_accel() * eta * eta
+                    + 0.5 * 20.0 * G * usable * usable;
+                let need = (s.class.radius * 1.2 - predicted.len()).max(0.0);
+                if reachable > need && required <= 20.0 {
+                    self.tactics.escape_direction = escape_direction;
+                    self.tactics.escape_g = required.clamp(10.0, 20.0);
+                    self.tactics.escape_until = w.t + eta + 0.1;
+                }
             }
             incoming = incoming.max(risk);
             // Change the acceleration that their fire control observed; do not always reverse
@@ -218,7 +227,7 @@ impl Pilot {
         // A fast closer is committing to a predictable approach. Counterpunchers spend
         // ammunition to disrupt it before the fight enters the opponent's PDC envelope.
         if self.style == Style::Counter && closing > 80.0 && dist < 4500.0 && shot_now.p_env > 0.15 {
-            self.fire_odds = self.fire_odds.min(0.2);
+            self.fire_odds = self.fire_odds.min(0.3);
         }
         if urgency > 0.6 && advantage < 0.06 {
             self.fire_odds = 0.12;
@@ -263,101 +272,64 @@ impl Pilot {
         }
         let lane =
             (self.tactics.lane - los * self.tactics.lane.dot(los)).normalized_or(los.any_perp());
-        // Desired range and pass width follow initiative continuously. Even the same pilot
-        // approaches differently when it arrives loaded, under missile pressure, or recovering.
-        let home = (doc.home.0 + doc.home.1) * 0.5 + self.temper.range_bias;
-        let torp_setup = if self.torps
-            && s.torpedoes > 0
-            && s.part(Part::Launcher) > 0.0
-            && w.t - self.last_salvo_t > 8.0
-        {
-            sat((ours - 0.8) / 3.0)
-        } else {
-            0.0
+        // Request relative motion, not a distance spring. An attack carries through its
+        // firing opportunity; recovery spends the opponent's reload window changing the
+        // next approach. There is no preferred range at which the request vanishes.
+        let readiness = sat((3.5 - ours) / 3.5);
+        let enemy_readiness = sat((3.5 - theirs) / 3.5);
+        let vulnerable = sat(-advantage * 3.0);
+        let pressure = (0.55 * readiness + 0.3 * initiative + 0.35 * torp_pressure
+            + 0.25 * enemy_open + 0.2 * vulnerable - 0.45 * danger).clamp(0.0, 1.0);
+        let reload = sat((ours - 2.0) / 4.0);
+        let close = sat((2200.0 - dist) / 1800.0);
+        let chase = sat((dist - 4500.0) / 1800.0);
+        let enemy_turning_away = sat((0.5 - e.forward().dot(-los)) / 1.5);
+        let mut want_close = match self.style {
+            Style::Knife => 220.0 + 300.0 * pressure + 120.0 * enemy_turning_away
+                - close * (280.0 * reload + 280.0 * enemy_readiness + 160.0 * danger),
+            Style::Counter => 40.0 + 420.0 * pressure + 150.0 * enemy_open
+                - (140.0 + 360.0 * reload + 200.0 * enemy_readiness) * sat((3800.0-dist)/2300.0),
+            _ => 150.0 + 360.0 * pressure + 120.0 * enemy_turning_away
+                - close * (400.0 * reload + 240.0 * enemy_readiness + 180.0 * danger),
         };
-        let mut target = (home * (1.0 - 0.48 * attack - 0.4 * urgency)
-            + 450.0 * evade
-            + 600.0 * own_recovery
-            + 1000.0 * torp_setup
-            - 500.0 * torp_pressure)
-            .max(650.0);
-        // Once the rail magazine is empty, establish a missile launch position instead of
-        // orbiting indefinitely at the old gun range. With no ranged weapons, close to PDC range.
-        if s.rail_ammo == 0 {
-            target = if s.torpedoes > 0 { 3800.0 } else { 500.0 };
-        }
-        target = if s.rail_ammo == 0 {
-            target
-        } else {
-            match self.style {
-                Style::Knife => (1100.0 + 150.0 * sat(advantage * 2.0) + 150.0 * danger).min(1400.0),
-                Style::Counter => (3100.0 + 700.0 * own_recovery + 500.0 * evade
-                    - 1200.0 * sat(-advantage * 4.0)
-                    - 700.0 * urgency)
-                    .max(1600.0),
-                _ => target,
-            }
-        };
-        target = target * (1.0 - 0.8 * sat((w.t - 140.0) / 60.0));
-        if s.rail_ammo == 0 && s.torpedoes > 0 {
-            target = target.max(1800.0);
-        }
-        let pass = (180.0 + 500.0 * self.temper.crossing) * (1.0 - 0.45 * attack);
+        // Momentum is useful through a safe merge; don't brake merely because the
+        // capacitor is cycling. On a separating trajectory, choose whether to chase
+        // immediately or use that separation to reset a depleted attack.
         let tca = (-rel.dot(rv) / rv.len_sq().max(1.0)).clamp(0.0, 8.0);
         let miss = rel + rv * tca;
-        let run_opportunity = sat(initiative * 0.8 + attack * 0.7 + torp_pressure * 0.5
-            - own_recovery * 0.5
-            - evade * 0.45);
-        let merge = doc.slash && closing > 160.0 && dist < 5000.0 && tca > 0.0 && tca < 8.0;
-        // Existing momentum creates an extension, not a scheduled maneuver. Stop extending
-        // when the opponent catches us, a threat demands a turn, or a useful new shot is ready.
-        if doc.slash && dist < 1800.0 && closing < -100.0 && ours > 1.0 {
-            self.extending = true;
+        let pass = 180.0 + 320.0 * self.temper.crossing;
+        if closing > 180.0 && dist < 2400.0 && miss.len() > 100.0 {
+            want_close = want_close.max(closing * (0.65 + 0.25 * pressure));
         }
-        if self.extending
-            && (dist > 4800.0 + 1200.0 * self.temper.launch_depth
-                || closing > -30.0
-                || danger > 0.6
-                || (ours < 0.4 && shot_now.p_hit > 0.45))
-        {
-            self.extending = false;
+        if closing < -100.0 && dist < 2400.0 && reload > 0.25 {
+            want_close = want_close.min(-160.0 - 180.0 * reload);
         }
-        // Positive closing request. A pass retains momentum; other geometries can bleed it on
-        // RCS while keeping the spinal gun aimed. No unconditional "brake, then aim" phase.
-        let want_close = if self.style == Style::Knife {
-            ((dist - target) * 0.25).clamp(-60.0, 300.0 + 100.0 * attack)
-        } else if merge {
-            260.0 + 180.0 * attack
-        } else {
-            ((dist - target) * 0.12).clamp(-150.0, 220.0 + 140.0 * attack)
-        };
-        let radial = if self.extending {
-            0.0
-        } else {
-            (want_close - closing) * 0.35
-        };
+        want_close += chase * 400.0;
+        if s.rail_ammo == 0 {
+            want_close = if s.torpedoes > 0 && dist < 1800.0 { -260.0 }
+                else { 220.0 + 200.0 * chase };
+        }
+        if w.t > 170.0 { want_close = want_close.max(180.0); }
+        self.extending = want_close < -100.0;
+        let radial = (want_close - closing) * 0.55;
+        // Knife cuts across the target at close quarters; ranged doctrines move on
+        // wider offsets. Neither tries to match the target's velocity at a fixed range.
         let travel = match self.style {
-            Style::Knife => (45.0 + 85.0 * self.temper.crossing) * sat((1800.0 - dist) / 1200.0),
-            Style::Counter => 140.0 + 130.0 * self.temper.crossing + 100.0 * evade,
-            _ => 80.0 + 150.0 * self.temper.crossing + 100.0 * run_opportunity,
+            Style::Knife => 100.0 + 120.0 * self.temper.crossing + 120.0 * close,
+            Style::Counter => 170.0 + 140.0 * self.temper.crossing + 160.0 * evade,
+            _ => 220.0 + 230.0 * self.temper.crossing + 100.0 * pressure,
         };
-        let transverse =
-            lane * travel * (1.0 - 0.8 * urgency) * (1.0 - 0.8 * sat((w.t - 140.0) / 60.0));
-        let mut desired = los * radial
-            + (lateral_velocity - transverse) * if self.extending { 0.05 } else { 0.25 };
-        if self.style == Style::Knife && dist > 1500.0 {
-            // Lead their motion to cut off a withdrawing target, rather than follow its wake.
-            let intercept = (rel + rv * (dist / 500.0).min(3.0)).normalized_or(los);
+        let transverse = lane * travel;
+        let mut desired = los * radial + (lateral_velocity - transverse) * 0.35;
+        // Curvature must be paid for before radial acceleration changes separation.
+        // Otherwise transverse speed creates an accidental equilibrium orbit.
+        desired += los * (lateral_velocity.len_sq() / dist).min(180.0);
+        if want_close > 100.0 && dist > 1500.0 {
+            let intercept = (rel + rv * (dist / 700.0).min(3.0)).normalized_or(los);
             desired += (intercept - los) * radial.max(0.0);
         }
-        if merge && miss.len() < pass {
-            desired +=
-                (-miss).normalized_or(lane) * sat((pass - miss.len()) / pass) * s.rcs_accel();
-        }
-        if self.style == Style::Counter {
-            // Feed-forward centripetal thrust sustains a broad moving firing position.
-            // Pure range feedback otherwise cancels the orbit and leaves a stationary turret.
-            desired += los * (lateral_velocity.len_sq() / dist);
+        if tca > 0.0 && tca < 3.0 && miss.len() < pass {
+            desired += (-miss).normalized_or(lane) * (pass - miss.len()) / (tca*tca).max(0.25);
         }
         desired += escape * 250.0 + lane * (evade * 250.0);
         // Don't loop round an engagement forever. Far separation and stale exchanges supply
@@ -376,8 +348,7 @@ impl Pilot {
         // exit state. Commands blend smoothly while an imminent threat can demand faster change.
         let blend = (dt / (0.45 - 0.25 * evade)).min(1.0);
         self.tactics.acceleration += (desired - self.tactics.acceleration) * blend;
-        let fatal = s.hull < 2.0 * e.class.rail_hull && incoming > 0.15
-            || s.hull < TORP_HULL * 1.2 && danger > 0.7;
+        let fatal = s.hull < TORP_HULL * 1.2 && danger > 0.7;
         let desired = if fatal {
             escape.normalized_or(lane) * 150.0
         } else {
@@ -403,10 +374,10 @@ impl Pilot {
         let gun_value = gun_value + if self.tactics.aiming { 0.25 } else { 0.0 };
         let drive_value = drive_value + if !self.tactics.aiming { 0.25 } else { 0.0 };
         self.tactics.aiming = gun_value > drive_value || launch;
-        if dist < 1800.0 && s.rail_charge > 0.4 && incoming < 0.25 && !self.extending {
+        if dist < 1800.0 && s.rail_charge > 0.95 && incoming < 0.25 && !self.extending {
             self.tactics.aiming = true;
         }
-        if ((s.rail_charge > 0.65 && shot_now.p_env > 0.1 && incoming < 0.25)
+        if ((s.rail_charge > 0.95 && s.rail_held > 0.7 && shot_now.p_env > 0.1 && incoming < 0.25)
             || w.t - self.last_change > 25.0)
             && dist < 6500.0
             && s.rail_ammo > 0
@@ -414,8 +385,9 @@ impl Pilot {
         {
             self.tactics.aiming = true;
         }
+        if collision > 0.15 { self.tactics.aiming = false; }
         let aim_weight = if self.tactics.aiming { 1.0 } else { 0.0 };
-        let firing_window = self.tactics.aiming && s.rail_charge > 0.65;
+        let firing_window = self.tactics.aiming && s.rail_charge > 0.98;
         let emergency = w.t < self.tactics.escape_until;
         let wanted = if emergency {
             self.tactics.escape_direction
@@ -465,11 +437,11 @@ impl Pilot {
         let max_g = if emergency {
             self.tactics.escape_g.min(DRIVE_MAX_G)
         } else if fatal {
-            15.0
+            12.0
         } else {
             g_budget(
                 s,
-                if incoming > 0.25 || danger > 0.65 {
+                if emergency || danger > 0.65 {
                     0.5
                 } else {
                     3.0
@@ -480,7 +452,7 @@ impl Pilot {
         let forward = s.forward();
         let thrust = (desired.dot(forward) / G).clamp(0.0, max_g);
         inp.thrust_g = if fatal && forward.dot(motion_dir) > 0.5 {
-            15.0
+            max_g
         } else {
             thrust
         };
@@ -491,7 +463,7 @@ impl Pilot {
             s.orient.inv_rotate(desired - forward * (thrust * G)) / s.rcs_accel().max(1.0),
             1.0,
         );
-        if firing_window && s.forward().dot(lead(s, e, RAIL_SPEED)) > 0.98 {
+        if firing_window && s.rail_held < 0.5 && s.forward().dot(lead(s, e, RAIL_SPEED)) > 0.98 {
             // Briefly steady the rail platform while retaining its existing inertial motion.
             inp.strafe = Vec3::ZERO;
         }
@@ -535,10 +507,10 @@ impl Pilot {
                 "pressing"
             } else if own_recovery > 0.5 && closing < 0.0 {
                 "extend"
-            } else if merge {
+            } else if closing > 180.0 && dist < 2400.0 {
                 "attack run"
-            } else if closing < -40.0 && dist < target {
-                "holding range"
+            } else if closing < -80.0 {
+                "opening"
             } else if s.vel.len() > 100.0 && thrust < 0.5 {
                 "coasting"
             } else if transverse.len() > 70.0 && dist < 6000.0 {
@@ -724,8 +696,8 @@ impl Pilot {
         let last = s.torpedoes <= s.class.tubes;
         let counter_approach = self.style == Style::Counter && -(e.vel - s.vel).dot(los) > 80.0;
         let min_range = if weak || e.hull < TORP_HULL || w.t > 120.0 {
-            700.0
-        } else if counter_approach {
+            200.0
+        } else if self.style == Style::Knife || counter_approach {
             1800.0
         } else {
             3200.0
