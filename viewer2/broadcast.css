@@ -1,0 +1,149 @@
+/* Broadcast desk: fixed timing and controls, compact ship dossiers between them. */
+body[data-screen="broadcast"] #league-shell { overflow:hidden; }
+body[data-screen="broadcast"] { --broadcast-height:calc(100dvh - 64px); }
+.hb-broadcast { height:var(--broadcast-height);min-height:0; }
+#hb-stage.phase-betting,#hb-stage.phase-results { height:100%;overflow:hidden; }
+#hb-stage .match-console { display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%;max-width:none;padding:0;margin:0;background:#13212a; }
+.match-console-head { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 20px;border-bottom:1px solid #50636e;background:#21333e; }
+.match-console-head .hb-eyebrow { font-size:8px;letter-spacing:.13em;color:#adbdc1; }
+#league-shell .match-console-head h1 { font-size:25px;line-height:1.1;margin-top:3px;letter-spacing:.02em; }
+.match-console-head .hb-window { display:flex;align-items:center;gap:12px; }
+.match-console-head .hb-window span { max-width:65px;text-align:right;font-size:8px;line-height:1.5;color:#b5c4c7; }
+.match-console-head .hb-window b { font:600 38px/1 'Saira Condensed',sans-serif;min-width:69px;font-variant-numeric:tabular-nums;letter-spacing:.02em;color:#e9c788; }
+.match-console-body { min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 20px;scrollbar-width:thin;scrollbar-color:#596f7a #14212a; }
+.market-fleet { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+.market-ship { min-width:0;background:#1c2d36;border:1px solid #405866;position:relative; }
+.market-ship::before { content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:3px;background:var(--team);opacity:.8; }
+.market-ship.backed { border-color:var(--team); }
+.market-ship>header { display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 12px 10px;border-bottom:1px solid #41545e;min-height:82px; }
+.market-ship>header>div:first-child { min-width:0; }
+.market-ship .hb-eyebrow { font-size:7px;letter-spacing:.06em;color:#a9bcc3; }
+#league-shell .market-ship h2 { font-size:clamp(22px,2.6vw,32px);color:var(--team);overflow-wrap:anywhere;margin-top:4px; }
+.market-odds { flex-shrink:0;text-align:right; }
+.market-odds>b { display:block;font:600 36px/1 'Saira Condensed',sans-serif;color:#e4e8df; }
+.market-odds>b small { font-size:17px;color:#aabdc4; }
+.market-odds>span { font-size:7px;letter-spacing:.1em;color:#aabdc4; }
+.market-person { display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid #344b58;min-height:68px; }
+.market-person:last-child { border-bottom:0; }
+.market-person .hb-face { width:38px;height:46px; }
+.market-person>div>span { display:block;font-size:7px;letter-spacing:.05em;text-transform:uppercase;color:#a2b8c1; }
+.market-person>div>b { display:block;font:500 21px/1.2 'Saira Condensed',sans-serif;color:#e0e6df;overflow-wrap:anywhere;margin:2px 0; }
+.market-ratings { display:flex;align-items:baseline;justify-content:space-between;gap:8px; }
+.market-ratings>strong { font-size:13px;font-weight:500;color:#dbceab; }
+.market-ratings small { font-size:8px;color:#94aab4;font-weight:400; }
+.market-ratings>span { font-size:8px;color:#9fb3bb; }
+.market-ratings>span strong { font-weight:500;color:#ccd7d6;margin-left:3px; }
+#league-shell .market-pick { display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 12px;border:0;border-top:1px solid #506470;background:#293e4a;font-size:10px;font-weight:500;letter-spacing:.035em;min-height:42px;text-align:left; }
+#league-shell .market-pick:hover { background:#364e5a; }
+#league-shell .market-pick.selected { color:#eff1e6;background:color-mix(in srgb,var(--team) 22%,#20323c);box-shadow:inset 0 -2px var(--team); }
+.market-pick>span { font-size:18px;line-height:1;color:var(--team); }
+#league-shell .market-pick:disabled { opacity:.75; }
+.market-method { display:flex;justify-content:space-between;gap:12px;font-size:8px;color:#8fa6b0;padding:10px 0 0; }
+.match-action-bar { padding:12px 20px;border-top:1px solid #71808a;background:#263b46;box-shadow:0 -6px 18px #0d19234d;z-index:2; }
+.match-action-bar .hb-wager-form { display:grid;grid-template-columns:110px minmax(0,1fr) auto;align-items:center;gap:8px 18px;padding:0;border:0; }
+.match-action-bar .hb-wager-form label { font-size:8px;letter-spacing:.06em;color:#c9d6d9; }
+.match-action-bar .hb-wager-form label>span { display:inline;font-size:8px;color:#b6c7cb;letter-spacing:0;margin-left:6px; }
+#league-shell .match-action-bar input { display:block;margin:5px 0 0;padding:6px 9px;height:37px;font-size:20px;font-family:'Saira Condensed',sans-serif;border-color:#84949a;background:#14242e;border-radius:0; }
+.match-action-bar .hb-wager-quote>span { font-size:8px;letter-spacing:.07em;color:#b0c5cd; }
+.match-action-bar .hb-wager-quote>b { font-size:25px;line-height:1.2;color:#e5d1a4; }
+.match-action-bar .hb-wager-quote>small { font-size:8px;color:#afc1c7; }
+#league-shell .match-action-bar .hb-primary { padding:14px 24px;font-size:11px;min-height:46px; }
+.match-action-bar .hb-wager-form>p { font-size:8px;margin:0;line-height:1.4;color:#adbec5; }
+.match-action-bar .hb-locked-wager { display:grid;grid-template-columns:minmax(0,1fr) auto 28px;align-items:center;gap:14px;margin:0;padding:0;border:0; }
+.hb-locked-wager>div>b { display:block;font:500 24px/1.2 'Saira Condensed',sans-serif;margin-top:3px; }
+.hb-locked-wager>div>span { font-size:8px;color:#bdcdbd; }
+.hb-locked-wager>div>strong { display:block;font:500 25px/1.2 'Saira Condensed',sans-serif;color:#c4d4b0; }
+.hb-locked-wager>div>small { display:block;font-size:8px;color:#b0c2c9; }
+.locked-mark { font-size:23px;color:#c4d4b0; }
+.final-stamp { padding:5px 10px;border:1px solid #9caa90;font-size:9px;letter-spacing:.12em;color:#c5d2b7;transform:rotate(-3deg); }
+.result-verdict { display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:4px 12px;padding:0 0 12px; }
+.result-verdict>span { font-size:8px;letter-spacing:.13em;color:#b4c4c8; }
+#league-shell .result-verdict h2 { font-size:clamp(30px,4vw,46px);color:var(--team,#e1d4b9);overflow-wrap:anywhere; }
+.result-verdict>p { grid-column:1/-1;font-size:11px;margin:0;color:#aebfc5;line-height:1.5; }
+.result-scoreboard { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+.result-scoreboard article { display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 9px;padding:9px 12px;background:#21333d;border:1px solid #455962; }
+.result-scoreboard article.victor { border-color:var(--team); }
+.result-scoreboard article>span { font:600 17px 'Saira Condensed',sans-serif;color:var(--team); }
+.result-scoreboard article>b { font:500 21px/1.2 'Saira Condensed',sans-serif;overflow-wrap:anywhere; }
+.result-condition { grid-column:1/-1;height:4px;background:#101d25; }
+.result-condition i { display:block;height:100%;background:var(--team); }
+.result-scoreboard small { grid-column:1/-1;font-size:8px;color:#aec0c8; }
+.hb-finish .hb-stat-table { margin:12px 0 10px;border:1px solid #3c5260; }
+.hb-finish .hb-stat-table>div { grid-template-columns:1.4fr 1fr 1fr;gap:12px;padding:6px 11px;font-size:11px;line-height:1.4;border-bottom:1px solid #334955; }
+.hb-finish .hb-stat-table>div:first-child { background:#2a3e49;padding-block:8px;font-size:9px; }
+.hb-finish .hb-stat-table>div:nth-child(2n) { background:#1a2c36; }
+.hb-finish .hb-stat-table>div:last-child { border-bottom:0; }
+.hb-finish .hb-stat-table .stat-lead { color:#e4d4ae; }
+.result-account { display:flex;align-items:center;justify-content:space-between;gap:12px;background:#20343d;padding:8px 12px; }
+.result-account .hb-settlement { display:grid;grid-template-columns:auto auto;align-items:baseline;gap:0 18px;padding:0;margin:0;border:0; }
+.result-account .hb-settlement>span { font-size:9px;color:#c0ced3; }
+.result-account .hb-settlement>b { font-size:25px;line-height:1.2; }
+.result-account .hb-settlement>small { grid-column:1/-1;font-size:8px; }
+.result-no-bet { font-size:10px;color:#a3b8c2; }
+.result-owner { font-size:8px;color:#a9bda5; }
+.result-owner b { display:block;font:500 23px 'Saira Condensed',sans-serif;color:#c6d7b1; }
+.hb-finish .hb-reset-note { font-size:8px;margin:8px 0 0; }
+.result-action-bar { display:flex;align-items:center;justify-content:space-between;gap:15px; }
+.result-action-bar .hb-next-window { display:flex;align-items:center;gap:14px;padding:0;border:0; }
+.result-action-bar .hb-next-window span { font-size:8px;max-width:80px;line-height:1.5;color:#bccbd0; }
+.result-action-bar .hb-next-window b { margin:0;font:600 35px/1 'Saira Condensed',sans-serif;font-variant-numeric:tabular-nums;color:#e9c788; }
+#league-shell .result-action-bar>button { background:#334a56;border-color:#718793;min-height:42px;font-size:10px;padding:10px 14px; }
+.result-action-bar>button>span { margin-left:18px;color:#d8c29a; }
+.hb-archive .hb-finish { max-width:900px;padding:18px 0; }
+@media (min-width:1100px) and (min-height:760px) {
+  .match-console-body { padding:20px 26px; }
+  .market-person { min-height:78px; }
+  .market-person .hb-face { height:56px;width:42px; }
+  .market-person>div>b { font-size:24px; }
+}
+@media (max-width:760px) {
+  body[data-screen="broadcast"] { --broadcast-height:calc(100dvh - 115px); }
+  .hb-broadcast { margin-bottom:57px; }
+  .match-console-head { padding:9px 12px; }
+  #league-shell .match-console-head h1 { font-size:22px; }
+  .match-console-head .hb-window { gap:8px; }
+  .match-console-head .hb-window b { font-size:32px;min-width:57px; }
+  .match-console-head .hb-window span { font-size:7px;max-width:51px; }
+  .match-console-body { padding:10px 12px; }
+  .market-fleet,.result-scoreboard { gap:8px; }
+  .market-ship>header { padding:10px 8px 8px;min-height:77px;gap:5px; }
+  .market-ship .hb-eyebrow { font-size:6px;line-height:1.4;display:block; }
+  #league-shell .market-ship h2 { font-size:23px; }
+  .market-odds>b { font-size:28px; }.market-odds>b small { font-size:12px; }.market-odds>span { font-size:6px; }
+  .market-person { grid-template-columns:27px minmax(0,1fr);gap:5px;padding:7px 6px;min-height:72px; }
+  .market-person .hb-face { width:26px;height:38px; }
+  .market-person>div>span { font-size:6px; }
+  .market-person>div>b { font-size:18px; }
+  .market-ratings { gap:4px;flex-wrap:wrap; }.market-ratings>strong { font-size:11px; }.market-ratings>span { font-size:7px; }
+  #league-shell .market-pick { padding:9px 8px;font-size:8px;min-height:42px;gap:6px; }
+  .market-method { font-size:7px;gap:8px;flex-wrap:wrap;padding-top:8px; }
+  .match-action-bar { padding:10px 12px; }
+  .match-action-bar .hb-wager-form { grid-template-columns:84px minmax(0,1fr) auto;gap:7px 10px; }
+  .match-action-bar .hb-wager-form label { font-size:7px; }
+  .match-action-bar .hb-wager-form label>span { font-size:7px;margin-left:2px; }
+  .match-action-bar .hb-wager-quote>b { font-size:20px; }
+  .match-action-bar .hb-wager-quote>small { font-size:7px;line-height:1.4; }
+  #league-shell .match-action-bar .hb-primary { padding:12px 14px;font-size:9px;grid-column:auto; }
+  .match-action-bar .hb-wager-form>p { font-size:7px; }
+  .hb-locked-wager>div>b { font-size:20px; }.hb-locked-wager>div>strong { font-size:21px; }
+  #league-shell .result-verdict h2 { font-size:33px; }
+  .result-verdict>p { font-size:10px; }.result-scoreboard article { padding:8px;gap:3px 6px; }
+  .result-scoreboard article>b { font-size:18px; }.result-scoreboard small { font-size:7px; }
+  .hb-finish .hb-stat-table>div { padding:6px 8px;font-size:10px;gap:8px; }
+  .hb-finish .hb-stat-table>div:first-child { font-size:8px; }
+  .result-action-bar .hb-next-window b { font-size:30px; }
+  #league-shell .result-action-bar>button { padding:9px 11px;font-size:9px; }
+  body[data-screen="broadcast"][data-phase="betting"] #hb-chat { top:118px;bottom:172px;height:auto;max-height:calc(100dvh - 290px); }
+  body[data-screen="broadcast"][data-phase="results"] #hb-chat { top:118px;bottom:126px;height:auto;max-height:calc(100dvh - 244px); }
+}
+@media (max-height:560px) {
+  .match-console-head { padding-block:6px; }
+  .match-console-head .hb-window b { font-size:28px; }
+  #league-shell .match-console-head h1 { font-size:20px; }
+  .match-action-bar { padding-block:7px; }
+}
+/* Override the older dossier's display headline scale. */
+#league-shell .match-console-head h1 { font-size:25px!important;margin:3px 0 0!important; }
+.market-ratings { max-width:190px; }
+@media(max-width:760px) { #league-shell .match-console-head h1 { font-size:22px!important; } }
+@media(max-height:560px) { #league-shell .match-console-head h1 { font-size:20px!important; } }

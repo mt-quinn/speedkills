@@ -81,3 +81,9 @@
 - Derived 142 given names per list and 260 surnames, supporting 73,320 distinct full names. The seeded generator selects either list equally, recombines given names/surnames, and excludes names already aboard.
 - New sponsored crews and scouting candidates use the generator. Existing identities persist, skill/tolerance rolls remain unchanged, and generated names receive varied stable portraits.
 - Validation: all 23 checks passed, including sample provenance, 1,000 distinct names, both given-name lists, duplicate avoidance, unchanged scouting stats, and portrait variety. TypeScript passed. Convex development deployed; production deployment initiated.
+
+## 2026-09-30 — Compact betting and post-fight broadcast desk
+- Betting uses two compact ship/crew columns with portraits, role skills, gee tolerance and win odds. Picks live on the ship panels; the stake, profit quote and lock button occupy a persistent bottom action bar.
+- Results use a winner strip, ship outcome/hull comparison, dense combat record and wager settlement. Next-betting countdown and return-to-hangar button stay in a persistent footer.
+- The phase desk fits the available viewport. Only its detail area scrolls when needed; timing and actions stay outside that area. Mobile chat is bounded between the timer and action bar.
+- Verified actual cloud-connected betting markup, desktop and phone layouts, and result controls at 320x568 with zero page scroll. No changes to the gee simulation; that proposal awaits agreement.
