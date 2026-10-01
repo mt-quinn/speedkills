@@ -1,10 +1,18 @@
 # Pilot tactics
 
-The live simulator uses `continuous-v1`. All three league doctrines use the same controller. Doctrine and persistent, identity-seeded temperament influence range, initiative, crossing geometry and ammunition discipline. The names displayed on the ship cards describe the resulting motion; they do not select mutually exclusive flight routines.
+The live simulator uses `continuous-v2`. All three league doctrines use the same controller. Doctrine and persistent, identity-seeded temperament influence range, initiative, crossing geometry and ammunition discipline. The names displayed on the ship cards describe the resulting motion; they do not select mutually exclusive flight routines.
 
-Movement, rail tracking, salvo timing and screen management run together. Pilots compare reload windows, relative velocity, predicted closest approach, available PDC arcs, screen heat, ammunition and the arrival of their own torpedoes. Crossing lanes retain some momentum while competing on the opponent's geometry. An empty rail magazine changes the desired position to a useful missile launch range; a stale fight progressively closes toward a decisive engagement.
+Movement, rail tracking, salvo timing and screen management run together. The spinal gun and main drive must choose a physically useful heading: averaging incompatible directions stranded ships at gun range. The controller now commits to a useful orientation with hysteresis while RCS and weapon decisions continue. A charged gun gets time to acquire a shot while existing inertial motion persists; charging no longer requires already aiming at the target. Pilots compare reload windows, relative velocity, predicted closest approach, available PDC arcs, screen heat, ammunition and the arrival of their own torpedoes. Crossing lanes retain some momentum while competing on the opponent's geometry. An empty rail magazine changes the desired position to a useful missile launch range; a stale fight progressively closes toward a decisive engagement.
 
 Trailing pilots release reserve missiles sooner, accept lower rail shot probabilities, and can hold a charged gun briefly to combine its shot with an arriving salvo. Overcharge requires both a disadvantage and a credible attack opportunity. Pilots can roll working PDCs toward a threat without giving up the spinal gun's aim.
+
+## Engagement geometry
+
+- **Knife** pursues roughly 1.1–1.4 km engagements, cuts across a withdrawing target's predicted path, and uses close lateral movement rather than stopping at the common gun range.
+- **Counter** sustains a broad moving firing position with centripetal thrust, then contracts range when behind or running out of time. An approaching opponent can justify an earlier rail shot and missile launch.
+- **Reference** carries an existing fast approach through a crossing rather than braking at its preferred range. An extension depends on separation, relative motion, threats and weapon readiness; it is not a mandatory flyby cycle.
+
+Quiet geometry increases the value of changing velocity. Real incoming shots retain priority for hard evasion, but merely having an enemy gun ready no longer repeatedly spoils the pilot's own firing solution. Empty rail magazines lead to missile launch range; missile-only ships launch before closing further. PDC reserves are retained against missile threats rather than indefinitely denying useful close fire.
 
 ## Hard evasive burns
 
@@ -30,12 +38,14 @@ Run `cargo test -p sk-duel --release` for physical interception, arming, collisi
 
 The WebAssembly engine is rebuilt with `npm run build:sim`. Odds use a new cache version. `game:refreshSimulation` discards only unpublished prepared recordings and schedules their replacements; announced fights keep their original odds, recording and bets.
 
-## Release measurements
+## Release measurements — continuous-v2
 
-The final unfiltered sample contains 2,400 fights: 400 seeds for each of the six doctrine pairings. All six existing spectacle gates pass. Median duration is 144 seconds, p95 191 seconds, with no unfinished fights and 3% ending before 40 seconds. Overall doctrine win rates are Counter 49%, Knife 50%, Reference 50%; no doctrine beats both alternatives above 55%.
+The unfiltered release sample contains 1,200 fights: 200 seeds for each of the six doctrine pairings. All six unchanged spectacle gates pass. Median duration is 74 seconds, p95 153 seconds, with no unfinished fights and 9% ending before 40 seconds. Overall doctrine win rates are Counter 53%, Knife 56%, Reference 41%; no doctrine beats both alternatives above 55%. Reference remains weaker in these matchups, so this is not a claim of perfect balance.
 
-Lead reversals occur in 51% of fights and the winner was behind in 53%. Finish causes are railgun 34%, PDC 28%, ram 16%, torpedo 14%, mutual ram 6%. Median meaningful hits are 13. Dangerous burns or gee deaths occur in 18% of fights.
+Lead reversals occur in 52% of fights and the winner was behind in 54%. Finish causes are railgun 39%, PDC 26%, torpedo 16%, ram 14%, mutual ram 6%. Median meaningful hits are 12. Dangerous burns or gee deaths occur in 18% of fights. Median rail shot ranges are Knife 1.3 km and Counter/Reference 2.8/2.9 km.
 
-The original 1,200-fight comparison has more lead reversals than this pass. This remains a tradeoff to watch when judging the broadcast: the new controller passes the existing reversal floor, but does not improve that metric over the previous controller. The first 1,200 seeds of the final controller had 595 reversals (49.6%); the expanded sample is reported rather than hiding that borderline result.
+New diagnostics measure actual stationary exchange time, longest stationary stretch, fast passes and spatial reentries. Run `python3 python/duel/geometry.py` after the spectacle batch. Stationary means range 1.2–5 km, closing speed below 40 m/s and line-of-sight rotation below 0.04 rad/s. These are geometric proxies, not a complete measure of viewer excitement.
 
-The 23 ordinary Rust tests and 32 JavaScript tests pass, as do TypeScript checking, the web build and the WebAssembly build. A generated WebAssembly fight was checked for agreement between the recorded finish and settlement summary. The simple negative controls (dump all missiles, flee, sit still, or charge using only the gun) lose to the new controller in the 30-seed sanity sample. `npm run test:backend` currently discovers Node test files with Vitest and reports no Vitest suites; it is not a successful backend suite.
+In the matched 600-fight comparison against the published continuous-v1 model (same pairings and seeds 5000–5099), stationary time falls from 52.9 to 13.7 seconds per fight; its share of total combat time falls from 38.0% to 15.0%. The median longest stationary stretch falls from 18.2 to 3.3 seconds. Passes decrease from 1.48 to 1.13 per fight: the improvement is not simply more flybys. The full release sample has 1.07 passes and 0.10 reentries per fight; Reference mirrors cross more often, while Knife mirrors largely stay close.
+
+The 27 ordinary Rust tests cover the inherited physical combat checks plus charging during maneuver, transverse velocity, doctrine range separation and missile-only ammunition use. The 33 JavaScript tests also include the tactic-change voice hotfix. TypeScript, web and WebAssembly builds are checked before release. Native and WebAssembly recordings are compared for deterministic finish agreement. `npm run test:backend` currently discovers Node test files with Vitest and reports no Vitest suites; it is not a successful backend suite.

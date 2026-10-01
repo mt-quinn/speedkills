@@ -9,6 +9,19 @@ const storage = new Map();
 globalThis.localStorage = {getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v)};
 const m = JSON.parse(fs.readFileSync(new URL('../matches/L40000.json', import.meta.url)));
 const raw = () => structuredClone(m.frames[0].s[0]);
+test('tactic changes produce radio cues without interrupting the broadcast', () => {
+  const s = voiceState(), r = raw(), crew = m.ships[0].crew;
+  for (const [mode, cue] of Object.entries({
+    'attack run':'attack', punish:'attack', juke:'evade', extend:'extend',
+    'holding range':'hold_range', 'torpedo break':'torpedo_break', ramming:'ram',
+  })) {
+    r.mode = mode;
+    assert.deepEqual(voiceRequests(s,r,crew,[]),[cue]);
+    assert.deepEqual(voiceRequests(s,r,crew,[]),[]);
+  }
+  r.mode = 'juke';
+  assert.deepEqual(voiceRequests(s,r,crew,[{k:'defensive_shot',weapon:'railgun'}]),['rail_intercept','evade']);
+});
 test('dead and unconscious crew cannot speak; casualty report uses survivor', () => {
   const r = raw(), crew = m.ships[0].crew;
   r.crew[1][0] = 2;

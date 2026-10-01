@@ -196,7 +196,7 @@ fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipC
     o.push_str(&w.rocks.iter().map(|r| format!("[{:.0},{:.0},{:.0},{:.0}]", r.pos.x, r.pos.y, r.pos.z, r.radius)).collect::<Vec<_>>().join(","));
     let _ = write!(
         o,
-        "],\"params\":{{\"g_model\":\"random-v1\",\"pilot_model\":\"continuous-v1\",\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
+        "],\"params\":{{\"g_model\":\"random-v1\",\"pilot_model\":\"continuous-v2\",\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
         RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, DRIVE_MAX_G, if time_limit().is_finite() { format!("{}", time_limit()) } else { "null".into() }, DISENGAGE_RANGE
     );
     let _ = write!(o, "\"winner\":{},\"end_reason\":{},", w.winner.map_or("null".into(), |x| x.to_string()), js(w.end_reason));

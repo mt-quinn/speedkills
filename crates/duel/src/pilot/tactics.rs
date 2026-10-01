@@ -18,6 +18,8 @@ pub(super) struct Motion {
     escape_direction: Vec3,
     escape_g: f64,
     rail_pending: Option<(u32, f64)>,
+    aiming: bool,
+    quiet_geometry: f64,
 }
 impl Default for Motion {
     fn default() -> Self {
@@ -37,6 +39,8 @@ impl Default for Motion {
             escape_direction: Vec3::ZERO,
             escape_g: 0.0,
             rail_pending: None,
+            aiming: false,
+            quiet_geometry: 0.0,
         }
     }
 }
@@ -191,7 +195,7 @@ impl Pilot {
             + 0.45 * urgency
             - 1.2 * advantage);
         let evade = sat(
-            (loaded_threat * (0.65 + 0.2 * sat(advantage * 3.0)) + incoming + danger)
+            (loaded_threat * (0.25 + 0.2 * sat(advantage * 3.0)) + incoming + danger)
                 * (1.0 - 0.65 * sat((shot_now.p_hit - 0.2) * 2.0) * sat(s.rail_charge))
                 * (1.0 - 0.65 * urgency),
         );
@@ -206,11 +210,16 @@ impl Pilot {
             torp_pressure,
             own_recovery,
         ];
-        self.fire_odds = (doc.odds.min(0.55) + self.temper.odds_shift + 0.6 * advantage
+        self.fire_odds = (doc.odds.min(0.4) + self.temper.odds_shift + 0.6 * advantage
             - 0.3 * initiative
             - 0.15 * torp_pressure
             - 0.25 * urgency)
             .clamp(0.12, 0.85);
+        // A fast closer is committing to a predictable approach. Counterpunchers spend
+        // ammunition to disrupt it before the fight enters the opponent's PDC envelope.
+        if self.style == Style::Counter && closing > 80.0 && dist < 4500.0 && shot_now.p_env > 0.15 {
+            self.fire_odds = self.fire_odds.min(0.2);
+        }
         if urgency > 0.6 && advantage < 0.06 {
             self.fire_odds = 0.12;
         }
@@ -277,24 +286,78 @@ impl Pilot {
         if s.rail_ammo == 0 {
             target = if s.torpedoes > 0 { 3800.0 } else { 500.0 };
         }
+        target = if s.rail_ammo == 0 {
+            target
+        } else {
+            match self.style {
+                Style::Knife => (1100.0 + 150.0 * sat(advantage * 2.0) + 150.0 * danger).min(1400.0),
+                Style::Counter => (3100.0 + 700.0 * own_recovery + 500.0 * evade
+                    - 1200.0 * sat(-advantage * 4.0)
+                    - 700.0 * urgency)
+                    .max(1600.0),
+                _ => target,
+            }
+        };
         target = target * (1.0 - 0.8 * sat((w.t - 140.0) / 60.0));
+        if s.rail_ammo == 0 && s.torpedoes > 0 {
+            target = target.max(1800.0);
+        }
         let pass = (180.0 + 500.0 * self.temper.crossing) * (1.0 - 0.45 * attack);
         let tca = (-rel.dot(rv) / rv.len_sq().max(1.0)).clamp(0.0, 8.0);
         let miss = rel + rv * tca;
-        let merge = doc.slash && closing > 80.0 && dist < target + 1400.0 && tca > 0.0 && tca < 6.0;
+        let run_opportunity = sat(initiative * 0.8 + attack * 0.7 + torp_pressure * 0.5
+            - own_recovery * 0.5
+            - evade * 0.45);
+        let merge = doc.slash && closing > 160.0 && dist < 5000.0 && tca > 0.0 && tca < 8.0;
+        // Existing momentum creates an extension, not a scheduled maneuver. Stop extending
+        // when the opponent catches us, a threat demands a turn, or a useful new shot is ready.
+        if doc.slash && dist < 1800.0 && closing < -100.0 && ours > 1.0 {
+            self.extending = true;
+        }
+        if self.extending
+            && (dist > 4800.0 + 1200.0 * self.temper.launch_depth
+                || closing > -30.0
+                || danger > 0.6
+                || (ours < 0.4 && shot_now.p_hit > 0.45))
+        {
+            self.extending = false;
+        }
         // Positive closing request. A pass retains momentum; other geometries can bleed it on
         // RCS while keeping the spinal gun aimed. No unconditional "brake, then aim" phase.
-        let want_close = if merge {
-            160.0 + 180.0 * attack
+        let want_close = if self.style == Style::Knife {
+            ((dist - target) * 0.25).clamp(-60.0, 300.0 + 100.0 * attack)
+        } else if merge {
+            260.0 + 180.0 * attack
         } else {
-            ((dist - target) * 0.09).clamp(-70.0, 180.0 + 140.0 * attack)
+            ((dist - target) * 0.12).clamp(-150.0, 220.0 + 140.0 * attack)
         };
-        let radial = (want_close - closing) * 0.35;
-        let transverse = lane * (35.0 + 75.0 * self.temper.crossing) * (0.4 + attack + 0.5 * evade);
-        let mut desired = los * radial + (lateral_velocity - transverse) * 0.25;
+        let radial = if self.extending {
+            0.0
+        } else {
+            (want_close - closing) * 0.35
+        };
+        let travel = match self.style {
+            Style::Knife => (45.0 + 85.0 * self.temper.crossing) * sat((1800.0 - dist) / 1200.0),
+            Style::Counter => 140.0 + 130.0 * self.temper.crossing + 100.0 * evade,
+            _ => 80.0 + 150.0 * self.temper.crossing + 100.0 * run_opportunity,
+        };
+        let transverse =
+            lane * travel * (1.0 - 0.8 * urgency) * (1.0 - 0.8 * sat((w.t - 140.0) / 60.0));
+        let mut desired = los * radial
+            + (lateral_velocity - transverse) * if self.extending { 0.05 } else { 0.25 };
+        if self.style == Style::Knife && dist > 1500.0 {
+            // Lead their motion to cut off a withdrawing target, rather than follow its wake.
+            let intercept = (rel + rv * (dist / 500.0).min(3.0)).normalized_or(los);
+            desired += (intercept - los) * radial.max(0.0);
+        }
         if merge && miss.len() < pass {
             desired +=
                 (-miss).normalized_or(lane) * sat((pass - miss.len()) / pass) * s.rcs_accel();
+        }
+        if self.style == Style::Counter {
+            // Feed-forward centripetal thrust sustains a broad moving firing position.
+            // Pure range feedback otherwise cancels the orbit and leaves a stationary turret.
+            desired += los * (lateral_velocity.len_sq() / dist);
         }
         desired += escape * 250.0 + lane * (evade * 250.0);
         // Don't loop round an engagement forever. Far separation and stale exchanges supply
@@ -321,30 +384,38 @@ impl Pilot {
             self.tactics.acceleration
         };
         let motion_dir = desired.normalized_or(los);
-        let range_work =
-            sat((dist - target - 1000.0) / 3500.0) + sat((closing - want_close - 130.0) / 200.0);
-        let shot_work =
-            sat((3.0 - ours) / 3.0) * (1.0 - evade * 0.85) * (1.0 - sat(range_work) * 0.75);
-        let aim_weight = (0.48 + 0.58 * shot_work + if launch { 0.8 } else { 0.0 }
-            - 0.65 * evade
-            - 0.38 * sat(range_work))
-        .clamp(0.08, 1.0);
-        let aim_weight = if launch {
-            1.0
+        // The spinal gun and drive cannot both point in different directions. Select the
+        // useful orientation, with hysteresis, rather than averaging into a useless heading.
+        // Weapons and RCS still run throughout; a drive turn can also supply a real shot.
+        let angular_rate = rel.cross(rv).len() / rel.len_sq().max(1.0);
+        if dist < 5500.0 && closing.abs() < 60.0 && angular_rate < 0.04 {
+            self.tactics.quiet_geometry += dt;
         } else {
-            aim_weight.max(
-                if s.rail_ammo > 0 {
-                    sat((s.rail_charge - 0.55) / 0.3)
-                } else {
-                    0.0
-                } * (1.0 - incoming.max(danger).max(evade) * 0.85),
-            )
-        };
-        let aim_weight = if evade > 0.35 && shot_now.p_hit < 0.2 {
-            aim_weight.min(0.25)
-        } else {
-            aim_weight
-        };
+            self.tactics.quiet_geometry = (self.tactics.quiet_geometry - dt * 0.5).max(0.0);
+        }
+        let positional_pressure = sat((self.tactics.quiet_geometry - 3.0) / 5.0);
+        let gun_value = sat((4.0 - ours) / 4.0) * (0.8 + 0.9 * sat(shot_now.p_env / 0.4))
+            + if launch { 1.1 } else { 0.0 };
+        let drive_value = (desired.len() / 55.0).min(1.35)
+            + 0.7 * evade
+            + 1.4 * positional_pressure
+            + if self.extending { 0.3 } else { 0.0 };
+        let gun_value = gun_value + if self.tactics.aiming { 0.25 } else { 0.0 };
+        let drive_value = drive_value + if !self.tactics.aiming { 0.25 } else { 0.0 };
+        self.tactics.aiming = gun_value > drive_value || launch;
+        if dist < 1800.0 && s.rail_charge > 0.4 && incoming < 0.25 && !self.extending {
+            self.tactics.aiming = true;
+        }
+        if ((s.rail_charge > 0.65 && shot_now.p_env > 0.1 && incoming < 0.25)
+            || w.t - self.last_change > 25.0)
+            && dist < 6500.0
+            && s.rail_ammo > 0
+            && s.part(Part::Railgun) > 0.0
+        {
+            self.tactics.aiming = true;
+        }
+        let aim_weight = if self.tactics.aiming { 1.0 } else { 0.0 };
+        let firing_window = self.tactics.aiming && s.rail_charge > 0.65;
         let emergency = w.t < self.tactics.escape_until;
         let wanted = if emergency {
             self.tactics.escape_direction
@@ -398,10 +469,10 @@ impl Pilot {
         } else {
             g_budget(
                 s,
-                if evade > 0.35 || attack > 0.5 {
+                if incoming > 0.25 || danger > 0.65 {
                     0.5
                 } else {
-                    1.5
+                    3.0
                 },
             )
             .min(6.0 + 10.0 * attack + 15.0 * evade)
@@ -420,7 +491,17 @@ impl Pilot {
             s.orient.inv_rotate(desired - forward * (thrust * G)) / s.rcs_accel().max(1.0),
             1.0,
         );
+        if firing_window && s.forward().dot(lead(s, e, RAIL_SPEED)) > 0.98 {
+            // Briefly steady the rail platform while retaining its existing inertial motion.
+            inp.strafe = Vec3::ZERO;
+        }
         self.gun(inp, s, e);
+        if (w.t - self.last_change > 25.0 || s.rail_held > RAIL_HOLD - 1.0) && dist < 6500.0 {
+            inp.fire_rail = shot_now.p_hit > 0.08;
+        }
+        // Charging does not require already pointing at the target. That coupling stranded
+        // maneuvering ships with an empty capacitor and no reason ever to turn back to aim.
+        inp.charge_rail = s.rail_ammo > 0 && s.part(Part::Railgun) > 0.0 && dist < 6500.0;
         // When trailing, spend a little of the loaded gun's safe hold window to make the
         // target handle a rail shot and an arriving salvo together. Never hold into a vent.
         if advantage < -0.05 && torp_pressure > 0.2 && torp_pressure < 0.95 && s.rail_held < 2.5 {

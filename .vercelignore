@@ -1,0 +1,9 @@
+target/
+runs/
+.venv/
+node_modules/
+dist/
+.convex/
+.env*
+viewer2/js/live/client.bundle.js
+viewer2/live-config.json

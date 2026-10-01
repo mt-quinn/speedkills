@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-10-01 — Live fight black screen
+- Removed an out-of-scope event reference in tactic-change radio cues. The ReferenceError interrupted HUD updates before every 3D render and also prevented late-join mount acknowledgement.
+- Added coverage for all tactic changes, unchanged tactics, and simultaneous defensive-shot events. All 33 JavaScript tests, TypeScript, and the production web build passed.
+- Browser verified betting-to-combat transition and late joining against the development league; a fresh tab rendered ships and arena with no console errors. Screenshot: /private/tmp/hardburn-viewer-fixed.png.
+- User approved production deployment. Released dpl_E9VwXLAn5y6u2ZyjBhVvWiRZvGcv to https://hardburn.vercel.app and verified match 99 rendering with no console errors. Screenshot: /private/tmp/hardburn-production-fixed.png.
+- Added .vercelignore to exclude generated simulation outputs and local runtime files from deployment uploads.
+
 2026-09-30: Started approved implementation. Reviewed frame data, HUD, replay, pilot and existing league generation. Plan and findings recorded before edits.
 - Added broadcast.js, voices.js, history.js; integrated current-state tactics, crew portraits/consequences, truthful result scoreboard, decisive replay, optional voice audio and local history.
 - Added six meaningful Node tests: conscious speakers, PDC availability, radio spacing/variation, g/dry warnings, replay bounds/explanation, deduplicated history/picks. All pass.
@@ -110,3 +117,12 @@
 - Added a live viewer fullscreen button targeting only the simulation iframe, with fullscreen permission, full-viewport styling and an exit control inside the sim. Standard Escape exit remains available.
 - Verified a recorded bow-thruster repair appears green beside a red sensor-out tag. Fullscreen entry/exit worked in the browser. All 30 JS tests passed, including restoration timing, renewed loss, multiple systems and backward seeking.
 - Verified the actual cloud-connected live iframe enters fullscreen with the league navigation/chat absent, exposes its own exit button, and returns to the same running fight. TypeScript passed.
+
+## 2026-10-01 — Restore varied, moving combat
+- Canceled the sensor experiment and removed its source changes.
+- Replaced compromise gun/drive headings with useful physical orientations and hysteresis. Charging continues through maneuver; a ready gun can finish aiming while the ship retains its momentum. Reduced evasive disruption from hypothetical shots while retaining hard burns against real incoming rounds.
+- Knife pursues close fights and cuts off separation; Counter sustains a moving ranged firing position; Reference carries committed approaches into spatially triggered crossings/extensions without a mandatory pass cycle. Fixed missile-only launch positioning and excessive PDC reservation.
+- Added geometry diagnostics and python/duel/geometry.py. Matched 600-fight comparison: stationary exchange time 52.9 → 13.7 s/fight, 38.0% → 15.0% of combat time; longest stationary stretch median 18.2 → 3.3 s. Passes decrease 1.48 → 1.13/fight.
+- Unfiltered 1,200-fight release sample passes all six unchanged spectacle gates: median 74s, p95 153s, 9% under 40s, no unfinished fights, 52% lead reversals, median 12 meaningful hits, 18% dangerous burns/gee deaths. Win rates Counter 53%, Knife 56%, Reference 41%; Reference remains weaker and warrants follow-up.
+- 27 Rust and 33 JavaScript tests pass; TypeScript and WebAssembly builds pass. Native/WASM league fight summaries agree exactly. Simple dump/flee/stationary/gun-only controls lose the 30-seed sanity comparison. Inspected ordinary Reference and Knife/Counter recordings in the real viewer.
+- Engine trace version continuous-v2; odds cache wasm-tactics-v4. Announced fights and wagers retain their original simulation; unpublished future fights are rebuilt.

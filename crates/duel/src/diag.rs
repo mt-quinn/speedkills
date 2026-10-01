@@ -102,6 +102,10 @@ pub struct SideDiag {
 
 #[derive(Clone, Debug, Default)]
 pub struct MatchDiag {
+    pub stationary_exchange_time: f64,
+    pub longest_stationary_exchange: f64,
+    pub fast_passes: u32,
+    pub reentries: u32,
     pub seed: u64,
     pub winner: Option<usize>,
     pub reason: String,
@@ -156,8 +160,8 @@ impl MatchDiag {
             )
         };
         format!(
-            "{{\"seed\":{},\"winner\":{},\"reason\":\"{}\",\"finish_cause\":\"{}\",\"finish_last10\":\"{}\",\"lead_changes\":{},\"merges\":[{}],\"winner_trailed\":{},\"health\":[{}],\"duration\":{:.2},\"start_dist\":{:.0},\"min_dist\":{:.0},\"time_within_4km\":{:.1},\"time_within_1200m\":{:.1},\"sides\":[{},{}]}}",
-            self.seed, self.winner.map_or("null".into(), |w| w.to_string()), self.reason, self.finish_cause, self.finish_last10, self.lead_changes, self.merges.iter().map(|m| format!("[{:.1},{:.0},{:.2},{},{}]", m.0, m.1, m.2, m.3[0], m.3[1])).collect::<Vec<_>>().join(","), self.winner_trailed,
+            "{{\"stationary_exchange_time\":{:.2},\"longest_stationary_exchange\":{:.2},\"fast_passes\":{},\"reentries\":{},\"seed\":{},\"winner\":{},\"reason\":\"{}\",\"finish_cause\":\"{}\",\"finish_last10\":\"{}\",\"lead_changes\":{},\"merges\":[{}],\"winner_trailed\":{},\"health\":[{}],\"duration\":{:.2},\"start_dist\":{:.0},\"min_dist\":{:.0},\"time_within_4km\":{:.1},\"time_within_1200m\":{:.1},\"sides\":[{},{}]}}",
+            self.stationary_exchange_time,self.longest_stationary_exchange,self.fast_passes,self.reentries,self.seed, self.winner.map_or("null".into(), |w| w.to_string()), self.reason, self.finish_cause, self.finish_last10, self.lead_changes, self.merges.iter().map(|m| format!("[{:.1},{:.0},{:.2},{},{}]", m.0, m.1, m.2, m.3[0], m.3[1])).collect::<Vec<_>>().join(","), self.winner_trailed,
             self.health.iter().map(|h| format!("[{:.3},{:.3}]", h[0], h[1])).collect::<Vec<_>>().join(","), self.duration, self.start_dist,
             self.min_dist, self.time_within_4km, self.time_within_1200m, side(&self.sides[0]), side(&self.sides[1]),
         )
@@ -207,6 +211,10 @@ pub fn run_spec(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass
         d.sides[i].min_resistance = w.ships[i].crew.iter().map(|c| c.resistance).fold(f64::MAX, f64::min);
     }
     // Torpedo id → owner, to credit shoot-downs and hits.
+    let mut parked = 0.0_f64;
+    let mut approaching = false;
+    let mut passed = false;
+    let mut separated = false;
     let mut owner = std::collections::HashMap::new();
     let mut merge_now: Option<(f64, f64, f64, [u32; 2])> = None;
     let mut last_cause: [&str; 2] = ["", ""];
@@ -233,6 +241,15 @@ pub fn run_spec(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass
             let rel = w.ships[1].pos - w.ships[0].pos;
             let rv = w.ships[1].vel - w.ships[0].vel;
             let los_rate = rel.cross(rv).len() / rel.len_sq().max(1.0);
+            let closing=-rv.dot(rel.normalized_or(Vec3::Z));
+            if (1200.0..5000.0).contains(&dist) && closing.abs()<40.0 && los_rate<0.04 {
+                parked+=DT;d.stationary_exchange_time+=DT;
+                d.longest_stationary_exchange=d.longest_stationary_exchange.max(parked);
+            }else{parked=0.0;}
+            if dist<2500.0 && closing>60.0 {approaching=true;}
+            if approaching && closing< -60.0 {d.fast_passes+=1;approaching=false;passed=true;}
+            if passed && dist>3500.0 {separated=true;}
+            if separated && dist<2500.0 && closing>60.0 {d.reentries+=1;separated=false;passed=false;}
             // Track the current approach; close it out as the range opens again.
             if dist < 2500.0 {
                 match merge_now.as_mut() {

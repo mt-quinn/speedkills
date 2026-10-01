@@ -821,3 +821,63 @@ fn a_healthy_pilot_uses_a_short_hard_burn_for_a_real_rail_threat(){
     miss.slugs.push(Slug{id:100,owner:1,power:1.0,pos:Vec3::new(4000.0,1000.0,0.0),vel:-Vec3::X*RAIL_SPEED,born:-1.0,alive:true});
     q.act(&miss,0);assert!(q.intent[1]<1.0,"a distant miss does not trigger a hard emergency burn");
 }
+
+#[test]
+fn maneuvering_does_not_prevent_charging_a_working_railgun() {
+    let mut w=duel(3500.0);
+    w.ships[0].orient=Quat::from_to(Vec3::Z,Vec3::Y);
+    let mut p=crate::pilot::Pilot::seeded(crate::pilot::Style::Reference,51);
+    assert!(p.act(&w,0).charge_rail);
+}
+
+#[test]
+fn a_gun_charge_does_not_cancel_the_velocity_change_needed_to_cross() {
+    let mut w=duel(3500.0);
+    let mut p=crate::pilot::Pilot::seeded(crate::pilot::Style::Counter,51);
+    let mut fastest=0.0_f64;
+    for _ in 0..(20.0/DT) as usize {
+        w.inputs[0]=p.act(&w,0);w.step();w.events.clear();
+        let los=(w.ships[1].pos-w.ships[0].pos).normalized();
+        let v=w.ships[0].vel-w.ships[1].vel;
+        fastest=fastest.max((v-los*v.dot(los)).len());
+        if w.finished {break;}
+    }
+    assert!(fastest>80.0,"only {fastest:.1} m/s across the opponent's line of sight");
+}
+
+#[test]
+fn knife_fighters_force_a_closer_engagement_than_counterpunchers() {
+    use crate::pilot::{Pilot,Style};
+    let mut range=[0.0;2];
+    for (i,style) in [Style::Knife,Style::Counter].iter().enumerate() {
+        for seed in 0..8 {
+            let mut w=duel(5000.0);let mut p=Pilot::seeded(*style,200+seed);
+            let mut nearest=5000.0_f64;
+            for _ in 0..(35.0/DT) as usize {
+                w.inputs[0]=p.act(&w,0);w.step();w.events.clear();
+                nearest=nearest.min((w.ships[1].pos-w.ships[0].pos).len());
+                if w.finished {break;}
+            }
+            range[i]+=nearest/8.0;
+        }
+    }
+    assert!(range[0]<1400.0,"knife stopped at {:.0} m",range[0]);
+    assert!(range[1]>range[0]+700.0,"doctrines converged: {range:?}");
+}
+
+#[test]
+fn missile_only_counterpunchers_use_their_remaining_ammunition() {
+    use crate::pilot::{Pilot,Style};
+    let mut w=duel(5000.0);
+    w.ships[0].rail_ammo=0;
+    w.ships[0].torpedoes=1;
+    for m in &mut w.ships[1].pdcs {m.ammo=0.0;}
+    let mut p=Pilot::seeded(Style::Counter,71);
+    let mut fired=false;
+    for _ in 0..(60.0/DT) as usize {
+        w.inputs[0]=p.act(&w,0);w.step();
+        fired|=w.events.iter().any(|e|matches!(e,Event::TorpedoLaunched{ship:0,..}));
+        w.events.clear();if fired||w.finished {break;}
+    }
+    assert!(fired,"held the last torpedo instead of acquiring a launch position");
+}

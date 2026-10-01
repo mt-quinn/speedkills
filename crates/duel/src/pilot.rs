@@ -277,9 +277,12 @@ impl Pilot {
                 // it. The knife fighter keeps no reserve — it means to win the brawl first.
                 let ammo: f64 = s.pdcs.iter().map(|p| p.ammo).sum();
                 let could_launch = e.torpedoes > 0 && e.part(Part::Launcher) > 0.0 && (e.pos - s.pos).len() > 3500.0;
-                let inbound = w.torps.iter().any(|t| t.alive && t.owner != me);
+                let inbound = w.torps.iter().any(|t| t.alive && t.owner != me && t.intercept.is_none()
+                    && (s.pos-t.pos).dot(t.vel-s.vel)>0.0);
                 let screen = if e.torpedoes > 0 { self.style.doctrine().screen } else { 0.0 };
-                let reserve = if self.style == Style::Knife || !(could_launch || inbound) { screen } else { screen.max(5.0 * e.torpedoes as f64) };
+                let reserve = if self.style == Style::Knife || !(could_launch || inbound) || dist<2000.0 {
+                    screen
+                } else {screen.max(5.0*e.torpedoes as f64)};
                 inp.pdc_hold = ammo < reserve;
             }
         }
@@ -300,7 +303,8 @@ impl Pilot {
         let t_go = (dist / closing.max(150.0)).min(20.0);
         let aim = (rel + rv * t_go).normalized_or(rel.normalized_or(s.forward()));
         inp.rate = turn_toward(s, aim);
-        inp.thrust_g = if s.forward().dot(aim) > 0.8 { g_budget(s, 3.0).min(12.0) } else { 0.0 };
+        let horizon=if dist<500.0 && closing<120.0 {0.5}else{3.0};
+        inp.thrust_g = if s.forward().dot(aim) > 0.8 { g_budget(s,horizon).min(12.0) } else { 0.0 };
         // (Closest-approach miss if nothing changes: strafe to close it.)
         let tca = (-rel.dot(rv) / rv.len_sq().max(1e-6)).clamp(0.0, 20.0);
         let miss = rel + rv * tca;

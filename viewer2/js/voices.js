@@ -37,7 +37,6 @@ export function voiceRequests(state, raw, crew, events) {
   }
   if (raw.mode !== state.mode) {
     const id = { 'attack run': 'attack', punish: 'attack', juke: 'evade', extend: 'extend', 'holding range': 'hold_range', 'torpedo break': 'torpedo_break', ramming: 'ram' }[raw.mode];
-    if (e.k === 'defensive_shot') id = e.weapon === 'railgun' ? 'rail_intercept' : 'counter_torpedo';
     if (id) out.push(id);
     state.mode = raw.mode;
   }
