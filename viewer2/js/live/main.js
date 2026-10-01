@@ -254,7 +254,16 @@ async function start() {
       try { if(await mutation('game:profile',{name:String(fields.get('name'))})){drafts.viewer='';profileSaved=true;} }
       finally { profileSaving=false;render(true); }
     }
-    if(form.dataset.form==='chat'){await mutation('chat:send',{body:String(fields.get('body'))});if(!notice){drafts.message='';form.reset();}}
+    if(form.dataset.form==='chat') {
+      const body=String(fields.get('body'));
+      if(await mutation('chat:send',{body}) && drafts.message===body) {
+        drafts.message='';
+        // mutation() may replace the form while awaiting the server. Clear the
+        // current composer, preserving any new draft typed during the send.
+        const input=shell.querySelector('#chat-message');
+        if(input){input.value='';input.defaultValue='';}
+      }
+    }
   });
   shell.innerHTML='<main class="hb-connecting"><span class="hb-eyebrow">HARD BURN / LEAGUE DOCK</span><h1>Connecting…</h1><p>Connecting to the live league…</p></main>';
   try {
