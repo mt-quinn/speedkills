@@ -6,7 +6,7 @@ import { randomInt } from 'node:crypto';
 import { SIM_BINARY } from './simBinary';
 import { simulator, oddsKey } from '../shared/simulator.js';
 import { fightStats } from '../shared/rules.js';
-import { roster } from './roster';
+
 export const prepare = internalAction({ args: { generation: v.number() }, handler: async (ctx, { generation }) => {
   const traces: any[]=[];
   try {
@@ -23,8 +23,7 @@ export const prepare = internalAction({ args: { generation: v.number() }, handle
     }
     const cached=await ctx.runQuery(internal.game.cachedOdds,{key:oddsKey(ships)});
     const baseline=ships.every((s:any)=>s.identity>=1000&&s.identity<1010);
-    let probability=cached?.probability,samples=cached?.samples??128;
-    if(probability==null&&baseline){probability=roster.odds[ships[0].identity-1000][ships[1].identity-1000];samples=400;}
+    let probability=cached?.probability,samples=cached?.samples??(baseline?400:128);
     if(probability==null)probability=sim.odds(ships,randomInt(1,1000000000),samples);
     probability=Math.max(.05,Math.min(.95,probability!));
     const data=await record(ships,probability,samples);

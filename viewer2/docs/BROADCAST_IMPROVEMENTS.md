@@ -1,6 +1,6 @@
 # Broadcast pass — September 2026
 
-The live scoreboard measures **condition** (hull, systems and crew), not win probability. A destroyed ship is OUT, and the recorded winner overrides the condition comparison at the finish. Crew portraits remain on the live plates, with station/state/g-dose accessible by hover or keyboard focus. Casualty news explains what happens to that station.
+The live scoreboard measures **condition** (hull, systems and crew), not win probability. A destroyed ship is OUT, and the recorded winner overrides the condition comparison at the finish. Crew portraits remain on the live plates, with station/state/gee-resistance and blackout recovery time accessible by hover or keyboard focus. Casualty news explains what happens to that station.
 
 The tactical line uses current state only: available point defence, overheated mounts, a charged rail against a reload, and crew approaching blackout. Fight-wide news temporarily takes its place. Rail reload time and total PDC firing-second reserves remain on each ship plate. PDC reserve is summed across working mounts; three firing mounts spend three seconds of reserve per second. Burst accuracy percentages were removed because tracer counts were estimates.
 

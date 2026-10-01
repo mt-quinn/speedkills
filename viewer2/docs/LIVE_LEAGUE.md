@@ -42,3 +42,5 @@ Accounts currently use an anonymous browser capability saved in local storage. T
 New sponsored crews and scouting candidates use Terran given names and surnames sampled from Donjon's SciFi Name Generator. The pool comes from 20 ten-name batches each of Terran Male and Terran Female, sampled on September 30, 2026; the original outputs and source URL are saved in `terran-name-samples.json`. `shared/terran-name-pool.js` contains the deduplicated given-name lists and shared surnames.
 
 `shared/crew-names.js` selects either given-name list equally and recombines names deterministically from a seed. Current crew names are excluded during scouting and assignment. Existing identities persist. Names do not affect skill or g tolerance; generated names receive stable, varied portraits. The game does not call Donjon at runtime.
+
+Crew gee resistance is now a 1–10 stat governing seeded incident risk at 7+ g. Blackouts last 4–8 seconds; 2% of incidents are fatal for that fight. See `GEE_MODEL.md` for probabilities, migration and tuning evidence.

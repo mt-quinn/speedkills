@@ -35,11 +35,11 @@ test('radio is sparse and uses the fixed script without recordings', () => {
 });
 test('g warning re-arms only after recovery and dry warning is edge-triggered', () => {
   const s = voiceState(), r = raw(), crew = m.ships[0].crew;
-  r.crew[0][2] = .8; r.pdc.forEach((p) => p[0] = 0);
+  r.g = 8; r.pdc.forEach((p) => p[0] = 0);
   assert.ok(voiceRequests(s,r,crew,[]).includes('g_limit'));
   assert.ok(!voiceRequests(s,r,crew,[]).includes('g_limit'));
   assert.ok(!voiceRequests(s,r,crew,[]).includes('defence_dry'));
-  r.crew[0][2] = .3; voiceRequests(s,r,crew,[]); r.crew[0][2] = .9;
+  r.g = 3; voiceRequests(s,r,crew,[]); r.g = 8;
   assert.ok(voiceRequests(s,r,crew,[]).includes('g_limit'));
 });
 test('decisive replay bounded and final explanation drawn from recorded finish', () => {

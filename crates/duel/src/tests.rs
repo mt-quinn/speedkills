@@ -66,24 +66,53 @@ fn g_test(g: f64, secs: f64) -> (Option<f64>, Option<f64>, usize) {
 }
 
 #[test]
-fn crew_survive_what_they_should_and_die_at_realistic_g() {
-    let (out, dead, _) = g_test(3.0, 60.0);
-    assert!(out.is_none() && dead.is_none(), "3 g for a minute is safe");
-    let (out, dead, _) = g_test(10.0, 15.0);
-    assert!(out.is_some_and(|t| t < 12.0) && dead.is_none(), "10 g: blackouts within seconds, no deaths in 15 s ({out:?}, {dead:?})");
-    let (_, dead, _) = g_test(16.0, 8.0);
-    assert!(dead.is_some_and(|t| t < 6.0), "16 g: deaths within a few seconds ({dead:?})");
-    let (_, dead, alive) = g_test(25.0, 2.5);
-    assert!(dead.is_some_and(|t| t < 1.5) && alive == 0, "25 g: the whole crew dies within a second or two ({dead:?}, {alive} alive)");
+fn low_g_is_safe_and_unconscious_pilot_drops_throttle() {
+    let (out, dead, _) = g_test(6.99, 60.0);
+    assert!(out.is_none() && dead.is_none());
+    let mut w = duel(1e5);
+    w.ships[0].crew[0].state = CrewState::BlackedOut;
+    w.ships[0].crew[0].blackout_remaining = 8.0;
+    w.inputs[0] = Input { thrust_g: 10.0, ..Default::default() };
+    run(&mut w, 1.0);
+    assert!(w.ships[0].g < 3.1);
 }
 
 #[test]
-fn a_blacked_out_pilot_lets_go_of_the_throttle() {
-    let mut w = duel(1e5);
-    w.inputs[0] = Input { thrust_g: 10.0, ..Default::default() };
-    run(&mut w, 15.0);
-    assert!(w.ships[0].crew_at(Station::Pilot).state != CrewState::Fit || w.ships[0].g < 3.1);
-    assert!(w.ships[0].crew.iter().all(|c| c.alive()), "the flight computer's hold keeps a blacked-out crew alive");
+fn gee_probabilities_match_approved_anchors_and_timestep() {
+    for (g, rates) in [(7.0, [0.01, 0.005, 0.002]), (10.0, [0.025, 0.0125, 0.005]), (14.0, [0.05, 0.025, 0.01])] {
+        for (r, p) in [1.0, 5.0, 10.0].into_iter().zip(rates) {
+            assert!((crate::gee::step_probability(g, r, 1.0) - p).abs() < 1e-12);
+            let tick = crate::gee::step_probability(g, r, 0.02);
+            assert!((1.0 - (1.0 - tick).powi(50) - p).abs() < 1e-12);
+        }
+    }
+}
+
+#[test]
+fn even_max_resistance_can_black_out_or_die_on_a_short_burn() {
+    let base = duel(5000.0).ships[0].clone();
+    let (mut black, mut dead) = (false, false);
+    for seed in 0..200_000 {
+        let mut ship = base.clone(); ship.g = 7.0;
+        for c in &mut ship.crew { c.resistance = 10.0; }
+        let (killed, out) = ship.endure_g(0.02, &mut sk_sim::math::Rng::new(seed));
+        black |= !out.is_empty(); dead |= !killed.is_empty();
+        for index in out { assert!((4.0..=8.0).contains(&ship.crew[index].blackout_remaining)); }
+        if black && dead { break; }
+    }
+    assert!(black && dead);
+}
+
+#[test]
+fn blackouts_recover_without_permanent_injury_or_timer_reset() {
+    let mut ship = duel(5000.0).ships[0].clone();
+    let c = &mut ship.crew[0]; c.state = CrewState::BlackedOut; c.blackout_remaining = 4.0;
+    ship.g = 0.0;
+    let mut rng = sk_sim::math::Rng::new(3);
+    for _ in 0..199 { ship.endure_g(0.02, &mut rng); }
+    assert_eq!(ship.crew[0].state, CrewState::BlackedOut);
+    ship.endure_g(0.03, &mut rng);
+    assert_eq!(ship.crew[0].state, CrewState::Fit); assert_eq!(ship.crew[0].health,100.0);
 }
 
 // ---------------- torpedoes and point defence ----------------
@@ -283,7 +312,7 @@ fn engineers_patch_parts_but_not_under_heavy_g() {
     w.ships[0].parts[idx] = 0.3;
     for c in w.ships[0].crew.iter_mut().filter(|c| c.station == Station::Engineer) {
         c.state = CrewState::BlackedOut;
-        c.dose = 10.0;
+        c.blackout_remaining = 10.0;
     }
     run(&mut w, 3.0);
     assert!(w.ships[0].part(Part::Railgun) <= 0.3, "no repairs with the engineer out");
@@ -492,7 +521,7 @@ fn juke_trace() {
             if w.tick % if from > 0.0 { 120 } else { 30 } == 0 || (from == 0.0 && p[0].mode != last) {
                 let pc = s.crew_at(Station::Pilot);
                 let gc = s.crew_at(Station::Gunner);
-                print!("dose p {:.2}/{:.2} {:?} gun {:.2}/{:.2} {:?} budget {:.1} | ", pc.dose, pc.tolerance, pc.state, gc.dose, gc.tolerance, gc.state, crate::pilot::g_budget(s, 1.5));
+                print!("dose p {:.2}/{:.2} {:?} gun {:.2}/{:.2} {:?} budget {:.1} | ", pc.blackout_remaining, pc.resistance, pc.state, gc.blackout_remaining, gc.resistance, gc.state, crate::pilot::g_budget(s, 1.5));
                 println!("t {:6.2} {:>12} fwd·juke {:5.2} thr {:4.1} g {:4.1} ours {:.2}/{:.1} | enemy charge {:.2} held {:.1} cd {:.1} | dist {:5.0} closing {:4.0} | p ours {:.2} theirs {:.2}",
                     w.t, p[0].mode, s.forward().dot(p[0].juke_dir), w.inputs[0].thrust_g, s.g, s.rail_charge, s.rail_cooldown, e.rail_charge, e.rail_held, e.rail_cooldown, (e.pos - s.pos).len(),
                     -(e.vel - s.vel).dot((e.pos - s.pos).normalized()), crate::pilot::shot(s, e).p_hit, crate::pilot::shot(e, s).p_hit);
@@ -527,7 +556,7 @@ fn budget_debug() {
         for e in w.events.drain(..) { if matches!(e, Event::BlackedOut { ship: 0, .. }) { outs += 1; } }
         if k % 120 == 0 {
             let c = w.ships[0].crew_at(Station::Pilot);
-            println!("t {:4.1} cmd {:4.1} felt {:4.1} pilot dose {:.2} (tol {:.2})", w.t, g, w.ships[0].g, c.dose, c.tolerance);
+            println!("t {:4.1} cmd {:4.1} felt {:4.1} pilot dose {:.2} (tol {:.2})", w.t, g, w.ships[0].g, c.blackout_remaining, c.resistance);
         }
     }
     println!("blackouts {outs}");
@@ -665,7 +694,7 @@ fn crew_stat_effects() {
     use crate::ship::CrewSpec;
     let n: u64 = std::env::var("GATE_N").ok().and_then(|v| v.parse().ok()).unwrap_or(400);
     let hi: f64 = std::env::var("HI").ok().and_then(|v| v.parse().ok()).unwrap_or(1.2);
-    let avg = [CrewSpec { name: "A", skill: 1.0, tolerance: 1.0 }; 4];
+    let avg = [CrewSpec { name: "A", skill: 1.0, resistance: 5.0 }; 4];
     let styles = crate::pilot::TACTICAL;
     let conds: Vec<(&str, Box<dyn Fn(&mut [CrewSpec; 4])>)> = vec![
         ("control", Box::new(|_c: &mut [CrewSpec; 4]| {})),
@@ -673,7 +702,7 @@ fn crew_stat_effects() {
         ("gunner", Box::new(move |c: &mut [CrewSpec; 4]| c[1].skill = hi)),
         ("engineer", Box::new(move |c: &mut [CrewSpec; 4]| c[2].skill = hi)),
         ("ops", Box::new(move |c: &mut [CrewSpec; 4]| c[3].skill = hi)),
-        ("g-tolerance (all)", Box::new(|c: &mut [CrewSpec; 4]| for x in c.iter_mut() { x.tolerance = 1.15 })),
+        ("g-tolerance (all)", Box::new(|c: &mut [CrewSpec; 4]| for x in c.iter_mut() { x.resistance = 10.0 })),
         ("all skills", Box::new(move |c: &mut [CrewSpec; 4]| for x in c.iter_mut() { x.skill = hi })),
     ];
     for (name, f) in conds.iter() {

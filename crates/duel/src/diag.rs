@@ -90,7 +90,7 @@ pub struct SideDiag {
     /// Where the >14 g time was spent, by pilot mode.
     pub over14_by_mode: std::collections::BTreeMap<String, f64>,
     /// Weakest g tolerance among the crew (sets how hard the ship can juke without a blackout).
-    pub min_tolerance: f64,
+    pub min_resistance: f64,
     /// Seconds spent in each pilot mode.
     pub mode_time: std::collections::BTreeMap<String, f64>,
 }
@@ -131,7 +131,7 @@ impl MatchDiag {
     pub fn to_json(&self) -> String {
         let side = |s: &SideDiag| {
             format!(
-                "{{\"style\":\"{}\",\"class\":\"{}\",\"torps_fired\":{},\"torps_downed\":{},\"torps_hit\":{},\"debris_hits\":{},\"debris_share\":{:.2},\"rail_fired\":{},\"rail_hits\":{},\"rail_vents\":{},\"overcharges\":{},\"overcharge_burns\":{},\"rail_ranges\":[{}],\"shots\":[{}],\"pdc_hits_dealt\":{},\"parts_lost\":[{}],\"repairs\":{},\"crew_killed_by_hits\":{},\"crew_killed_by_g\":{},\"blackouts\":{},\"blackout_log\":[{}],\"peak_g\":{:.2},\"time_over_8g\":{:.2},\"time_over_12g\":{:.2},\"max_speed\":{:.1},\"max_radius\":{:.0},\"final_hull\":{:.1},\"final_parts_mean\":{:.3},\"crew_alive\":{},\"torps_left\":{},\"pdc_ammo_left\":{:.1},\"pdc_mounts_left\":{},\"salvo_times\":[{}],\"rail_left\":{},\"first_damage_dealt_t\":{},\"hits_taken\":{{{}}},\"damage_taken\":{{{}}},\"time_over_14g\":{:.2},\"over14_by_mode\":{{{}}},\"min_tolerance\":{:.3},\"mode_time\":{{{}}},\"part_loss_t\":[{}],\"crew_hit_death_t\":[{}],\"parts_damage\":{:.3},\"salvos\":[{}]}}",
+                "{{\"style\":\"{}\",\"class\":\"{}\",\"torps_fired\":{},\"torps_downed\":{},\"torps_hit\":{},\"debris_hits\":{},\"debris_share\":{:.2},\"rail_fired\":{},\"rail_hits\":{},\"rail_vents\":{},\"overcharges\":{},\"overcharge_burns\":{},\"rail_ranges\":[{}],\"shots\":[{}],\"pdc_hits_dealt\":{},\"parts_lost\":[{}],\"repairs\":{},\"crew_killed_by_hits\":{},\"crew_killed_by_g\":{},\"blackouts\":{},\"blackout_log\":[{}],\"peak_g\":{:.2},\"time_over_8g\":{:.2},\"time_over_12g\":{:.2},\"max_speed\":{:.1},\"max_radius\":{:.0},\"final_hull\":{:.1},\"final_parts_mean\":{:.3},\"crew_alive\":{},\"torps_left\":{},\"pdc_ammo_left\":{:.1},\"pdc_mounts_left\":{},\"salvo_times\":[{}],\"rail_left\":{},\"first_damage_dealt_t\":{},\"hits_taken\":{{{}}},\"damage_taken\":{{{}}},\"time_over_14g\":{:.2},\"over14_by_mode\":{{{}}},\"min_resistance\":{:.3},\"mode_time\":{{{}}},\"part_loss_t\":[{}],\"crew_hit_death_t\":[{}],\"parts_damage\":{:.3},\"salvos\":[{}]}}",
                 s.style, s.class, s.torps_fired, s.torps_downed, s.torps_hit, s.debris_hits, s.debris_share, s.rail_fired, s.rail_hits, s.rail_vents, s.overcharges, s.overcharge_burns, s.rail_ranges.iter().map(|r| format!("{r:.0}")).collect::<Vec<_>>().join(","),
                 s.shots.iter().map(|x| format!("{{\"t\":{:.2},\"range\":{:.0},\"aim_miss\":{:.1},\"escape\":{:.1},\"p_est\":{:.2},\"target_lateral\":{:.1},\"closest\":{:.1},\"hit\":{},\"flight\":{:.3},\"target_mode\":\"{}\",\"target_g\":{:.1}}}", x.t, x.range, x.aim_miss.min(9999.0), x.escape, x.p_est, x.target_lateral, x.closest, x.hit, x.flight, x.target_mode, x.target_g)).collect::<Vec<_>>().join(","), s.pdc_hits_dealt,
                 s.parts_lost.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join(","),
@@ -142,7 +142,7 @@ impl MatchDiag {
                 s.damage_taken.iter().map(|(k, v)| format!("\"{k}\":{v:.0}")).collect::<Vec<_>>().join(","),
                 s.time_over_14g,
                 s.over14_by_mode.iter().map(|(k, v)| format!("\"{k}\":{v:.2}")).collect::<Vec<_>>().join(","),
-                s.min_tolerance,
+                s.min_resistance,
                 s.mode_time.iter().map(|(k, v)| format!("\"{k}\":{v:.1}")).collect::<Vec<_>>().join(","),
                 s.part_loss_t.iter().map(|t| format!("{t:.1}")).collect::<Vec<_>>().join(","),
                 s.crew_hit_death_t.iter().map(|t| format!("{t:.1}")).collect::<Vec<_>>().join(","),
@@ -199,7 +199,7 @@ pub fn run_spec(seed: u64, mut p: [Pilot; 2], classes: [crate::params::ShipClass
     d.sides[1].class = classes[1].name.to_string();
     d.start_dist = (w.ships[0].pos - w.ships[1].pos).len();
     for i in 0..2 {
-        d.sides[i].min_tolerance = w.ships[i].crew.iter().map(|c| c.tolerance).fold(f64::MAX, f64::min);
+        d.sides[i].min_resistance = w.ships[i].crew.iter().map(|c| c.resistance).fold(f64::MAX, f64::min);
     }
     // Torpedo id → owner, to credit shoot-downs and hits.
     let mut owner = std::collections::HashMap::new();

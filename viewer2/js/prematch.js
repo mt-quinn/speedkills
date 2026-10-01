@@ -1,3 +1,4 @@
+import { geeResistance } from './gee.js';
 import { portrait } from './portraits.js';
 import { form, meetings } from './history.js';
 
@@ -41,12 +42,6 @@ export function recordText(picks) {
 
 // Station skill as a 1–99 rating (50 = league average).
 export const rating = (skill) => Math.max(1, Math.min(99, Math.round(50 + (skill - 1) * 180)));
-// g-tolerance as something concrete: how long they hold 10 g before blacking out.
-export function hold10(tol, g) {
-  const rate = g.dose_k * (10 / 4) ** 4 - g.dose_recover;
-  return (g.blackout * tol) / rate;
-}
-
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const SKILL = { pilot: 'Handling', gunner: 'Gunnery', engineer: 'Engineering', ops: 'Defence' };
@@ -57,8 +52,8 @@ export function shipCard(side, ship, gp) {
   const strongest = ship.crew.reduce((a, b) => a.skill > b.skill ? a : b);
   const rows = ship.crew.map((c) => {
     const [label, what] = STATION[c.station] || [c.station, ''];
-    const r = rating(c.skill), h = hold10(c.tolerance, gp), art = portrait(c.name);
-    const gbar = Math.min(100, h / hold10(1.3, gp) * 100);
+    const r = rating(c.skill), h = geeResistance(c), art = portrait(c.name);
+    const gbar = h / 10 * 100;
     return `<article class="pm-crew" aria-label="${esc(c.name)}, ${label}">
       <header class="pm-who"><span class="pm-st">${label}</span><b>${esc(c.name)}</b></header>
       <div class="pm-portrait" style="--portrait-color:${art.color}">
@@ -67,9 +62,9 @@ export function shipCard(side, ship, gp) {
       <div class="pm-stats">
         <div class="pm-stat-label"><span>${SKILL[c.station] || 'Skill'}</span><b>${r}<small>/99</small></b></div>
         <div class="pm-stat" role="meter" aria-label="${esc(what)}" aria-valuemin="1" aria-valuemax="99" aria-valuenow="${r}"><i style="width:${r}%"></i></div>
-        <div class="pm-stat-label pm-g"><span>G-tolerance</span><b>${h.toFixed(1)}<small>s</small></b></div>
+        <div class="pm-stat-label pm-g"><span>Gee resistance</span><b>${h}<small>/10</small></b></div>
         <div class="pm-gbar"><i style="width:${gbar}%"></i></div>
-        <div class="pm-g-note">at 10 g · before blackout</div>
+        <div class="pm-g-note">risk reduction · no immunity</div>
       </div>
       <footer class="pm-what">${SKILL_NOTE[c.station] || esc(what)}</footer>
     </article>`;

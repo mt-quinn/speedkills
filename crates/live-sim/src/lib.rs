@@ -11,7 +11,7 @@ fn ship(side: usize, style: u32, identity: u32) -> ShipEntry {
     let styles = [Style::Reference, Style::Knife, Style::Counter];
     INPUT.with(|x| { let stats = x.borrow(); ShipEntry {
         name: if side == 0 { "Amber" } else { "Blue" }, style: styles[style.min(2) as usize], identity: identity as u64,
-        crew: std::array::from_fn(|k| CrewSpec { name: "Crew", skill: stats[side * 8 + k * 2].clamp(0.70, 1.35), tolerance: stats[side * 8 + k * 2 + 1].clamp(0.80, 1.25) }),
+        crew: std::array::from_fn(|k| CrewSpec { name: "Crew", skill: stats[side * 8 + k * 2].clamp(0.70, 1.35), resistance: stats[side * 8 + k * 2 + 1].round().clamp(1.0, 10.0) }),
     }})
 }
 #[no_mangle]

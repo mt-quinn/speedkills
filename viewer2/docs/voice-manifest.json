@@ -334,9 +334,9 @@
     {
       "id": "g_limit",
       "station": "pilot",
-      "trigger": "Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4",
+      "trigger": "Pilot conscious and felt acceleration reaches 7 g; rearm below 6 g",
       "priority": 2,
-      "text": "Close to blackout.",
+      "text": "High-g burn.",
       "delivery": "Strained breath; every word must remain clear.",
       "observed": 0,
       "per_fight": 0,

@@ -32,17 +32,16 @@ const STYLES: [Style; 10] = [
     Style::Counter, Style::Reference, Style::Knife, Style::Counter, Style::Reference,
 ];
 
-/// Win-probability points per unit of each stat above league average, measured by
-/// `tests::crew_stat_effects` (+0.2 skill: pilot +4.5, gunner +7, engineer +5, ops +5 points;
-/// +0.15 g-tolerance for the whole crew: +4.7).
+/// Historical roster-spread heuristic. Current odds are simulated with the current model,
+/// rather than inferred from these planning weights.
 pub const WEIGHTS: [f64; 4] = [22.5, 35.0, 25.0, 25.5];
 pub const W_TOL: f64 = 31.0;
 
 /// A crew's planned strength, in win-probability points over a league-average crew.
 pub fn strength(c: &[CrewSpec; 4]) -> f64 {
     let skill: f64 = (0..4).map(|k| WEIGHTS[k] * (c[k].skill - 1.0)).sum();
-    let tol = c.iter().map(|x| x.tolerance).fold(f64::MAX, f64::min);
-    skill + W_TOL * (tol - 1.0)
+    let tol = c.iter().map(|x| x.resistance).fold(f64::MAX, f64::min);
+    skill + W_TOL * ((0.88 + (tol - 1.0) * 0.27 / 9.0) - 1.0)
 }
 
 /// The roster (deterministic). Strength targets spread evenly over ±SPREAD points, assigned in
@@ -60,7 +59,7 @@ pub fn roster() -> Vec<ShipEntry> {
         let mut crew: [CrewSpec; 4] = std::array::from_fn(|k| CrewSpec {
             name: names[i * 4 + k],
             skill: (1.0 + 0.11 * (rng.f64() + rng.f64() + rng.f64() - 1.5) * 2.0).clamp(0.8, 1.25),
-            tolerance: rng.range(0.88, 1.15),
+            resistance: rng.range(3.0, 8.0).round(),
         });
         // Then the whole crew nudged (same shift for all four skills) onto the planned strength.
         for _ in 0..4 {

@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-const crew = v.object({ name: v.string(), station: v.string(), skill: v.number(), tolerance: v.number() });
+const crew = v.object({ name: v.string(), station: v.string(), skill: v.number(), tolerance: v.optional(v.number()), resistance: v.optional(v.number()) });
 export const shipSnapshot = v.object({ id: v.id('ships'), name: v.string(), style: v.string(), crew: v.array(crew), identity: v.number(), revision: v.number(), owner: v.optional(v.id('players')) });
 export default defineSchema({
   players: defineTable({ token: v.string(), name: v.string(), balance: v.number(), lastChat: v.number(), candidate: v.optional(v.object({ shipId: v.id('ships'), crew, paid: v.number() })), lastRecovery: v.number() }).index('token', ['token']).index('balance', ['balance']),

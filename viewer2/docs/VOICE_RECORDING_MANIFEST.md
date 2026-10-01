@@ -25,7 +25,7 @@ Measured on 12 unfiltered fights (22.8 match minutes). Counts reflect emitted su
 | “Pilot blacked out.” | ops | 0 | 0 | **3** |
 | “Point defence out of ammo.” | ops | 0.17 | 0.09 | **3** |
 | “Point defence overheated.” | ops | 1.58 | 0.83 | **6** |
-| “Close to blackout.” | pilot | 0 | 0 | **3** |
+| “High-g burn.” | pilot | 0 | 0 | **3** |
 
 ## Recording workflow
 
@@ -266,11 +266,11 @@ Trigger: All loaded working PDC mounts overheated; at least 15s between warnings
 
 ## g_limit — 3 takes
 
-**Say every time: “Close to blackout.”**
+**Say every time: “High-g burn.”**
 
 Delivery: Strained breath; every word must remain clear.
 
-Trigger: Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4. Observed 0 times on this card.
+Trigger: Pilot conscious and felt acceleration reaches 7 g; rearm below 6 g. Observed 0 times on this card.
 
 - [ ] Take 1: `g_limit_take_01.wav`
 - [ ] Take 2: `g_limit_take_02.wav`

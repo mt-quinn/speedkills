@@ -68,7 +68,7 @@ fn ship_frame(o: &mut String, s: &Ship, p: &Pilot) {
     o.push_str("],\"crew\":[");
     for (k, c) in s.crew.iter().enumerate() {
         let st = match c.state { CrewState::Fit => 0, CrewState::BlackedOut => 1, CrewState::Dead => 2 };
-        let _ = write!(o, "{}[{},{:.0},{:.3}]", if k > 0 { "," } else { "" }, st, c.health, c.dose / (BLACKOUT * c.tolerance));
+        let _ = write!(o, "{}[{},{:.0},{:.3}]", if k > 0 { "," } else { "" }, st, c.health, c.blackout_remaining);
     }
     let _ = write!(
         o,
@@ -175,7 +175,7 @@ fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipC
             c.torpedoes,
             c.rail_ammo,
             c.pdc_ammo,
-            s.crew.iter().map(|cr| format!("{{\"name\":{},\"station\":{},\"skill\":{:.3},\"tolerance\":{:.3}}}", js(cr.name), js(cr.station.name()), cr.skill, cr.tolerance)).collect::<Vec<_>>().join(",")
+            s.crew.iter().map(|cr| format!("{{\"name\":{},\"station\":{},\"skill\":{:.3},\"resistance\":{:.3}}}", js(cr.name), js(cr.station.name()), cr.skill, cr.resistance)).collect::<Vec<_>>().join(",")
         );
     }
     o.push_str("],\"parts\":[");
@@ -194,8 +194,8 @@ fn record_with(seed: u64, mut p: [Pilot; 2], styles: [Style; 2], classes: [ShipC
     o.push_str(&w.rocks.iter().map(|r| format!("[{:.0},{:.0},{:.0},{:.0}]", r.pos.x, r.pos.y, r.pos.z, r.radius)).collect::<Vec<_>>().join(","));
     let _ = write!(
         o,
-        "],\"params\":{{\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"blackout\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
-        RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, BLACKOUT, DRIVE_MAX_G, if time_limit().is_finite() { format!("{}", time_limit()) } else { "null".into() }, DISENGAGE_RANGE
+        "],\"params\":{{\"g_model\":\"random-v1\",\"rail_speed\":{},\"rail_charge\":{},\"rail_hold\":{},\"pdc_range\":{},\"pdc_ship_range\":{},\"drive_max_g\":{},\"time_limit\":{},\"disengage_range\":{}}},",
+        RAIL_SPEED, RAIL_CHARGE, RAIL_HOLD, PDC_RANGE, PDC_SHIP_RANGE, DRIVE_MAX_G, if time_limit().is_finite() { format!("{}", time_limit()) } else { "null".into() }, DISENGAGE_RANGE
     );
     let _ = write!(o, "\"winner\":{},\"end_reason\":{},", w.winner.map_or("null".into(), |x| x.to_string()), js(w.end_reason));
     let _ = write!(o, "\"summary\":{},", summary.to_json());

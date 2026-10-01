@@ -314,7 +314,7 @@ impl Pilot {
         if w.t < self.dodge_until {
             self.mode = "torpedo break";
             inp.rate = turn_toward(s, self.dodge_dir);
-            // Hard, but within what keeps the crew conscious — unless the ship is already badly
+            // Hard, but within the routine incident-risk budget — unless the ship is already badly
             // hurt and this torpedo would finish it.
             // (Past the crew's limit only if this torpedo would finish the ship.)
             let g = if s.hull < TORP_HULL * 1.2 { 14.0 } else { 12.0f64.min(g_budget(s, 1.0)) };
@@ -416,8 +416,8 @@ impl Pilot {
                 self.juke_until = w.t + self.rng.range(0.5, 1.3);
             }
             inp.rate = turn_toward(s, self.juke_dir);
-            // The juice, budgeted: a blackout is ~15 s with nobody flying. Only a ship that's
-            // already dying goes past what keeps the crew conscious.
+            // The juice, budgeted: a blackout costs 4–8 s of crew effectiveness. Only a ship that's
+            // already dying goes past the routine risk budget.
             // (How hard: scaled by what the crew can take — the weakest conscious member.)
             let want: f64 = (if e.rail_charge >= 0.95 || incoming { 11.0 } else { 8.0 }) * s.crew_tolerance().min(1.3).powi(2);
             let mut g = want.min(g_budget(s, 1.5));
@@ -699,16 +699,11 @@ impl Pilot {
     }
 }
 
-/// Highest drive g the crew can take for `horizon` seconds and all stay conscious, with a
-/// margin under the blackout dose. Felt g includes the RCS jink on top of the drive.
+/// Routine burn risk budget; desperation maneuvers may exceed it. RCS is part of felt g.
 pub fn g_budget(s: &Ship, horizon: f64) -> f64 {
-    let mut felt = DRIVE_MAX_G;
-    for c in s.crew.iter().filter(|c| c.working()) {
-        let room = (0.7 * BLACKOUT * c.tolerance - c.dose).max(0.0);
-        let rate = room / horizon + DOSE_RECOVER;
-        felt = felt.min(4.0 * (rate / DOSE_K).powf(0.25));
-    }
-    // Worst case the RCS push lines up with the drive.
+    let felt = s.crew.iter().filter(|c| c.working())
+        .map(|c| crate::gee::budget_g(c.resistance, horizon))
+        .fold(DRIVE_MAX_G, f64::min);
     (felt - s.rcs_accel() / G).max(2.0)
 }
 

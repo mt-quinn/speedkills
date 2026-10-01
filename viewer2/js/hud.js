@@ -1,3 +1,4 @@
+import { geeResistance } from './gee.js';
 // Broadcast furniture. Information lives where the eye already is: each ship carries a plate
 // (name, what it's doing, hull, crew, what's broken, its PDC burst, its news and its radio),
 // joined to the ship by a leader line. Scene objects are labelled in place (torpedo salvos,
@@ -412,10 +413,10 @@ export class Hud {
     P.hullFill.style.width = `${hf * 100}%`;
     P.hullFill.style.background = hf < 0.3 ? '#ff3b5c' : TEAM_CSS[i];
     P.hullTxt.textContent = `${Math.round(hf * 100)}%`;
-    r.crew.forEach(([state, health, dose], k) => {
+    r.crew.forEach(([state, health, remaining], k) => {
       const c = ms.crew[k], status = state === 2 ? 'dead' : state === 1 ? 'blacked out' : health < 60 ? 'injured' : 'fit';
       P.dots[k].className = `crew-face ${state === 2 ? 'dead' : state === 1 ? 'out' : health < 60 ? 'hurt' : ''}`;
-      const label = `${c.name} · ${c.station} · ${status} · g dose ${Math.round(dose * 100)}% of blackout`;
+      const label = `${c.name} · ${c.station} · ${status} · gee resistance ${geeResistance(c)}/10${state===1&&this.m.raw.params?.g_model==='random-v1'?` · recovery ${remaining.toFixed(1)}s`: ''}`;
       P.dots[k].title = label; P.dots[k].setAttribute('aria-label', label);
     });
     const df = defence(r);

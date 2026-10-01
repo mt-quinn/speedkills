@@ -152,15 +152,7 @@ pub fn tune(name: &str, default: f64) -> f64 {
 }
 
 // ---- crew ----
-/// g-dose: rises at DOSE_K·(g/4)⁴ per second, recovers at DOSE_RECOVER per second. Each crew
-/// member's thresholds scale by a personal tolerance in TOLERANCE.
-pub const DOSE_K: f64 = 0.005;
-pub const DOSE_RECOVER: f64 = 0.02;
-pub const BLACKOUT: f64 = 1.0;
-pub const WAKE: f64 = 0.7;
-pub const INJURY: f64 = 2.0;
-pub const DEATH: f64 = 4.0;
-pub const TOLERANCE: (f64, f64) = (0.85, 1.15);
+/// Gee hazards and temporary blackout recovery are defined in gee.rs.
 /// Engineer: seconds to patch a component back to half health (not under heavy g).
 /// Damage is partly temporary (a limited slippery slope): the engineer patches damaged parts at
 /// REPAIR_RATE health/s up to REPAIR_CEILING (a combat patch, never good as new); a destroyed part

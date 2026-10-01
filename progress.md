@@ -87,3 +87,13 @@
 - Results use a winner strip, ship outcome/hull comparison, dense combat record and wager settlement. Next-betting countdown and return-to-hangar button stay in a persistent footer.
 - The phase desk fits the available viewport. Only its detail area scrolls when needed; timing and actions stay outside that area. Mobile chat is bounded between the timer and action bar.
 - Verified actual cloud-connected betting markup, desktop and phone layouts, and result controls at 320x568 with zero page scroll. No changes to the gee simulation; that proposal awaits agreement.
+
+## 2026-09-30 — Stochastic gee incidents and abstract resistance
+- Implemented the approved per-second incident probabilities at 7/10/14 g for resistance 1/5/10, with continuous timestep-independent hazards and seeded RNG. There is no safe exposure duration at high g.
+- Incidents yield 4–8 second blackouts in 98% of cases and death in 2%. Blackouts suspend station work and recover without permanent health loss; unconscious crew remain vulnerable to a fatal incident without nonfatal timer resets.
+- Replaced accumulated-dose pilot limits with a routine 1.5% per-person planned-burn risk budget. Initial 2% budget caused 36.6% blackout fights; 1% caused 5.6%; the final 1.5% budget produced 24.2%, preserving the approved hazard rates.
+- 500-fight WASM tuning batch: 121 blackout fights, 159 blackout events, 4 gee death fights (0.8%), mean duration 102.2s. Reproducible with tools/verify-gee.mjs. Full 1,200-fight spectacle regression passed all six checks.
+- Converted roster and new candidates to 1–10 scores. Added idempotent persistent-crew/candidate migration, future-match invalidation and a new odds cache version; removed reuse of the old odds matrix. Existing announced fights preserve recordings and locked wagers.
+- Updated hangar, betting, archival crew details and live crew accessibility labels. Random-model traces carry blackout recovery seconds. Replaced the inaccurate impending-blackout line with “High-g burn.” and updated the recording manifest.
+- Checks: 15 Rust tests passed (11 ignored diagnostics); 25 JS tests passed; TypeScript passed; WASM rebuilt. Development backend deployed and 12 ships migrated.
+- Production backend deployed and 10 ships migrated; unannounced matches regenerate under the new model. Announced recordings and locked odds remain intact.

@@ -25,7 +25,7 @@ test('crew lock ends at finish and only applies to the current competitors', () 
 });
 test('candidate generation is deterministic and can trade skill for g tolerance', () => {
  const c = candidate(123,'pilot',['A','B']); assert.deepEqual(c,candidate(123,'pilot',['A','B']));
- assert.ok(c.skill >= .78 && c.skill <= 1.28); assert.ok(c.tolerance >= .88 && c.tolerance <= 1.15);
+ assert.ok(c.skill >= .78 && c.skill <= 1.28); assert.ok(Number.isInteger(c.resistance) && c.resistance >= 1 && c.resistance <= 10);
 });
 
 test('money awards round to whole credits, including owner shares', () => {

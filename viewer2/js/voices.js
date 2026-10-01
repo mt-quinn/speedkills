@@ -18,7 +18,7 @@ export const VOICES = {
   pilot_out: { station: 'ops', priority: 3, trigger: 'Pilot blacked out', text: 'Pilot blacked out.', delivery: 'Urgent status report.' },
   defence_dry: { station: 'ops', priority: 2, trigger: 'All working PDC mounts exhausted, once per ship', text: 'Point defence out of ammo.', delivery: 'Plain warning; no panic.' },
   defence_hot: { station: 'ops', priority: 2, trigger: 'All loaded working PDC mounts overheated; at least 15s between warnings', text: 'Point defence overheated.', delivery: 'Tense but precise.' },
-  g_limit: { station: 'pilot', priority: 2, trigger: 'Pilot conscious and normalized g dose crosses 0.75; rearm below 0.4', text: 'Close to blackout.', delivery: 'Strained breath; every word must remain clear.' },
+  g_limit: { station: 'pilot', priority: 2, trigger: 'Pilot conscious and felt acceleration reaches 7 g; rearm below 6 g', text: 'High-g burn.', delivery: 'Strained breath; every word must remain clear.' },
 };
 export function voiceState() { return { next: -1, until: -1, priority: 0, last: {}, mode: '', over: false, dry: false, hotAt: -99, gHigh: false }; }
 export function voiceRequests(state, raw, crew, events) {
@@ -47,9 +47,9 @@ export function voiceRequests(state, raw, crew, events) {
   const loaded = mounts.filter((p) => p[0] > 0);
   if (loaded.length && loaded.every((p) => p[4])) out.push('defence_hot');
   const pilot = crew.findIndex((c) => c.station === 'pilot');
-  const dose = raw.crew[pilot]?.[2] || 0;
-  if (dose < 0.4) state.gHigh = false;
-  if (dose >= 0.75 && !state.gHigh) { out.push('g_limit'); state.gHigh = true; }
+  const g = raw.g || 0;
+  if (g < 6) state.gHigh = false;
+  if (g >= 7 && !state.gHigh) { out.push('g_limit'); state.gHigh = true; }
   return out;
 }
 // Highest priority gets the slot. Never attribute speech to dead/unconscious crew.

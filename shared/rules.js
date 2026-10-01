@@ -1,3 +1,4 @@
+import { geeResistance } from '../viewer2/js/gee.js';
 import { crewName } from './crew-names.js';
 
 // Whole fictional credits, stored in legacy scaled units (100 units = 1 credit).
@@ -36,7 +37,7 @@ export function crewLocked(shipId, fight, now) { return !!fight?.ships?.some(s =
 export function candidate(seed, station, excluded = []) {
   let n = seed >>> 0; const rand = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296; };
   rand(); // Preserve the existing skill/tolerance rolls when changing naming.
-  return { name: crewName(seed, excluded), station, skill: +(0.78 + (rand() + rand() + rand()) / 3 * 0.50).toFixed(3), tolerance: +(0.88 + rand() * 0.27).toFixed(3) };
+  return { name: crewName(seed, excluded), station, skill: +(0.78 + (rand() + rand() + rand()) / 3 * 0.50).toFixed(3), resistance: geeResistance({ tolerance: 0.88 + rand() * 0.27 }) };
 }
 export function fightStats(raw) {
   return raw.ships.map((s, side) => ({ name: s.name, railShots: raw.events.filter(e => e.k === 'rail_fire' && e.ship === side).length,

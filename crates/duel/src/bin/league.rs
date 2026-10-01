@@ -22,7 +22,7 @@ fn ship_json(e: &ShipEntry) -> String {
     format!(
         "{{\"name\":{},\"style\":{},\"strength\":{:.2},\"crew\":[{}]}}",
         js(e.name), js(&format!("{:?}", e.style)), strength(&e.crew),
-        e.crew.iter().enumerate().map(|(k, c)| format!("{{\"name\":{},\"station\":{},\"skill\":{:.17},\"tolerance\":{:.17}}}", js(c.name), js(stations[k]), c.skill, c.tolerance)).collect::<Vec<_>>().join(",")
+        e.crew.iter().enumerate().map(|(k, c)| format!("{{\"name\":{},\"station\":{},\"skill\":{:.17},\"resistance\":{:.17}}}", js(c.name), js(stations[k]), c.skill, c.resistance)).collect::<Vec<_>>().join(",")
     )
 }
 
@@ -35,7 +35,7 @@ fn main() {
         Some("roster") => {
             for e in &ships {
                 println!("{:9} {:10} strength {:+5.1}  {}", e.name, format!("{:?}", e.style), strength(&e.crew),
-                    e.crew.iter().map(|c| format!("{} {:.2}/{:.2}", c.name, c.skill, c.tolerance)).collect::<Vec<_>>().join("  "));
+                    e.crew.iter().map(|c| format!("{} {:.2}/{:.2}", c.name, c.skill, c.resistance)).collect::<Vec<_>>().join("  "));
             }
         }
         Some("fight") => {
@@ -89,7 +89,7 @@ fn main() {
             let mut o = String::new();
             let _ = write!(o, "{{\"version\":1,\"ships\":[{}],\"odds\":[{}],", ships.iter().map(ship_json).collect::<Vec<_>>().join(","),
                 p.iter().map(|r| format!("[{}]", r.iter().map(|x| format!("{x:.3}")).collect::<Vec<_>>().join(","))).collect::<Vec<_>>().join(","));
-            let _ = write!(o, "\"odds_fights\":{on},\"g\":{{\"dose_k\":{DOSE_K},\"dose_recover\":{DOSE_RECOVER},\"blackout\":{BLACKOUT}}}}}");
+            let _ = write!(o, "\"odds_fights\":{on},\"g\":{{\"model\":\"random-v1\"}}}}");
             std::fs::write(format!("{viewer}/league.json"), o).unwrap();
             println!("wrote {viewer}/league.json and {cards} fights to {dir}");
         }

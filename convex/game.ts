@@ -2,6 +2,7 @@ import { mutation, query, internalMutation, internalQuery, action } from './_gen
 import { internal } from './_generated/api';
 import { v, ConvexError } from 'convex/values';
 import { ECONOMY, TIMING, phase, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote } from '../shared/rules.js';
+import { withResistance } from '../viewer2/js/gee.js';
 import { crewName } from '../shared/crew-names.js';
 import { roster } from './roster';
 import { rotation } from './matchmaking';
@@ -314,4 +315,24 @@ export const roundCredits = internalMutation({args:{},handler:async ctx=>{
   for(const w of await ctx.db.query('wagers').collect())await ctx.db.patch(w._id,{stake:round(w.stake),payout:round(w.payout),...(w.returned!==undefined?{returned:round(w.returned),net:round(w.returned)-round(w.stake)}:{})});
   for(const l of await ctx.db.query('ledger').collect())await ctx.db.patch(l._id,{amount:round(l.amount),balance:round(l.balance)});
   for(const f of await ctx.db.query('fights').collect())await ctx.db.patch(f._id,{crowd:f.crowd.map(round),...(f.ownerPayout!==undefined?{ownerPayout:round(f.ownerPayout)}:{})});
+}});
+
+// Convert persistent identities and invalidate only unannounced, prepared simulations.
+export const migrateGeeResistance = internalMutation({args:{},handler:async ctx=>{
+ let converted=0;
+ for(const ship of await ctx.db.query('ships').collect()){
+  if(ship.crew.some(c=>c.resistance===undefined||c.tolerance!==undefined)){
+   await ctx.db.patch(ship._id,{crew:ship.crew.map(withResistance),revision:ship.revision+1});converted++;
+  }
+ }
+ for(const p of await ctx.db.query('players').collect())if(p.candidate&&p.candidate.crew.resistance===undefined){
+  await ctx.db.patch(p._id,{candidate:{...p.candidate,crew:withResistance(p.candidate.crew)}});
+ }
+ const ch=await channel(ctx);
+ if(converted&&ch){
+  for(const id of [ch.pending,ch.fallback])if(id){const f=await ctx.db.get(id as Id<'fights'>);if(f){await ctx.storage.delete(f.trace);await ctx.db.delete(id);}}
+  await ctx.db.patch(ch._id,{pending:undefined,fallback:undefined,generation:ch.generation+1,preparing:true});
+  await ctx.scheduler.runAfter(0,internal.simulation.prepare,{generation:ch.generation+1});
+ }
+ return{converted};
 }});

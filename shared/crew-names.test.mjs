@@ -29,10 +29,10 @@ test('generated crews have distinct, deterministic names spanning both Terran li
 test('scouting excludes current crew without changing its skill rolls', () => {
   const original=candidate(123,'pilot'), replacement=candidate(123,'pilot',[original.name]);
   assert.notEqual(original.name,replacement.name);
-  assert.equal(original.skill,replacement.skill); assert.equal(original.tolerance,replacement.tolerance);
+  assert.equal(original.skill,replacement.skill); assert.equal(original.resistance,replacement.resistance);
   let n=123;const rand=()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
   rand();const skill=+(0.78+(rand()+rand()+rand())/3*.50).toFixed(3),tolerance=+(0.88+rand()*.27).toFixed(3);
-  assert.equal(original.skill,skill);assert.equal(original.tolerance,tolerance);
+  assert.equal(original.skill,skill);assert.equal(original.resistance,Math.max(1,Math.min(10,Math.round(1+(tolerance-.88)*9/.27))));
 });
 
 test('new names retain stable portraits with variety across a crew', () => {

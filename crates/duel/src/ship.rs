@@ -128,10 +128,10 @@ pub struct Crew {
     pub name: &'static str,
     /// 0..100; dead at 0.
     pub health: f64,
-    /// Accumulated g punishment (see params: DOSE_*).
-    pub dose: f64,
-    /// Personal tolerance: thresholds are multiplied by it.
-    pub tolerance: f64,
+    /// Seconds remaining until a blacked-out crew member recovers.
+    pub blackout_remaining: f64,
+    /// Personal resistance: thresholds are multiplied by it.
+    pub resistance: f64,
     /// Skill at their station (1 = league average): pilot — handling (rotation authority and
     /// thruster jinks); gunner — railgun scatter and charge speed; engineer — repair speed;
     /// ops — point-defence fire control.
@@ -211,12 +211,12 @@ pub struct Ship {
 
 const NAMES: [[&str; 4]; 2] = [["Vasquez", "Okoye", "Brandt", "Liang"], ["Moreau", "Tanaka", "Reyes", "Sørensen"]];
 
-/// A crew member as the league knows them: name, skill at their station, g-tolerance.
+/// A crew member as the league knows them: name, skill at their station, and 1–10 gee resistance.
 #[derive(Clone, Copy, Debug)]
 pub struct CrewSpec {
     pub name: &'static str,
     pub skill: f64,
-    pub tolerance: f64,
+    pub resistance: f64,
 }
 
 impl Ship {
@@ -225,7 +225,7 @@ impl Ship {
         for (c, sp) in self.crew.iter_mut().zip(spec.iter()) {
             c.name = sp.name;
             c.skill = sp.skill;
-            c.tolerance = sp.tolerance;
+            c.resistance = sp.resistance.round().clamp(1.0, 10.0);
         }
     }
 
@@ -237,8 +237,8 @@ impl Ship {
                 station: st,
                 name: NAMES[side % 2][k],
                 health: 100.0,
-                dose: 0.0,
-                tolerance: rng.range(TOLERANCE.0, TOLERANCE.1),
+                blackout_remaining: 0.0,
+                resistance: rng.range(3.0, 8.0).round(),
                 skill: 1.0,
                 state: CrewState::Fit,
                 g_death: false,
@@ -301,9 +301,9 @@ impl Ship {
     }
     /// How fast the pilot reacts to the enemy's muzzle flash (s).
     pub fn flash_reaction(&self) -> f64 { FLASH_REACTION / self.handling() }
-    /// The weakest conscious crew member's g-tolerance: how hard the whole crew can be pushed.
+    /// The weakest conscious crew member's g-resistance: how hard the whole crew can be pushed.
     pub fn crew_tolerance(&self) -> f64 {
-        self.crew.iter().filter(|c| c.working()).map(|c| c.tolerance).fold(f64::MAX, f64::min).min(1.5)
+        self.crew.iter().filter(|c| c.working()).map(|c| 0.88 + (c.resistance - 1.0) * 0.27 / 9.0).fold(1.15, f64::min)
     }
     /// Power management, from the engineer (league average without a working one).
     pub fn power(&self) -> f64 {
@@ -404,34 +404,28 @@ impl Ship {
         killed
     }
 
-    /// Crew bodies under acceleration `g` for `dt`: dose, blackouts, injury, death. Returns
-    /// (killed, blacked out) crew indices this step.
+    /// A seeded gee incident is 98% temporary blackout, 2% death. Unconscious
+    /// crew can still suffer a fatal incident, but do not restart their recovery timer.
     pub fn endure_g(&mut self, dt: f64, rng: &mut Rng) -> (Vec<usize>, Vec<usize>) {
         let (mut killed, mut out) = (Vec::new(), Vec::new());
-        let rise = DOSE_K * (self.g / 4.0).powi(4);
         for (k, c) in self.crew.iter_mut().enumerate() {
-            if !c.alive() {
-                continue;
+            if !c.alive() { continue; }
+            if c.state == CrewState::BlackedOut {
+                c.blackout_remaining = (c.blackout_remaining - dt).max(0.0);
+                if c.blackout_remaining <= 0.0 { c.state = CrewState::Fit; }
             }
-            c.dose = (c.dose + (rise - DOSE_RECOVER) * dt).max(0.0);
-            let t = c.tolerance;
-            if c.dose > DEATH * t {
+            let chance = crate::gee::step_probability(self.g, c.resistance, dt);
+            if chance <= 0.0 || rng.f64() >= chance { continue; }
+            if rng.f64() < 0.02 {
                 c.state = CrewState::Dead;
                 c.health = 0.0;
+                c.blackout_remaining = 0.0;
                 c.g_death = true;
                 killed.push(k);
-                continue;
-            }
-            if c.dose > INJURY * t && rng.f64() < dt * (c.dose - INJURY * t) {
-                c.health = (c.health - 15.0).max(1.0);
-            }
-            match c.state {
-                CrewState::Fit if c.dose > BLACKOUT * t => {
-                    c.state = CrewState::BlackedOut;
-                    out.push(k);
-                }
-                CrewState::BlackedOut if c.dose < WAKE * t => c.state = CrewState::Fit,
-                _ => {}
+            } else if c.working() {
+                c.state = CrewState::BlackedOut;
+                c.blackout_remaining = rng.range(4.0, 8.0);
+                out.push(k);
             }
         }
         (killed, out)

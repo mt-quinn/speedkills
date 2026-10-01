@@ -1,9 +1,10 @@
+import { geeResistance } from '../viewer2/js/gee.js';
 const styleIndex = { Reference: 0, Knife: 1, Counter: 2 };
 export async function simulator(bytes) {
   const { instance } = await WebAssembly.instantiate(bytes, {}); const e = instance.exports;
   function setup(ships) {
     const p = e.hb_input();
-    new Float64Array(e.memory.buffer, p, 16).set(ships.flatMap(s => s.crew.flatMap(c => [c.skill, c.tolerance])));
+    new Float64Array(e.memory.buffer, p, 16).set(ships.flatMap(s => s.crew.flatMap(c => [c.skill, geeResistance(c)])));
     return [styleIndex[ships[0].style] ?? 0, ships[0].identity, styleIndex[ships[1].style] ?? 0, ships[1].identity];
   }
   return {
@@ -16,4 +17,4 @@ export async function simulator(bytes) {
     }
   };
 }
-export function oddsKey(ships) { return JSON.stringify(['wasm-v1', ships.map(s => [s.style, s.identity, s.crew.map(c => [c.skill, c.tolerance])])]); }
+export function oddsKey(ships) { return JSON.stringify(['wasm-gee-v2', ships.map(s => [s.style, s.identity, s.crew.map(c => [c.skill, geeResistance(c)])])]); }

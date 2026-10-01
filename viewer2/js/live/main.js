@@ -1,7 +1,8 @@
+import { geeResistance } from '../gee.js';
 import { connect } from './client.bundle.js';
 import { audioHost, captureAudioInteractions } from '../audio-context.js';
 import { portrait } from '../portraits.js';
-import { shipCard, rating, hold10 } from '../prematch.js';
+import { shipCard, rating } from '../prematch.js';
 const query = new URLSearchParams(location.search);
 if (query.has('studio') || query.has('audit') || query.has('auditall') || query.has('story')) {
   document.body.removeAttribute('data-screen'); await import('../main.js');
@@ -30,7 +31,7 @@ async function start() {
   captureAudioInteractions(retryAudio);
   const credits = n => Math.round(n / 100).toLocaleString();
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const gp = { dose_k: .005, dose_recover: .02, blackout: 1 };
+  const gp = { model: 'random-v1' };
   const stations = { pilot:'Pilot', gunner:'Gunner', engineer:'Engineer', ops:'Ops' };
   const skills = { pilot:'Handling', gunner:'Gunnery', engineer:'Engineering', ops:'Defence' };
   const doctrines = { Reference:'Duelist', Knife:'Knife fighter', Counter:'Counterpuncher' };
@@ -46,7 +47,7 @@ async function start() {
   const primary = (label, action, disabled = false) => `<button class="hb-primary" data-do="${action}" ${disabled ? 'disabled' : ''}>${label}</button>`;
   function crewTile(c, clickable = false) {
     const art = portrait(c.name), r = rating(c.skill);
-    return `<${clickable ? 'button' : 'article'} class="hb-crew" ${clickable ? `data-station="${c.station}"` : ''}><div class="hb-face" style="--face:url('/assets/portraits/${art.file}');--face-color:${art.color}"></div><div class="hb-crew-copy"><span class="hb-eyebrow">${stations[c.station]}</span><b>${esc(c.name)}</b><div class="hb-rating"><span>${skills[c.station]}</span><strong>${r}<small>/99</small></strong></div><div class="hb-meter"><i style="width:${r}%"></i></div><div class="hb-rating"><span>G-tolerance</span><strong>${hold10(c.tolerance, gp).toFixed(1)}<small>s at 10 g</small></strong></div></div></${clickable ? 'button' : 'article'}>`;
+    return `<${clickable ? 'button' : 'article'} class="hb-crew" ${clickable ? `data-station="${c.station}"` : ''}><div class="hb-face" style="--face:url('/assets/portraits/${art.file}');--face-color:${art.color}"></div><div class="hb-crew-copy"><span class="hb-eyebrow">${stations[c.station]}</span><b>${esc(c.name)}</b><div class="hb-rating"><span>${skills[c.station]}</span><strong>${r}<small>/99</small></strong></div><div class="hb-meter"><i style="width:${r}%"></i></div><div class="hb-rating"><span>Gee resistance</span><strong>${geeResistance(c)}<small>/10</small></strong></div></div></${clickable ? 'button' : 'article'}>`;
   }
   function livePanel() {
     const f=data.fight,p=phase(f),mine=f?.ships.some(s=>s.owner===data.player.id);
@@ -54,8 +55,8 @@ async function start() {
   }
   function candidatePanel() {
     const cand=data.player.candidate;if(!cand)return '';
-    const current=data.ship.crew.find(c=>c.station===cand.crew.station),delta=rating(cand.crew.skill)-rating(current.skill),gDelta=hold10(cand.crew.tolerance,gp)-hold10(current.tolerance,gp);
-    return `<div class="dock-inline-candidate"><div class="candidate-divider"><span>CANDIDATE / ${credits(cand.paid)} CR PAID</span><i>↓</i></div>${crewTile(cand.crew)}<div class="candidate-delta"><span class="${delta>0?'positive':''}">${delta>=0?'+':''}${delta} ${skills[cand.crew.station]}</span><span class="${gDelta>0?'positive':''}">${gDelta>=0?'+':''}${gDelta.toFixed(1)}s at 10 g</span></div><div class="dock-decision">${primary('Hire','accept',data.ship.locked)}<button data-do="reject">Keep ${esc(current.name)}</button></div>${data.ship.locked?'<p class="dock-small-note">Hiring opens after the fight.</p>':''}</div>`;
+    const current=data.ship.crew.find(c=>c.station===cand.crew.station),delta=rating(cand.crew.skill)-rating(current.skill),gDelta=geeResistance(cand.crew)-geeResistance(current);
+    return `<div class="dock-inline-candidate"><div class="candidate-divider"><span>CANDIDATE / ${credits(cand.paid)} CR PAID</span><i>↓</i></div>${crewTile(cand.crew)}<div class="candidate-delta"><span class="${delta>0?'positive':''}">${delta>=0?'+':''}${delta} ${skills[cand.crew.station]}</span><span class="${gDelta>0?'positive':''}">${gDelta>=0?'+':''}${gDelta} gee resistance</span></div><div class="dock-decision">${primary('Hire','accept',data.ship.locked)}<button data-do="reject">Keep ${esc(current.name)}</button></div>${data.ship.locked?'<p class="dock-small-note">Hiring opens after the fight.</p>':''}</div>`;
   }
   function ownerPanel(s, transactions) {
     const f=data.fight,p=phase(f),inMatch=f?.ships.some(ship=>ship.id===s._id),active=inMatch&&p!=='preparing',income=data.lastOwnerIncome;
@@ -83,7 +84,7 @@ async function start() {
   function marketShip(s, i, f, wager) {
     return `<article class="market-ship t${i} ${draft.side===i?'backed':''}"><header><div><span class="hb-eyebrow">${i===0?'RED':'BLUE'} / ${esc(doctrines[s.style]||s.style)}</span><h2>${esc(s.name)}</h2></div><div class="market-odds"><b>${Math.round(f.odds[i]*100)}<small>%</small></b><span>WIN ODDS</span></div></header><div class="market-crew">${s.crew.map(c=>{
       const art=portrait(c.name);
-      return `<div class="market-person"><div class="hb-face" style="--face:url('/assets/portraits/${art.file}');--face-color:${art.color}"></div><div><span>${stations[c.station]} / ${skills[c.station]}</span><b>${esc(c.name)}</b><div class="market-ratings"><strong>${rating(c.skill)}<small>/99</small></strong><span title="Time at 10 g before blackout">G hold <strong>${hold10(c.tolerance,gp).toFixed(1)}s</strong></span></div></div></div>`;
+      return `<div class="market-person"><div class="hb-face" style="--face:url('/assets/portraits/${art.file}');--face-color:${art.color}"></div><div><span>${stations[c.station]} / ${skills[c.station]}</span><b>${esc(c.name)}</b><div class="market-ratings"><strong>${rating(c.skill)}<small>/99</small></strong><span title="Gee resistance: lowers the chance of blackouts or death at 7+ g">G resist <strong>${geeResistance(c)}/10</strong></span></div></div></div>`;
     }).join('')}</div><button class="market-pick ${draft.side===i?'selected':''}" data-side="${i}" aria-pressed="${draft.side===i}" ${wager?'disabled':''}>${wager?wager.side===i?'YOUR PICK / LOCKED':'BETTING LOCKED':draft.side===i?'SELECTED':'BACK '+esc(s.name)}<span>${draft.side===i?'✓':'+'}</span></button></article>`;
   }
   function betting() {
