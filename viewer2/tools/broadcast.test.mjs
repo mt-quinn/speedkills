@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { Match } from '../js/data.js';
 import { defence, tactical, decisive, recentRestorations } from '../js/broadcast.js';
 import { VOICES, chooseVoice, voiceRequests, voiceState } from '../js/voices.js';
 import { rememberResult, loadHistory, form, meetings } from '../js/history.js';
@@ -126,4 +127,21 @@ test('defensive launch comms explain the ammunition choice rather than generic f
 test('a counter-torpedo is not described as an incoming ship threat', () => {
   const r=raw();
   assert.equal(tactical([r,r],['A','B'],[{owner:1,p:r.p,intercept:100}]),'');
+});
+
+test('scoreboard hull values and exchange losses exclude system and crew damage',()=>{
+ const trace=structuredClone(m);
+ trace.frames[0].s[0].hull=trace.ships[0].hull*.6;
+ trace.frames[0].s[0].alive=false;
+ trace.frames[0].s[0].parts.fill(0);
+ trace.frames[0].s[0].crew.forEach(c=>c[0]=2);
+ trace.events=[
+  {k:'damage',t:1,ship:0,hull:trace.ships[0].hull*.1,parts:2,crew:1,cause:'railgun'},
+  {k:'damage',t:2,ship:1,hull:0,parts:2,crew:1,cause:'railgun'},
+ ];
+ const match=new Match(trace),exchange=match.exchanges[0];
+ assert.equal(match.hullAt(0)[0],.6,'disabled ship retains its actual hull reading');
+ assert.deepEqual(match.exchangeHullLoss(exchange,.5),[0,0]);
+ assert.deepEqual(match.exchangeHullLoss(exchange,1),[10,0]);
+ assert.deepEqual(match.exchangeHullLoss(exchange,2),[10,0],'system/crew damage adds no hull loss');
 });

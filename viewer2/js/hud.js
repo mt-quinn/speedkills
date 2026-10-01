@@ -67,10 +67,11 @@ export class Hud {
       const pips = el('span', 'sb-pips');
       if (i === 0) style.prepend(pips); else style.append(pips);
       (this.exPips ||= [])[i] = pips;
-      // Integrity: the ship's overall condition (hull, systems, crew), draining toward the
+      // Hull integrity, draining toward the
       // centre. During an exchange, what it has lost so far is a bright chunk at the bar's end,
       // labelled; the chunk drains once the exchange is called.
       const bar = el('div', 'sb-bar');
+      bar.setAttribute('aria-label',`${this.names[i]} hull integrity`);
       const fill = el('i', 'fill'), chunk = el('i', 'chunk'), pct = el('span', 'sb-pct'), delta = el('span', 'sb-delta');
       bar.append(fill, chunk, pct, delta);
       (this.bars ||= [])[i] = { fill, chunk, pct, delta, lastLoss: 0 };
@@ -80,7 +81,7 @@ export class Hud {
     const mid = el('div', 'sb-mid');
     this.clock = el('div', 'sb-clock', '0:00');
     this.leadTxt = el('div', 'sb-lead', 'even');
-    this.barCap = el('div', 'sb-cap', 'condition · not win odds');
+    this.barCap = el('div', 'sb-cap', 'HULL');
     // Range between the ships, and whether it's closing or opening.
     this.rangeTxt = el('div', 'sb-range');
     mid.append(this.clock, this.rangeTxt, this.leadTxt, this.barCap);
@@ -156,7 +157,7 @@ export class Hud {
       <span><svg viewBox="0 0 24 12"><path d="M1 10 Q12 -3 23 10" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="3 3"/></svg>PDC rounds</span>
       <span><svg viewBox="0 0 24 12"><g stroke="#ffa070" stroke-width="1.4"><line x1="3" y1="3" x2="7" y2="4"/><line x1="10" y1="8" x2="14" y2="9"/><line x1="15" y1="2" x2="19" y2="3"/><line x1="6" y1="9" x2="9" y2="10"/></g></svg>shrapnel</span>
       <span><svg viewBox="0 0 24 12"><line x1="12" y1="0" x2="12" y2="12" stroke="currentColor" stroke-width="1.2"/><ellipse cx="12" cy="11" rx="5" ry="1.4" fill="none" stroke="currentColor"/></svg>height above the plane</span>
-      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="#f5a623"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: ship condition · white = lost this exchange</span>`;
+      <span><svg viewBox="0 0 24 12"><rect x="1" y="4" width="14" height="4" fill="#f5a623"/><rect x="15" y="3" width="6" height="6" fill="#fff"/></svg>top bars: hull integrity · white = hull lost this exchange</span>`;
     this.legend = lg;
   }
 
@@ -298,7 +299,7 @@ export class Hud {
     const last = this.lastExT;
     this.lastExT = t;
     const won = [0, 0];
-    const lead = (tt) => { const h = this.m.healthAt(tt), d = h[0] - h[1]; return Math.abs(d) < 0.03 ? null : d > 0 ? 0 : 1; };
+    const lead = (tt) => { const h = this.m.hullAt(tt), d = h[0] - h[1]; return Math.abs(d) < 0.03 ? null : d > 0 ? 0 : 1; };
     for (const x of this.m.exchanges) {
       const at = x.t1 + 1.5;
       if (at <= t && x.winner !== null) won[x.winner]++;
@@ -308,12 +309,12 @@ export class Hud {
       const swung = after !== null && after !== before;
       // Small exchanges count on the tally but get a line only if they swung the lead.
       if (x.dmg[0] + x.dmg[1] < 8 && !swung) continue;
-      // Stated as what each ship lost (of its whole condition), the winner first.
-      const lost = [x.dmg[1], x.dmg[0]].map((v) => Math.max(1, Math.round(v)));
+      // Hull losses match the scoreboard; system and crew damage stay on ship cards.
+      const lost = this.m.exchangeHullLoss(x,x.t1).map(v=>Math.round(v));
       const kind = x.kind.toUpperCase();
       const head = x.winner === null ? `${kind} ${x.n} · even` : `${this.names[x.winner]} wins ${kind} ${x.n}`;
       const order = x.winner === 1 ? [1, 0] : [0, 1];
-      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}%`).join(' · ') + (swung ? ` · ${this.names[after]} gains condition edge` : '');
+      const sub = order.map((i) => `${this.names[i]} lost ${lost[i]}% hull`).join(' · ') + (swung ? ` · ${this.names[after]} has more hull remaining` : '');
       this.say(t, { head, sub }, { team: x.winner, prio: 2, key: 'ex', hold: 3.4 });
     }
     for (let i = 0; i < 2; i++) { const s = '■'.repeat(won[i]); if (this.exPips[i].textContent !== s) this.exPips[i].textContent = s; }
@@ -321,11 +322,11 @@ export class Hud {
 
   // Story beat: the lead changing hands (during an exchange it's told with the exchange).
   leadBeat(t) {
-    const h = this.m.healthAt(t);
+    const h = this.m.hullAt(t);
     const d = h[0] - h[1];
     const now = d > 0.03 ? 0 : d < -0.03 ? 1 : this.leader ?? null;
     if (this.leader !== undefined && this.leader !== null && now !== null && now !== this.leader && !this.m.exchangeAt(t) && t < this.endT) {
-      this.say(t, `${this.names[now]} takes the condition edge`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
+      this.say(t, `${this.names[now]} now has more hull remaining`, { team: now, prio: 2, key: 'lead', hold: 2.6 });
     }
     if (now !== null) this.leader = now;
   }
@@ -382,7 +383,7 @@ export class Hud {
     // Scoreboard.
     const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
     this.clock.textContent = `${mm}:${String(ss).padStart(2, '0')}`;
-    const h = this.m.healthAt(t);
+    const h = st.ships.map((s,i)=>Math.max(0,Math.min(1,s.raw.hull/this.m.ships[i].hull)));
     const d = h[0] - h[1];
     {
       const [a, b] = st.ships;
@@ -396,16 +397,16 @@ export class Hud {
     this.exchanges(t);
     // The live exchange (and its call, 1.5 s after it ends): each ship's loss in it so far.
     const ex = t <= this.endT + 0.5 ? this.m.exchangeAt(t) : null;
-    const sc = ex ? this.m.exchangeScore(ex, t) : [0, 0];
+    const sc = ex ? this.m.exchangeHullLoss(ex, t) : [0, 0];
     for (let i = 0; i < 2; i++) {
       const B = this.bars[i];
-      const hp = st.ships[i].raw.alive ? Math.max(0, Math.min(1, h[i])) * 100 : 0;
-      const loss = ex ? Math.min(100 - hp, sc[1 - i]) : 0; // (points dealt by the other ship)
+      const hp = h[i] * 100;
+      const loss = ex ? Math.min(100 - hp, sc[i]) : 0; // actual hull damage received
       B.fill.style.width = `${hp}%`;
       B.chunk.style[i === 0 ? 'left' : 'right'] = `${hp}%`;
       B.chunk.style.width = `${loss}%`;
       B.chunk.classList.toggle('drain', !ex);
-      const pt = st.ships[i].raw.alive ? `${Math.round(hp)}%` : 'OUT';
+      const pt = `${Math.round(hp)}%`;
       if (B.pct.textContent !== pt) B.pct.textContent = pt;
       const dt = loss >= 0.5 ? `−${Math.round(loss)}%` : '';
       if (B.delta.textContent !== dt) B.delta.textContent = dt;
@@ -414,7 +415,7 @@ export class Hud {
       this.leadTxt.textContent = `exchange ${ex.n}`;
       this.leadTxt.className = 'sb-lead live';
     } else {
-      this.leadTxt.textContent = t >= this.endT ? (this.m.raw.winner === null ? 'draw' : `${this.names[this.m.raw.winner]} wins`) : Math.abs(d) < 0.03 ? 'condition even' : `${this.names[d > 0 ? 0 : 1]} condition edge`;
+      this.leadTxt.textContent = t >= this.endT ? (this.m.raw.winner === null ? 'draw' : `${this.names[this.m.raw.winner]} wins`) : Math.abs(d) < 0.03 ? 'hull even' : `${this.names[d > 0 ? 0 : 1]} · more hull`;
       this.leadTxt.className = `sb-lead ${t >= this.endT ? (this.m.raw.winner === null ? '' : 't' + this.m.raw.winner) : Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
     }
     const ended = t >= this.endT;

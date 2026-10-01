@@ -104,7 +104,7 @@ export class Match {
         if (e.k !== 'damage' || e.t < c.t0 - 1e-6 || e.t > c.t1 + 1e-6) continue;
         const who = 1 - e.ship, p = this.points(e);
         dmg[who] += p; by[who][e.cause] = (by[who][e.cause] || 0) + p;
-        hits.push({ t: e.t, who, p });
+        hits.push({ t: e.t, who, p, hull: 100 * Math.max(0,e.hull) / this.ships[e.ship].hull });
       }
       const tot = dmg[0] + dmg[1];
       if (tot < 3) continue;
@@ -120,6 +120,16 @@ export class Match {
   exchangeAt(t) { return this.exchanges.find((x) => t >= x.t0 - 1e-6 && t <= x.t1 + 1.5) || null; }
   // Running score of an exchange at time t.
   exchangeScore(x, t) { const d = [0, 0]; for (const h of x.hits) if (h.t <= t) d[h.who] += h.p; return d; }
+
+  // Actual hull damage received, in percentage points of starting hull.
+  exchangeHullLoss(x,t) {
+    const loss=[0,0];
+    for(const hit of x.hits)if(hit.t<=t)loss[1-hit.who]+=hit.hull;
+    return loss;
+  }
+  hullAt(t) {
+    return this.ships.map((ship,i)=>Math.max(0,Math.min(1,this.ship(t,i).raw.hull/ship.hull)));
+  }
 
   // PDC bursts, per ship: at the enemy ship (rounds fired and rounds that landed) and at
   // torpedoes (engaged and shot down). Rounds: the mounts' cyclic rate, PDC_RPS rounds a second
