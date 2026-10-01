@@ -63,8 +63,9 @@ describe('account ownership and guest gates',()=>{
   const t=convexTest(schema,modules);await signup(t,'PilotOne');
   await expect(signup(t,'pilotone',{email:'other@example.com'})).rejects.toThrow(/taken/);
   await expect(signup(t,'<bad>')).rejects.toThrow(/letters/);
-  await expect(signup(t,'PilotTwo',{password:'short'})).rejects.toThrow(/12/);
+  await expect(signup(t,'PilotTwo',{password:'1234567'})).rejects.toThrow(/8/);
   expect(await t.run(ctx=>ctx.db.query('players').collect())).toHaveLength(1);
+  expect((await signup(t,'PilotTwo',{password:'12345678'})).tokens?.token).toBeTruthy();
  });
  test('revoked sessions immediately lose access even with an unexpired access token',async()=>{
   const t=convexTest(schema,modules),{client}=await signed(t);

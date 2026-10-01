@@ -16,7 +16,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       return { email, ...(params.flow === 'signUp' ? { name: username(params.username).name, legacyToken: params.legacyToken } : {}) };
     },
     validatePasswordRequirements(password) {
-      if (typeof password !== 'string' || password.length < 12 || password.length > 256) throw new ConvexError('Use a password between 12 and 256 characters.');
+      if (typeof password !== 'string' || password.length < 8 || password.length > 256) throw new ConvexError('Use a password between 8 and 256 characters.');
     },
   })],
   callbacks: {
