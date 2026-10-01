@@ -41,6 +41,13 @@ with zipfile.ZipFile(source) as archive:
     users = {u['_id']: u for u in data['users']}
     players = {p['_id']: p for p in data['players']}
     fights = {f['_id']: f for f in data['fights']}
+    ship_rows = {s['_id']: s for s in data['ships']}
+    queue = ch.get('queue', [])
+    if any(len(pair) != 2 or len(set(pair)) != 2 or any(s not in ship_rows for s in pair) for pair in queue):
+        raise ValueError('Invalid matchmaking queue')
+    pending = fights.get(ch.get('pending'))
+    if ch.get('pending') and (not pending or not queue or [s['id'] for s in pending['ships']] != queue[0] or any(ship_rows[s['id']]['revision'] != s['revision'] for s in pending['ships'])):
+        raise ValueError('Pending preparation does not match queue and current crew revisions')
     for p in players.values():
         if p.get('userId') and p['userId'] not in users: raise ValueError('Missing player account')
     for w in data['wagers']:

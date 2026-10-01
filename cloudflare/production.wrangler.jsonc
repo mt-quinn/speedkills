@@ -16,7 +16,7 @@
   },
   "vars": {
     "ENVIRONMENT": "production",
-    "ALLOWED_ORIGINS": "https://hardburn.vercel.app"
+    "ALLOWED_ORIGINS": "https://hardburn.vercel.app,https://speedkills-viewer2.vercel.app,https://hardburn-thegameband.vercel.app,https://hardburn-git-main-thegameband.vercel.app"
   },
   "secrets": {
     "required": [

@@ -19,4 +19,6 @@ for table in ['auth_session','wagers']:
     query='SELECT count(*) AS n FROM '+table+(' WHERE returned IS NULL' if table=='wagers' else '')
     result=subprocess.run(['npx','wrangler','d1','execute',database,'--remote','--config',config,'--command',query,'--json'],capture_output=True,text=True)
     if result.returncode or json.loads(result.stdout)[0]['results'][0]['n']!=0: raise RuntimeError('Nonempty session or unsettled wager table')
+result=subprocess.run(['npx','wrangler','d1','execute',database,'--remote','--config',config,'--command','PRAGMA foreign_key_check','--json'],capture_output=True,text=True)
+if result.returncode or json.loads(result.stdout)[0]['results']: raise RuntimeError('Foreign key mismatch')
 print(json.dumps({'verification':'pass','recordsCompared':checked,'fields':'all imported fields','credentials':'unchanged','IDs':'unchanged'}))
