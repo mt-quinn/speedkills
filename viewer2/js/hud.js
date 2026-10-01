@@ -392,7 +392,7 @@ export class Hud {
       if (B.delta.textContent !== dt) B.delta.textContent = dt;
     }
     if (ex && t < this.endT) {
-      const kind = {'torpedo trade':'TORPEDO', 'gun duel':'GUNS', 'close-in brawl':'BRAWL'}[ex.kind] || 'EXCHANGE';
+      const kind = exchange.phase === 'live' ? 'LIVE' : ({'torpedo trade':'TORPEDO', 'gun duel':'GUNS', 'close-in brawl':'BRAWL'}[ex.kind] || 'EXCHANGE');
       this.leadTxt.textContent = `EX ${String(ex.n).padStart(2,'0')} · ${kind}`;
       this.leadTxt.className = `sb-lead ${exchange.phase === 'live' ? 'live' : 'settled'}`;
     } else {
