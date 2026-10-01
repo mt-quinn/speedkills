@@ -80,7 +80,14 @@ fn ship_frame(o: &mut String, s: &Ship, p: &Pilot) {
     for (k, m) in s.pdcs.iter().enumerate() {
         let _ = write!(o, "{}[{:.2},{:.2},{},{},{}]", if k > 0 { "," } else { "" }, m.ammo, m.heat, m.target.map_or(-1, |t| t as i64), m.at_ship as u8, m.overheated as u8);
     }
-    let _ = write!(o, "],\"intent\":[{:.2},{:.2},{:.2},{:.2}],\"mode\":{}}}",p.intent[0],p.intent[1],p.intent[2],p.intent[3], js(p.mode));
+    o.push_str("],\"repair\":");
+    if let Some((part, progress)) = s.repair.filter(|(part, _)| s.parts[*part] <= 0.0) {
+        let working = s.alive && s.crew_at(Station::Engineer).efficiency() > 0.0;
+        let _ = write!(o, "[{part},{:.4},{}]", (progress / REPAIR_TIME).clamp(0.0, 1.0), working as u8);
+    } else {
+        o.push_str("null");
+    }
+    let _ = write!(o, ",\"intent\":[{:.2},{:.2},{:.2},{:.2}],\"mode\":{}}}",p.intent[0],p.intent[1],p.intent[2],p.intent[3], js(p.mode));
 }
 
 /// Record a whole match. `summary` is the diagnostics of the same match (same seed and pilots),

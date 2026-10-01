@@ -8,9 +8,10 @@ import * as THREE from 'three';
 import { TEAM_CSS } from './scene.js';
 import { PART_LABEL } from './data.js';
 import { portrait } from './portraits.js';
-import { defence, tactical, decisive, recentRestorations } from './broadcast.js';
+import { defence, tactical, decisive } from './broadcast.js';
 import { voiceState, voiceRequests, chooseVoice } from './voices.js';
 import { SalvoLedger, magazine, shipOpportunity } from './fight-facts.js';
+import { systemFlags } from './system-flags.js';
 import { placeFightCards } from './fight-layout.js';
 
 const $ = (s) => document.querySelector(s);
@@ -23,9 +24,6 @@ const PLAN = {
 };
 const STYLE = { Reference: 'duelist', Knife: 'knife fighter', Counter: 'counterpuncher', Striker: 'striker', Warden: 'warden' };
 const BY = { railgun: 'by railgun', torpedo: 'by torpedo', pdc: 'by PDC fire', ram: 'by ramming', 'mutual ram': 'in a collision', rock: 'on the rocks', g: 'by its own burn', overcharge: 'by its own gun' };
-// Systems as a viewer thinks of them: shown on the plate only when out.
-const OUTS = [['drive', [0]], ['thrusters', [1, 2, 3, 4]], ['reactor', [5]], ['gun', [11]], ['PDC', [7, 8, 9]], ['tubes', [10]], ['sensors', [6]]];
-
 export class Hud {
   constructor(match, scene, opts = {}) {
     this.m = match; this.scene = scene; this.opts = opts;
@@ -137,14 +135,14 @@ export class Hud {
     const action=el('div','pl-action'),mounts=el('span','pl-mounts');action.append(rail,mounts);
     const signal=el('div','pl-signal');
     const outs = el('div', 'pl-outs');
-    const restored = el('div', 'pl-restored');
-    restored.setAttribute('role', 'status');
+    outs.setAttribute('aria-label','System status and repairs');
+    const systemTags = new Map();
     const acc = el('div', 'pl-acc');
     const flag = el('div', 'pl-flag');
     const chat = el('div', 'pl-chat');
-    p.append(head,hull,meta,ammo,action,signal,outs,restored,flag,chat);
+    p.append(head,hull,meta,ammo,action,signal,outs,flag,chat);
     $('#tags').append(p);
-    return { p, bet, weapons, signal, mounts, rail, plan, hullFill, hullTxt, dots, ammo, outs, restored, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
+    return { p, bet, weapons, signal, mounts, rail, plan, hullFill, hullTxt, dots, ammo, outs, systemTags, acc, flag, chat, flagState: null, lastAmmo: '' };
   }
 
   // What you're looking at: the scene's visual language, for the opening seconds.
@@ -486,21 +484,25 @@ export class Hud {
       W.cell.title=`${m.key}: ${m.value}${m.unit} remaining${m.level==='disabled'?' · system disabled':''}`;
     });
     P.ammo.title = `PDC reserve: total firing seconds across working mounts (${r.pdc.map((p,k) => r.parts[7+k] <= 0 ? 'out' : p[0].toFixed(1) + 's').join(' / ')}). Multiple mounts consume reserve simultaneously.`;
-    const outs = OUTS.map(([label, idx]) => {
-      const down = idx.filter((k) => r.parts[k] <= 0).length;
-      if (!down) return null;
-      return label === 'PDC' ? `PDC ${down}/3 out` : label === 'thrusters' ? (down >= 2 ? 'thrusters out' : null) : `${label} out`;
-    }).filter(Boolean).join(' · ');
-    if (outs !== P.lastOuts) {
-      // A system newly out: the row lights up for a moment.
-      const grew = outs.length > P.lastOuts.length && t > 0.5;
-      P.outs.textContent = outs; P.lastOuts = outs;
-      if (grew) { P.outs.classList.remove('fresh'); void P.outs.offsetWidth; P.outs.classList.add('fresh'); P.outsFreshUntil = t + 2.5; }
+    const flags=systemFlags(r,this.systemEvents,i,t), visible=new Set(flags.map(f=>f.part));
+    for(const [part,tag] of P.systemTags) if(!visible.has(part)){tag.node.remove();P.systemTags.delete(part);}
+    for(const f of flags) {
+      let tag=P.systemTags.get(f.part);
+      if(!tag) {
+        const node=el('div','pl-system-tag'),fill=el('i','pl-repair-fill'),label=el('b'),value=el('span');
+        fill.setAttribute('aria-hidden','true');node.append(fill,label,value);
+        tag={node,fill,label,value};P.systemTags.set(f.part,tag);
+      }
+      // Append only if its position changed. The same node survives out → restored.
+      const index=flags.indexOf(f);
+      if(P.outs.children[index]!==tag.node)P.outs.insertBefore(tag.node,P.outs.children[index]??null);
+      tag.node.className=`pl-system-tag ${f.state}${f.repairing?' repairing':''}${f.paused?' paused':''}`;
+      tag.fill.style.transform=`scaleX(${f.progress})`;
+      tag.label.textContent=`${f.label} ${f.state==='restored'?'RESTORED':'OUT'}`;
+      tag.value.textContent=f.repairing?`${Math.min(99,Math.floor(f.progress*100))}%${f.paused?' ‖':''}`:'';
+      const status=f.state==='restored'?'restored':f.repairing?`offline · repair ${Math.floor(f.progress*100)}%${f.paused?' · paused':''}`:'offline · awaiting repair';
+      tag.node.title=`${f.label}: ${status}`;tag.node.setAttribute('aria-label',tag.node.title);
     }
-    if (P.outsFreshUntil && t > P.outsFreshUntil) { P.outs.classList.remove('fresh'); P.outsFreshUntil = 0; }
-    // Restoration news has its own green row, so it never hides a casualty warning.
-    const restoration = recentRestorations(this.systemEvents, i, t).map(part => `${PART_LABEL[part] || part} restored`).join(' · ');
-    if (P.restored.textContent !== restoration) P.restored.textContent = restoration;
     // PDC burst: its running tally.
     const salvo=t<=this.endT?this.salvos.at(i,t,new Set((this.liveTorpedoes||[]).map(tp=>tp.id))):null;
     const opportunity=ended?null:shipOpportunity(this.currentRaws,i,this.liveTorpedoes||[]);

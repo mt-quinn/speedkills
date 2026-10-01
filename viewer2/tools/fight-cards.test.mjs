@@ -46,3 +46,25 @@ test('joint card placement protects crossing ships, avoids overlap and stays ins
   for(const c of cards){assert.ok(c.x>=12&&c.x+c.w<=1588&&c.y>=132&&c.y+c.h<=862);}
  }
 });
+
+test('system tags track actual repairs, pauses and destruction resets without predicting future restoration',async()=>{
+ const {systemFlags}=await import('../js/system-flags.js');
+ const r=raw(),events=[{k:'part_lost',part:'drive',ship:0,t:1},{k:'repaired',part:'drive',ship:0,t:10},{k:'part_lost',part:'drive',ship:0,t:11}];
+ r.parts[0]=0;r.repair=[0,.625,1];
+ const repairing=systemFlags(r,events,0,5)[0];
+ assert.equal(repairing.state,'out');assert.equal(repairing.progress,.625);assert.equal(repairing.paused,false);
+ r.repair[2]=0;assert.equal(systemFlags(r,events,0,6)[0].paused,true);
+ r.repair=null;assert.equal(systemFlags(r,events,0,7)[0].progress,0);
+ r.parts[0]=.3;const restored=systemFlags(r,events,0,10)[0];assert.equal(restored.part,repairing.part);assert.equal(restored.state,'restored');assert.equal(restored.progress,1);
+ r.parts[0]=0;assert.equal(systemFlags(r,events,0,11)[0].state,'out');
+ r.parts[0]=.3;assert.deepEqual(systemFlags(r,events,0,11),[]);
+ assert.equal(systemFlags(r,events,0,10)[0].state,'restored'); // backwards seek
+ assert.deepEqual(systemFlags(r,events,0,14),[]);
+});
+test('component repair tags remain independent when several PDC mounts or thrusters are lost',async()=>{
+ const {systemFlags}=await import('../js/system-flags.js');
+ const r=raw();r.parts[1]=0;r.parts[7]=0;r.parts[8]=0;r.repair=[7,.25,1];
+ const flags=systemFlags(r,[],0,3);
+ assert.deepEqual(flags.map(f=>[f.part,f.progress]),[['rcs_bow_port',0],['pdc_dorsal',.25],['pdc_port',0]]);
+ delete r.repair;assert.equal(systemFlags(r,[],0,3).every(f=>f.progress===0),true); // older recording
+});
