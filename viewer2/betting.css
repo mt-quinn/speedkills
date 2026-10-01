@@ -1,0 +1,131 @@
+/* The market is a comparison desk, not a document: every decision stays in view. */
+body[data-screen="broadcast"][data-phase="betting"] .hb-broadcast { height:calc(100dvh - 64px);min-height:0; }
+.betting-desk { container-type:size; }
+.betting-desk,.betting-desk * { box-sizing:border-box; }
+.betting-desk .match-console-head { padding:12px 20px;background:#1c2a31; }
+.betting-desk .match-console-body { display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:hidden;padding:14px 20px 9px;gap:8px; }
+.betting-desk .market-fleet { min-height:0;gap:16px;grid-template-rows:minmax(0,1fr); }
+.betting-desk .market-ship { min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;cursor:pointer;background:#18282f;border:1px solid #51606a;transition:background .15s,border-color .15s;outline-offset:-3px; }
+.betting-desk .market-ship:hover:not([aria-disabled=true]) { background:#20333b;border-color:var(--team); }
+.betting-desk .market-ship:focus-visible { outline:2px solid var(--team); }
+.betting-desk .market-ship.backed { border-color:var(--team);box-shadow:inset 0 0 0 1px var(--team);background:color-mix(in srgb,var(--team) 8%,#18282f); }
+.betting-desk .market-ship[aria-disabled=true] { cursor:default; }
+.betting-desk .market-ship>header { position:relative;padding:14px 16px;min-height:0;gap:12px;background:#14232a;overflow:hidden; }
+.betting-desk .market-identity { z-index:1;flex:1; }
+.betting-desk .market-ship .hb-eyebrow { font-size:9px;letter-spacing:.09em; }
+#league-shell .betting-desk .market-ship h2 { font-size:clamp(25px,3vw,42px);text-transform:uppercase;line-height:1.05;margin:5px 0 7px;overflow-wrap:anywhere; }
+.market-choice { display:flex;align-items:center;gap:6px;color:#a9b5b8;font-size:9px;font-weight:600;letter-spacing:.07em; }
+.market-choice i { display:grid;place-items:center;width:16px;height:16px;border:1px solid #75828a;font-style:normal;line-height:1; }
+.backed .market-choice { color:var(--team); }.backed .market-choice i { background:var(--team);color:#13212a;border-color:var(--team); }
+.market-vessel { width:35%;max-width:155px;flex-shrink:1;opacity:.75; }
+.vessel-guide { fill:none;stroke:#62717a;stroke-width:.5;stroke-dasharray:3 5; }.vessel-wing { fill:#5b727f;stroke:#acb9b9;stroke-width:.8; }.vessel-hull { fill:#2c424e;stroke:#7f959f;stroke-width:.8; }.vessel-ridge { fill:#8e9ea2; }.vessel-engine { fill:#111c24;stroke:var(--team);stroke-width:1.8; }.vessel-stripe { stroke:var(--team);stroke-width:2; }
+.betting-desk .market-odds>b { font-size:48px;font-variant-numeric:tabular-nums; }.betting-desk .market-odds>b small { font-size:20px; }.betting-desk .market-odds>span { font-size:8px; }
+.betting-desk .market-crew { min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));padding:12px;gap:12px; }
+.betting-desk .market-person { display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:10px;min-width:0;min-height:0;padding:12px;background:#22333a;border:0;border-top:1px solid #54636a; }
+.market-person-head { display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:10px; }
+.betting-desk .market-person .hb-face { width:48px;height:52px; }
+.market-station { display:block;text-transform:uppercase;font-size:9px;font-weight:600;letter-spacing:.09em;color:#a6b8bd; }
+.market-person-head b { display:block;font:600 clamp(17px,1.8vw,23px)/1.1 'Saira Condensed',sans-serif;color:#ece7db;overflow-wrap:anywhere;margin-top:3px; }
+.market-person-head b { display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden; }
+.betting-desk .market-ship h2 { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.betting-desk .market-ship.backed>header { background:color-mix(in srgb,var(--team) 15%,#14232a); }
+.market-stat>div:first-child { display:flex;align-items:baseline;justify-content:space-between;gap:4px;line-height:1.2;margin-bottom:4px; }
+.market-stat span { font-size:10px;color:#bdc9ca; }.market-stat b { font:600 18px/1 'Saira Condensed',sans-serif;font-variant-numeric:tabular-nums;color:#eae1cf; }.market-stat b small { font-size:9px;font-weight:400;color:#9aabb1; }
+.market-bar { position:relative;height:6px;background:#0d1b22; }
+.market-bar i { display:block;width:var(--fill);height:100%;background:var(--team);opacity:.85; }
+.market-bar em { position:absolute;left:50.5%;top:-2px;height:10px;width:1px;background:#e5e0cf;opacity:.65; }
+.market-gee .market-bar { height:4px; }.market-gee .market-bar i { background:#a7b7b4; }
+.betting-desk .market-odds { font-size:8px;line-height:1.2; }.betting-desk .market-odds>span { display:block;line-height:1.2; }
+.market-panel-foot { font-size:8px;line-height:1.2; }.betting-desk .market-bet-total>b { line-height:1.2; }
+.market-panel-foot { display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;border-top:1px solid #465961;min-height:32px; }
+.market-panel-foot>span { font-size:8px;letter-spacing:.07em;color:#a3b4bb; }
+.betting-desk .market-bet-total { border:0;background:none;padding:0;gap:8px; }.betting-desk .market-bet-total>b { font-size:19px; }.betting-desk .market-bet-total>i { display:none; }
+.betting-desk .market-method { padding:0;font-size:9px;line-height:1.2; }
+.betting-desk .match-action-bar { padding:12px 20px;background:#2b3b40;box-shadow:none; }
+.betting-desk .hb-wager-form { grid-template-columns:120px minmax(0,1fr) minmax(130px,.65fr);gap:8px 20px; }
+.betting-desk .hb-wager-form>p { grid-column:1/-1; }
+#league-shell .betting-desk .hb-primary { display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;min-height:48px;border-radius:0; }
+.betting-desk .hb-wager-quote>b { font-size:27px; }.betting-desk .hb-wager-quote>small { font-size:9px; }
+@container (max-height:760px) {
+ .betting-desk .market-person { gap:6px;padding:8px; }.market-person-head { grid-template-columns:36px minmax(0,1fr);gap:7px; }.betting-desk .market-person .hb-face { width:36px;height:40px; }
+ .betting-desk .market-crew { padding:9px;gap:8px; }.betting-desk .market-ship>header { padding:10px 12px; }.betting-desk .market-odds>b { font-size:38px; }
+ .market-person-head b { font-size:20px; }.market-stat b { font-size:16px; }.market-stat>div:first-child { margin-bottom:3px; }
+}
+@media(max-width:760px) and (orientation:portrait) {
+ body[data-screen="broadcast"][data-phase="betting"] .hb-broadcast { height:calc(100dvh - 115px);min-height:0;margin-bottom:57px; }
+ .betting-desk .match-console-head { padding:8px 12px; }.betting-desk .match-console-body { padding:8px 10px 6px;gap:5px; }
+ .betting-desk .market-fleet { grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:8px; }
+ .betting-desk .market-ship>header { padding:7px 9px;gap:8px; }.betting-desk .market-identity { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;align-items:center; }
+ .betting-desk .market-ship .hb-eyebrow { grid-column:1/-1;font-size:8px; }.betting-desk .market-ship h2 { font-size:25px!important;margin:0!important; }
+ .market-choice { font-size:7px;letter-spacing:0;white-space:nowrap; }.market-choice i { width:13px;height:13px; }.market-vessel { width:60px; }.betting-desk .market-odds>b { font-size:29px; }.betting-desk .market-odds>b small { font-size:12px; }.betting-desk .market-odds>span { font-size:6px; }
+ .betting-desk .market-crew { grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1fr);padding:7px;gap:5px; }
+ .betting-desk .market-person { padding:5px;gap:6px; }.market-person-head { grid-template-columns:23px minmax(0,1fr);gap:4px; }.betting-desk .market-person .hb-face { width:23px;height:30px; }
+ .market-station { font-size:6px;letter-spacing:0; }.market-person-head b { font-size:13px;margin-top:2px;line-height:1.05; }.market-stat span { font-size:7px; }.market-stat b { font-size:13px; }.market-stat b small { font-size:7px; }.market-stat>div:first-child { margin-bottom:3px; }
+ .market-bar { height:4px; }.market-bar em { top:-1px;height:6px; }.market-gee .market-bar { height:3px; }
+ .market-panel-foot { padding:5px 9px;min-height:24px; }.market-panel-foot>span { font-size:7px; }.betting-desk .market-bet-total>b { font-size:15px; }.betting-desk .market-bet-total>span { font-size:7px; }
+ .betting-desk .market-method { font-size:7px;gap:4px;flex-wrap:nowrap; }.betting-desk .match-action-bar { padding:8px 10px; }
+ .betting-desk .hb-wager-form { grid-template-columns:76px minmax(0,1fr) 96px;gap:5px 9px; }.betting-desk .hb-wager-form label { font-size:7px; }.betting-desk .hb-wager-form label>span { display:block;margin:1px 0 0;font-size:7px; }
+ #league-shell .betting-desk input { height:34px;margin-top:3px;font-size:20px; }.betting-desk .hb-wager-quote>b { font-size:20px; }.betting-desk .hb-wager-quote>span,.betting-desk .hb-wager-quote>small { font-size:7px; }
+ #league-shell .betting-desk .hb-primary { padding:9px 10px;font-size:11px;min-height:44px; }.betting-desk .hb-wager-form>p { font-size:7px; }
+ .betting-desk .market-person { padding:4px;gap:4px; }.market-stat b { font-size:12px; }.market-stat>div:first-child { margin-bottom:2px;line-height:1; }.market-station { line-height:1.1; }.market-person-head b { font-size:12px;line-height:1.05;margin-top:1px; }
+ .betting-desk .market-vessel { height:30px; }.betting-desk .market-crew { padding:5px; }.betting-desk .match-console-head .hb-eyebrow { line-height:1.2;display:block; }
+}
+@media(max-width:760px) and (orientation:portrait) and (max-height:620px) {
+ .betting-desk .match-console-head { padding:5px 10px; }#league-shell .betting-desk .match-console-head h1 { font-size:19px!important; }.betting-desk .match-console-head .hb-window b { font-size:27px; }
+ .betting-desk .market-ship>header { padding:4px 8px; }.betting-desk .market-ship h2 { font-size:21px!important; }.betting-desk .market-ship .hb-eyebrow { font-size:7px; }.betting-desk .market-odds>b { font-size:25px; }.market-vessel { display:none; }
+ .betting-desk .market-crew { padding:4px;gap:4px; }.betting-desk .market-person { padding:3px;gap:3px; }.market-person-head { grid-template-columns:18px minmax(0,1fr);gap:3px; }.betting-desk .market-person .hb-face { width:18px;height:23px; }.market-person-head b { font-size:11px; }.market-stat b { font-size:11px; }.market-stat b small { font-size:6px; }.market-bar { height:3px; }.market-gee .market-bar { height:2px; }
+ .betting-desk .market-panel-foot { padding:3px 8px;min-height:20px; }.betting-desk .market-bet-total>b { font-size:13px; }.betting-desk .match-action-bar { padding:6px 10px; }
+}
+@media(max-height:500px) {
+ body[data-screen="broadcast"][data-phase="betting"] .hb-header { height:48px;min-height:48px; }
+ body[data-screen="broadcast"][data-phase="betting"] .hb-broadcast { height:calc(100dvh - 48px);min-height:0; }
+ .betting-desk .match-console-head { padding:5px 12px; }#league-shell .betting-desk .match-console-head h1 { font-size:20px!important; }.betting-desk .match-console-head .hb-window b { font-size:27px; }
+ .betting-desk .match-console-body { padding:6px 12px;gap:3px; }.betting-desk .market-fleet { gap:10px; }.betting-desk .market-ship>header { padding:5px 8px; }.betting-desk .market-ship h2 { font-size:23px!important;margin:3px 0!important; }.betting-desk .market-ship .hb-eyebrow { font-size:7px; }.market-choice { font-size:7px; }.market-choice i { width:12px;height:12px; }.market-vessel { width:65px; }.betting-desk .market-odds>b { font-size:28px; }
+ .betting-desk .market-crew { padding:5px;gap:5px; }.betting-desk .market-person { padding:5px;gap:3px; }.market-person-head { grid-template-columns:24px minmax(0,1fr);gap:5px; }.betting-desk .market-person .hb-face { width:24px;height:26px; }.market-station { font-size:6px; }.market-person-head b { font-size:14px;margin-top:1px; }.market-stat span { font-size:7px; }.market-stat b { font-size:13px; }.market-stat b small { font-size:7px; }.market-stat>div:first-child { margin-bottom:2px; }.market-bar { height:3px; }.market-bar em { height:5px;top:-1px; }.market-gee .market-bar { height:2px; }
+ .market-panel-foot { padding:4px 8px;min-height:20px; }.market-panel-foot>span { font-size:6px; }.betting-desk .market-bet-total>b { font-size:14px; }.betting-desk .market-bet-total>span { font-size:6px; }.betting-desk .market-method { font-size:7px; }
+ .betting-desk .match-action-bar { padding:5px 12px; }.betting-desk .hb-wager-form { grid-template-columns:90px minmax(0,1fr) 120px;gap:3px 12px; }#league-shell .betting-desk input { height:30px;font-size:18px;margin-top:2px; }#league-shell .betting-desk .hb-primary { min-height:36px;padding:8px 12px; }.betting-desk .hb-wager-quote>b { font-size:20px; }.betting-desk .hb-wager-form>p { font-size:7px; }
+}
+@media(max-width:760px) and (orientation:landscape) {
+ body[data-screen="broadcast"][data-phase="betting"] .hb-broadcast { height:calc(100dvh - 92px);margin-bottom:44px; }
+ body[data-screen="broadcast"][data-phase="betting"] .hb-header nav { height:44px; }body[data-screen="broadcast"][data-phase="betting"] .hb-header nav button { min-height:43px!important;padding:5px 0!important; }
+ .market-vessel { display:none; }
+}
+@media(max-width:760px) and (orientation:portrait) and (min-height:800px) {
+ .betting-desk .market-crew { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));padding:7px;gap:6px; }
+ .betting-desk .market-person { padding:6px;gap:4px; }.market-person-head { grid-template-columns:30px minmax(0,1fr);gap:7px; }.betting-desk .market-person .hb-face { width:30px;height:34px; }.market-person-head b { font-size:16px; }.market-station { font-size:8px; }
+ .market-stat span { font-size:9px; }.market-stat b { font-size:15px; }.market-stat b small { font-size:8px; }
+}
+/* Short landscape views use a compact two-row crew matrix: identity beside meters. */
+@media(max-height:500px) and (orientation:landscape) {
+ .betting-desk .market-identity { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 5px;align-items:center; }
+ .betting-desk .market-identity .hb-eyebrow { grid-column:1/-1;line-height:1.1; }.betting-desk .market-ship h2 { margin:0!important;font-size:22px!important; }.betting-desk .market-ship>header { padding:4px 7px; }.market-vessel { display:none; }.market-choice { font-size:6px;letter-spacing:0;white-space:nowrap; }
+ .betting-desk .market-person { display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr));padding:3px;gap:2px 5px;align-items:center; }
+ .market-person-head { grid-row:1/3;grid-template-columns:18px minmax(0,1fr);gap:4px; }.betting-desk .market-person .hb-face { width:18px;height:24px; }.market-person-head b { font-size:12px;line-height:1.05; }.market-station { font-size:6px;line-height:1; }
+ .market-stat>div:first-child { margin-bottom:1px;line-height:1;gap:2px; }.market-stat span { font-size:6px; }.market-stat b { font-size:11px; }.market-stat b small { font-size:6px; }.market-bar,.market-gee .market-bar { height:2px; }
+ .betting-desk .market-panel-foot { min-height:20px;padding:3px 7px; }
+ .betting-desk .match-console-head .hb-eyebrow { display:block;line-height:1.1;font-size:7px; }.betting-desk .match-console-head h1 { margin:2px 0 0!important; }
+}
+@media(min-width:761px) and (min-height:501px) and (max-height:700px) {
+ .betting-desk .market-person { display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:3px 8px;padding:7px;align-items:center; }
+ .market-person-head { grid-row:1/3;grid-template-columns:28px minmax(0,1fr);gap:6px; }.betting-desk .market-person .hb-face { width:28px;height:34px; }.market-person-head b { font-size:16px; }.market-station { font-size:7px; }.market-stat span { font-size:8px; }.market-stat b { font-size:14px; }.market-stat b small { font-size:7px; }
+ .betting-desk .market-ship>header { padding:8px 10px; }.betting-desk .market-ship h2 { font-size:30px!important; }.market-vessel { max-width:105px; }
+}
+@media(max-height:400px) and (orientation:landscape) {
+ .betting-desk .hb-wager-form>p { display:none; }
+ .betting-desk .market-ship>header { padding-block:2px; }.betting-desk .market-odds>b { font-size:24px; }
+ .betting-desk .market-panel-foot { min-height:18px;padding-block:2px; }.betting-desk .market-bet-total>b { font-size:12px; }
+}
+@media(min-width:761px) {
+ @container (max-width:800px) {
+  .betting-desk .match-console-head { padding:7px 12px; }#league-shell .betting-desk .match-console-head h1 { font-size:22px!important; }.betting-desk .match-console-head .hb-eyebrow { display:block;line-height:1.1; }
+  .betting-desk .market-fleet { grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:8px; }
+  .betting-desk .market-ship>header { padding:6px 10px; }.market-vessel { display:none; }.betting-desk .market-identity { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px;align-items:center; }.betting-desk .market-identity .hb-eyebrow { grid-column:1/-1;font-size:8px;line-height:1.1; }.betting-desk .market-ship h2 { font-size:27px!important;margin:0!important; }.market-choice { font-size:8px; }.betting-desk .market-odds>b { font-size:30px; }
+  .betting-desk .market-crew { grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1fr);padding:6px;gap:5px; }.betting-desk .market-person { display:flex;align-items:stretch;padding:3px;gap:3px; }.market-person-head { grid-template-columns:22px minmax(0,1fr);gap:4px; }.betting-desk .market-person .hb-face { width:22px;height:26px; }.market-person-head b { font-size:12px;line-height:1.05;margin-top:1px; }.market-station { font-size:7px;line-height:1; }.market-stat span { font-size:7px; }.market-stat b { font-size:12px; }.market-stat b small { font-size:7px; }.market-stat>div:first-child { margin-bottom:1px; }.market-bar { height:3px; }.market-gee .market-bar { height:2px; }
+  .betting-desk .market-panel-foot { padding:5px 10px;min-height:24px; }.betting-desk .market-method { font-size:7px; }.betting-desk .match-console-body { padding:8px 10px;gap:5px; }
+  .betting-desk .hb-wager-form { grid-template-columns:90px minmax(0,1fr) 110px;gap:5px 10px; }.betting-desk .hb-wager-quote>b { font-size:20px; }#league-shell .betting-desk .hb-primary { padding:10px;font-size:11px; }
+  .betting-desk .match-action-bar { padding:8px 12px; }
+ }
+ @container (max-width:800px) and (min-height:750px) {
+  .betting-desk .market-crew { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr)); }.market-person-head { grid-template-columns:32px minmax(0,1fr);gap:8px; }.betting-desk .market-person .hb-face { width:32px;height:38px; }.market-person-head b { font-size:17px; }.market-stat span { font-size:9px; }.market-stat b { font-size:16px; }
+ }
+}
