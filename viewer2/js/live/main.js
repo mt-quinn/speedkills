@@ -194,7 +194,7 @@ async function start() {
     if(!pending||!pending.frame.isConnected||screen!=='broadcast'||phase(data?.fight)!=='combat'||data.fight.id!==pending.fight)return;
     if(pending.sentAt&&Date.now()-pending.sentAt<1000)return;
     pending.sentAt=Date.now();
-    pending.frame.contentWindow.postMessage({kind:'mount-live',fight:pending.fight,raw:pending.raw,startsAt:pending.startsAt,offset},location.origin);
+    pending.frame.contentWindow.postMessage({kind:'mount-live',fight:pending.fight,raw:pending.raw,startsAt:pending.startsAt,offset,pickSide:data.wager?.side??null},location.origin);
   }
   async function syncBroadcast() {
     const f=data?.fight;

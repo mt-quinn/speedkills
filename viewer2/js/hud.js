@@ -10,6 +10,8 @@ import { PART_LABEL } from './data.js';
 import { portrait } from './portraits.js';
 import { defence, tactical, decisive, recentRestorations } from './broadcast.js';
 import { voiceState, voiceRequests, chooseVoice } from './voices.js';
+import { SalvoLedger, magazine, shipOpportunity } from './fight-facts.js';
+import { placeFightCards } from './fight-layout.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
@@ -28,6 +30,7 @@ export class Hud {
   constructor(match, scene, opts = {}) {
     this.m = match; this.scene = scene; this.opts = opts;
     this.systemEvents = match.events.filter(e => e.k === 'repaired' || e.k === 'part_lost');
+    this.salvos = new SalvoLedger(match.events);
     this.names = match.ships.map((s) => s.name.toUpperCase());
     this.buildScoreboard();
     $('#cards').innerHTML = '';
@@ -48,6 +51,11 @@ export class Hud {
     this.callouts = []; // {text, t0, until, prio, key, node}
     this.stats = { captionsShown: 0, maxSimultaneous: 0, shortest: Infinity, chars: 0 };
     this.platePos = [null, null];
+    document.querySelector('.camera-ident')?.remove();
+    document.querySelectorAll('.camera-bearing').forEach(e=>e.remove());
+    this.cameraIdent = el('div', 'camera-ident'); document.body.append(this.cameraIdent);
+    this.bearings = [0,1].map(i=>{const tag=el('div', `camera-bearing t${i}`);tag.hidden=true;document.body.append(tag);return tag;});
+    this.betMarkers=[0,1].map(i=>{const tag=el('div',`ship-backed t${i}`,'◆');tag.hidden=true;tag.setAttribute('aria-label','Ship you backed');$('#tags').append(tag);return tag;});
   }
 
   buildScoreboard() {
@@ -87,9 +95,16 @@ export class Hud {
     document.querySelectorAll('#scoreboard .sb-side').forEach((el, i) => {
       el.classList.toggle('picked', i === side);
       let b = el.querySelector('.sb-pick');
-      if (i === side && !b) { b = el.ownerDocument.createElement('span'); b.className = 'sb-pick'; b.textContent = 'your pick'; el.append(b); }
+      if (i === side && !b) { b = el.ownerDocument.createElement('span'); b.className = 'sb-pick'; b.textContent = '◆ YOUR BET'; el.append(b); }
       if (i !== side && b) b.remove();
     });
+    this.plates.forEach((P,i)=>{P.p.classList.toggle('backed',i===side);P.bet.hidden=i!==side;});
+    this.shipTags.forEach((tag,i)=>tag.classList.toggle('backed',i===side));
+  }
+
+  shipRadius(st,i,cam) {
+    const local=st.ships[i].pos.clone().sub(this.scene.mid).applyMatrix4(cam.matrixWorldInverse);
+    return Math.max(12,Math.min(100,window.innerHeight*6*this.scene.ships[i].scale.x/(Math.max(1,-local.z)*Math.tan(THREE.MathUtils.degToRad(cam.fov/2)))));
   }
 
   // The plate: everything about one ship, next to the ship.
@@ -97,8 +112,9 @@ export class Hud {
     const p = el('div', `plate t${i}`);
     const head = el('div', 'pl-head');
     const name = el('span', 'pl-name', this.names[i]);
+    const bet=el('span','pl-bet','◆ YOUR BET');bet.hidden=true;
     const rail = el('span', 'pl-rail', '');
-    head.append(name, rail);
+    head.append(name,bet);
     const plan = el('div', 'pl-plan', '');
     const hull = el('div', 'pl-hull'); const hullFill = el('i'); const hullTxt = el('span');
     hull.append(el('b', null, 'hull'), hullFill, hullTxt);
@@ -112,16 +128,22 @@ export class Hud {
       crew.append(d); return d;
     });
     const ammo = el('span', 'pl-ammo', '');
-    meta.append(crew, ammo);
+    const weapons=['RAIL','TORP','PDC'].map(label=>{
+      const cell=el('span','pl-weapon'),key=el('small',null,label),value=el('b'),state=el('em');
+      cell.append(key,value,state);ammo.append(cell);return{cell,value,state};
+    });
+    meta.append(plan,crew);
+    const action=el('div','pl-action'),mounts=el('span','pl-mounts');action.append(rail,mounts);
+    const signal=el('div','pl-signal');
     const outs = el('div', 'pl-outs');
     const restored = el('div', 'pl-restored');
     restored.setAttribute('role', 'status');
     const acc = el('div', 'pl-acc');
     const flag = el('div', 'pl-flag');
     const chat = el('div', 'pl-chat');
-    p.append(head, plan, hull, meta, outs, restored, acc, flag, chat);
+    p.append(head,hull,meta,ammo,action,signal,outs,restored,flag,chat);
     $('#tags').append(p);
-    return { p, rail, plan, hullFill, hullTxt, dots, ammo, outs, restored, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
+    return { p, bet, weapons, signal, mounts, rail, plan, hullFill, hullTxt, dots, ammo, outs, restored, acc, flag, chat, flagState: null, lastOuts: '', lastAmmo: '' };
   }
 
   // What you're looking at: the scene's visual language, for the opening seconds.
@@ -396,9 +418,33 @@ export class Hud {
       this.leadTxt.className = `sb-lead ${t >= this.endT ? (this.m.raw.winner === null ? '' : 't' + this.m.raw.winner) : Math.abs(d) < 0.03 ? '' : 't' + (d > 0 ? 0 : 1)}`;
     }
     const ended = t >= this.endT;
+    this.liveTorpedoes=this.m.objects(t,'tp');
+    this.currentRaws=st.ships.map(s=>s.raw);
     this.tactical.textContent = this.replay ? 'REPLAY · DECISIVE SEQUENCE' : ended || this.callouts.length ? '' : tactical(st.ships.map((s) => s.raw), this.names, this.m.objects(t, 'tp').map((tp) => ({owner:tp.owner,p:tp.pos.toArray(),intercept:tp.extra})));
     for (let i = 0; i < 2; i++) this.fillPlate(t, i, st.ships[i].raw, ended);
     const portrait = document.body.classList.contains('portrait');
+    const shot = this.scene.shot;
+    if (shot && this.cameraIdent.dataset.rig !== `${shot.id}:${shot.manual}`) {
+      this.cameraIdent.innerHTML = `<b>CAM ${shot.id}</b><span>${shot.manual ? 'MANUAL' : shot.name}</span>`;
+      this.cameraIdent.dataset.rig = `${shot.id}:${shot.manual}`;
+    }
+    if (this.scene.cameraCut) this.platePos = [null, null];
+    for (let i=0;i<2;i++) {
+      const p=st.ships[i].pos.clone().sub(this.scene.mid).project(cam);
+      const off=p.z>1||p.z < -1||Math.abs(p.x)>.97||Math.abs(p.y)>.88;
+      this.bearings[i].hidden=!off;
+      if(off) {
+        const angle=Math.atan2(-p.y,p.x)+(p.z>1?Math.PI:0), arrows=['→','↘','↓','↙','←','↖','↑','↗'];
+        const arrow=arrows[(Math.round(angle/(Math.PI/4))+8)%8];
+        const distance=st.ships[i].pos.distanceTo(st.ships[1-i].pos);
+        this.bearings[i].textContent=`${i===this.pickSide?'◆ ':''}${arrow} ${this.names[i]} · ${(distance/1000).toFixed(1)} km`;
+      }
+      const visible=p.z>-1&&p.z<1&&Math.abs(p.x)<.98&&Math.abs(p.y)<.95;
+      this.betMarkers[i].hidden=i!==this.pickSide||!visible;
+      const markerRadius=this.shipRadius(st,i,cam)+8;
+      this.betMarkers[i].style.width=this.betMarkers[i].style.height=`${markerRadius*2}px`;
+      this.betMarkers[i].style.transform=`translate(${((p.x+1)*window.innerWidth/2-markerRadius).toFixed(1)}px,${((1-p.y)*window.innerHeight/2-markerRadius).toFixed(1)}px)`;
+    }
     if (portrait) this.placeDocked(st, cam); else this.placePlates(st, cam);
     if (this.frameN++ % 10 === 0 || !this.scene.stage) this.measureStage(portrait);
     this.placeLabels(t, st, cam);
@@ -422,6 +468,7 @@ export class Hud {
     P.hullFill.style.width = `${hf * 100}%`;
     P.hullFill.style.background = hf < 0.3 ? '#ff3b5c' : TEAM_CSS[i];
     P.hullTxt.textContent = `${Math.round(hf * 100)}%`;
+    P.p.classList.toggle('critical-hull',hf<=.15&&r.alive);
     r.crew.forEach(([state, health, remaining], k) => {
       const c = ms.crew[k], status = state === 2 ? 'dead' : state === 1 ? 'blacked out' : health < 60 ? 'injured' : 'fit';
       P.dots[k].className = `crew-face ${state === 2 ? 'dead' : state === 1 ? 'out' : health < 60 ? 'hurt' : ''}`;
@@ -429,9 +476,15 @@ export class Hud {
       P.dots[k].title = label; P.dots[k].setAttribute('aria-label', label);
     });
     const df = defence(r);
-    const am = `rail ${ammo} · torps ${r.torps[0]} · PDC ${df.ammo.toFixed(0)}s${df.hot ? ` · ${df.hot} hot` : ''}`;
+    P.mounts.textContent=ended?'':!df.powered?'NO POWER':`${df.loaded-df.hot}/3 PDC ready`;
+    P.mounts.classList.toggle('unavailable',df.loaded===df.hot);
+    const magazines=magazine(r,this.m.frames[0].s[i]);
+    magazines.forEach((m,k)=>{
+      const W=P.weapons[k];W.cell.className=`pl-weapon ${m.level}`;W.value.textContent=`${m.value}${m.unit}`;
+      W.state.textContent=m.level==='disabled'?'OUT':m.level==='empty'?'EMPTY':m.level==='low'?'LOW':k===2&&df.hot?'HOT':'';
+      W.cell.title=`${m.key}: ${m.value}${m.unit} remaining${m.level==='disabled'?' · system disabled':''}`;
+    });
     P.ammo.title = `PDC reserve: total firing seconds across working mounts (${r.pdc.map((p,k) => r.parts[7+k] <= 0 ? 'out' : p[0].toFixed(1) + 's').join(' / ')}). Multiple mounts consume reserve simultaneously.`;
-    if (am !== P.lastAmmo) { P.ammo.textContent = am; P.lastAmmo = am; }
     const outs = OUTS.map(([label, idx]) => {
       const down = idx.filter((k) => r.parts[k] <= 0).length;
       if (!down) return null;
@@ -448,10 +501,16 @@ export class Hud {
     const restoration = recentRestorations(this.systemEvents, i, t).map(part => `${PART_LABEL[part] || part} restored`).join(' · ');
     if (P.restored.textContent !== restoration) P.restored.textContent = restoration;
     // PDC burst: its running tally.
-    const b = t <= this.endT + 2 ? this.m.burstAt(i, t) : null;
-    const txt = !b ? '' : b.mode === 'ship' ? `PDC engaging ship` : `PDC interception · ${b.hits} torpedoes down`;
-    if (P.acc.textContent !== txt) P.acc.textContent = txt;
-    P.acc.classList.toggle('done', !!(b && b.done));
+    const salvo=t<=this.endT?this.salvos.at(i,t,new Set((this.liveTorpedoes||[]).map(tp=>tp.id))):null;
+    const opportunity=ended?null:shipOpportunity(this.currentRaws,i,this.liveTorpedoes||[]);
+    let signal=null;
+    if(salvo&&(salvo.pdc||salvo.hits||salvo.other||salvo.flying)){
+      signal={kind:salvo.hits?'danger':'defence',label:`PDC ${salvo.pdc}/${salvo.total} INTERCEPTED`,text:[salvo.hits?`${salvo.hits} hit`:null,salvo.other?`${salvo.other} other intercept`:null,salvo.flying?`${salvo.flying} in flight`:'salvo resolved'].filter(Boolean).join(' · ')};
+      if(!salvo.pdc&&opportunity?.kind==='danger')signal=opportunity;
+    }else signal=opportunity;
+    if(!signal&&!ended){const low=magazines.filter(m=>m.level!=='normal');if(low.length)signal={kind:low.some(m=>m.level==='empty'||m.level==='disabled')?'danger':'reserve',label:'AMMUNITION',text:low.map(m=>`${m.key} ${m.level==='low'?'low':m.level==='empty'?'empty':'offline'}`).join(' · ')};}
+    const signalKey=signal?`${signal.kind}:${signal.label}:${signal.text}`:'';
+    if(P.lastSignal!==signalKey){P.lastSignal=signalKey;P.signal.replaceChildren();if(signal){P.signal.append(el('b',null,signal.label),el('span',null,signal.text));}P.signal.className=`pl-signal ${signal?.kind||''}`;}
     const f = P.flagState;
     if (f && t >= f.until) { P.flag.classList.remove('on'); P.flagState = null; this.stats.shortest = Math.min(this.stats.shortest, t - f.t0); }
     this.chatterFor(t, i, r);
@@ -484,6 +543,7 @@ export class Hud {
       if (pl.parentNode !== this.dock) { this.dock.append(pl); pl.style.transform = ''; pl.style.display = ''; }
       this.leaderLines[i].style.display = 'none';
     }
+    this.layoutTelemetry={docked:true,cards:this.plates.map(P=>{const r=P.p.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height,fact:P.lastSignal};})};
     const P = [0, 1].map((i) => st.ships[i].pos.clone().sub(this.scene.mid).project(cam));
     const icon = H * 0.5 * this.scene.iconFrac(st);
     this.tagRects = [];
@@ -498,7 +558,7 @@ export class Hud {
       let tx = x + dx * (icon + 10) + (dx >= 0 ? 0 : -w), ty = y + dy * (icon + 10) - h / 2;
       tx = Math.max(6, Math.min(W - 6 - w, tx));
       tag.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px)`;
-      this.tagRects.push({ x: tx + w / 2, y: ty + h / 2, w, h });
+      this.tagRects.push({ x: tx + w / 2, y: ty + h / 2, w, h, visible: on });
     }
   }
 
@@ -510,50 +570,40 @@ export class Hud {
     // (Before the camera is placed a projection can be non-finite: hide until it's valid.)
     const S = P.map((p) => ({ x: (p.x * 0.5 + 0.5) * W, y: (-p.y * 0.5 + 0.5) * H, on: Number.isFinite(p.x) && Number.isFinite(p.y) && p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 }));
     if (!S.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y))) { for (let i = 0; i < 2; i++) { this.plates[i].p.style.display = 'none'; this.leaderLines[i].style.display = 'none'; } this.tagRects = []; return; }
-    const icon = H * 0.5 * this.scene.iconFrac(st);
-    const rects = [];
-    for (let i = 0; i < 2; i++) {
-      if (this.plates[i].p.parentNode !== $('#tags')) $('#tags').append(this.plates[i].p);
-      this.shipTags[i].style.display = 'none';
+    const sizes = this.plates.map(P=>({w:P.p.offsetWidth||214,h:P.p.offsetHeight||132}));
+    for(let i=0;i<2;i++){
+      if(this.plates[i].p.parentNode!==$('#tags'))$('#tags').append(this.plates[i].p);
+      this.shipTags[i].style.display='none';
+      S[i].radius=this.shipRadius(st,i,cam);
     }
-    for (let i = 0; i < 2; i++) {
-      const pl = this.plates[i].p, s = S[i], o = S[1 - i];
-      const w = pl.offsetWidth || 190, h = pl.offsetHeight || 80;
-      let dx = s.x - o.x, dy = s.y - o.y;
-      const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
-      // Anchor: out from the ship, away from the other; the plate hangs off it on that side.
-      const reach = icon + 34;
-      const ax = s.x + dx * reach, ay = s.y + dy * reach;
-      let x = dx >= 0 ? ax : ax - w;
-      let y = ay - h * (0.5 - 0.5 * dy);
-      x = Math.max(16, Math.min(W - 16 - w, x));
-      y = Math.max(112, Math.min(H - 16 - h, y));
-      rects.push({ x, y, w, h });
+    const stage=this.scene.stage||{top:112,bottom:H-24};
+    const obstacles=[];
+    const projected=p=>{const q=p.clone().sub(this.scene.mid).project(cam);return q.z>-1&&q.z<1?{x:(q.x+1)*W/2,y:(1-q.y)*H/2}:null;};
+    for(const tp of this.liveTorpedoes||[]){const q=projected(tp.pos);if(q)obstacles.push({x:q.x-16,y:q.y-16,w:32,h:32,weight:18000});}
+    for(const node of [$('#callouts'),this.tactical,$('#result')])if(node&&!node.hidden&&node.textContent.trim()){
+      const r=node.getBoundingClientRect();if(r.width&&r.height)obstacles.push({x:r.x,y:r.y,w:r.width,h:r.height,weight:30000});
     }
-    // Keep the two apart (vertical push).
-    const [a, b] = rects;
-    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
-      const over = Math.min(a.y + a.h - b.y, b.y + b.h - a.y) / 2 + 6;
-      if (a.y < b.y) { a.y -= over; b.y += over; } else { a.y += over; b.y -= over; }
-    }
-    this.tagRects = [];
-    for (let i = 0; i < 2; i++) {
-      const r = rects[i];
-      const prev = this.platePos[i];
-      const q = prev && Math.hypot(prev.x - r.x, prev.y - r.y) < 400 ? { x: prev.x + (r.x - prev.x) * 0.25, y: prev.y + (r.y - prev.y) * 0.25 } : { x: r.x, y: r.y };
-      this.platePos[i] = q;
-      const pl = this.plates[i].p;
-      pl.style.display = S[i].on ? '' : 'none';
-      pl.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
-      this.tagRects.push({ x: q.x + r.w / 2, y: q.y + r.h / 2, w: r.w, h: r.h });
-      // Leader: from just off the ship to the plate's nearest edge.
-      const s = S[i];
-      const tx = Math.max(q.x, Math.min(q.x + r.w, s.x)), ty = Math.max(q.y, Math.min(q.y + r.h, s.y));
-      const L = Math.hypot(tx - s.x, ty - s.y) || 1;
-      const sx = s.x + ((tx - s.x) / L) * Math.min(L, icon * 0.9 + 4), sy = s.y + ((ty - s.y) / L) * Math.min(L, icon * 0.9 + 4);
-      const ln = this.leaderLines[i];
-      ln.setAttribute('x1', sx.toFixed(1)); ln.setAttribute('y1', sy.toFixed(1)); ln.setAttribute('x2', tx.toFixed(1)); ln.setAttribute('y2', ty.toFixed(1));
-      ln.style.display = S[i].on && L > icon + 6 ? '' : 'none';
+    const layout=placeFightCards({ships:S,sizes,bounds:{left:12,right:W-12,top:stage.top+8,bottom:H-38},obstacles,previous:this.platePos});
+    this.layoutTelemetry={score:layout.score,blocked:layout.blocked,cards:layout.cards,facts:this.plates.map(P=>P.lastSignal)};
+    this.tagRects=[];
+    for(let i=0;i<2;i++){
+      const r=layout.cards[i],prev=this.platePos[i];
+      let q={...r};
+      if(prev&&!this.scene.cameraCut&&Math.hypot(prev.x-r.x,prev.y-r.y)<80){
+        const smooth={...r,x:prev.x+(r.x-prev.x)*.25,y:prev.y+(r.y-prev.y)*.25};
+        const safe=!S.some(s=>s.on&&smooth.x<s.x+s.radius+14&&smooth.x+smooth.w>s.x-s.radius-14&&smooth.y<s.y+s.radius+14&&smooth.y+smooth.h>s.y-s.radius-14);
+        const other=layout.cards[1-i];
+        const separate=smooth.x>=other.x+other.w||smooth.x+smooth.w<=other.x||smooth.y>=other.y+other.h||smooth.y+smooth.h<=other.y;
+        if(safe&&separate)q=smooth;
+      }
+      this.platePos[i]=q;
+      const pl=this.plates[i].p;pl.style.display='';pl.classList.toggle('edge-docked',r.docked||!S[i].on);
+      pl.style.transform=`translate(${q.x.toFixed(1)}px,${q.y.toFixed(1)}px)`;
+      this.tagRects.push({x:q.x+r.w/2,y:q.y+r.h/2,w:r.w,h:r.h,visible:true});
+      const s=S[i],tx=Math.max(q.x,Math.min(q.x+r.w,s.x)),ty=Math.max(q.y,Math.min(q.y+r.h,s.y));
+      const L=Math.hypot(tx-s.x,ty-s.y)||1,sx=s.x+(tx-s.x)/L*Math.min(L,s.radius+5),sy=s.y+(ty-s.y)/L*Math.min(L,s.radius+5);
+      const ln=this.leaderLines[i];ln.setAttribute('x1',sx.toFixed(1));ln.setAttribute('y1',sy.toFixed(1));ln.setAttribute('x2',tx.toFixed(1));ln.setAttribute('y2',ty.toFixed(1));
+      ln.style.display=s.on&&L>s.radius+10?'':'none';
     }
   }
 
@@ -562,7 +612,7 @@ export class Hud {
   placeLabels(t, st, cam) {
     const W = window.innerWidth, H = window.innerHeight;
     const scr = (p) => { const n = p.clone().sub(this.scene.mid).project(cam); return n.z < 1 && Math.abs(n.x) < 1 && Math.abs(n.y) < 1 ? { x: (n.x * 0.5 + 0.5) * W, y: (-n.y * 0.5 + 0.5) * H } : null; };
-    const clear = (x, y, w = 110) => this.tagRects.every((r) => Math.abs(r.x - (x + w / 2)) > r.w / 2 + w / 2 || Math.abs(r.y - y) > r.h / 2 + 14);
+    const clear = (x, y, w = 110) => this.tagRects.filter(r=>r.visible!==false).every((r) => Math.abs(r.x - (x + w / 2)) > r.w / 2 + w / 2 || Math.abs(r.y - y) > r.h / 2 + 14);
     // Torpedo salvos.
     const groups = [];
     if (t <= this.endT) {

@@ -1,8 +1,9 @@
 // Pure, current-state broadcast facts. Never consult a future event for live analysis.
 export function defence(raw) {
   const mounts = raw.pdc.filter((p, k) => raw.parts[7 + k] > 0);
-  const loaded = mounts.filter((p) => p[0] > 0);
-  return { ammo: mounts.reduce((s, p) => s + p[0], 0), hot: loaded.filter((p) => p[4]).length, loaded: loaded.length, working: mounts.length };
+  const powered=raw.parts[5]>0;
+  const loaded = powered ? mounts.filter((p) => p[0] > 0) : [];
+  return { ammo: mounts.reduce((s, p) => s + p[0], 0), hot: loaded.filter((p) => p[4]).length, loaded: loaded.length, working: mounts.length, powered };
 }
 export function tactical(raws, names, torpedoes = []) {
   for (let i = 0; i < 2; i++) {
@@ -10,7 +11,7 @@ export function tactical(raws, names, torpedoes = []) {
     const incoming = torpedoes.filter((tp) => tp.owner !== i && tp.intercept == null && Math.hypot(...tp.p.map((x,k) => x - raws[i].p[k])) < 2500);
     if (!incoming.length) continue;
     const d = defence(raws[i]);
-    return `${incoming.length} torpedo${incoming.length === 1 ? '' : 'es'} closing on ${names[i]} · ${!d.loaded || !d.working ? 'defence unavailable' : d.hot === d.loaded ? 'defence is cooling' : 'can point defence hold?'}`;
+    return `${incoming.length} torpedo${incoming.length === 1 ? '' : 'es'} closing on ${names[i]} · ${!d.loaded || !d.working ? 'defence unavailable' : d.hot === d.loaded ? 'defence is cooling' : `${d.loaded-d.hot}/3 PDC mounts ready`}`;
   }
   for (let i = 0; i < 2; i++) {
     const r = raws[i], d = defence(r);

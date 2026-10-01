@@ -1,0 +1,63 @@
+/* Broadcast instrument strips. Team colour identifies; amber/red convey reserves. */
+.plate{box-sizing:border-box;width:218px;padding:7px 9px 6px;border:0;border-top:2px solid var(--team);background:#0c1119e8;box-shadow:none;line-height:1.1}
+.pl-head{align-items:center;gap:6px;margin-bottom:5px;min-width:0}
+.pl-name{font-size:18px;letter-spacing:.035em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.pl-bet{font:600 9px 'Saira',sans-serif;white-space:nowrap;color:#f3e7c8;letter-spacing:.03em}
+.pl-bet[hidden]{display:none}.plate.backed{outline:1px solid #e7d5a85c;outline-offset:2px}
+.pl-hull{height:3px;margin:0 30px 4px 27px;background:#303744}
+.pl-hull b{font-size:9px;top:-5px;letter-spacing:.06em}.pl-hull span{font-size:11px;top:-6px}
+.critical-hull .pl-hull span{color:#ff8090}
+.pl-meta{display:flex;flex-wrap:nowrap;gap:5px;align-items:center;margin:0 0 4px;min-height:19px}
+.pl-plan{font-size:10px;font-weight:600;letter-spacing:.06em;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-plan b{margin-left:3px}.pl-crew{gap:3px;flex-shrink:0}
+.pl-crew i.crew-face{width:14px;height:17px;border-radius:0}
+.pl-ammo{display:grid;grid-template-columns:1fr 1fr 1.12fr;gap:0;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;border-top:1px solid #303744;border-bottom:1px solid #303744;padding:4px 0}
+.pl-weapon{display:flex;align-items:baseline;gap:4px;white-space:nowrap;border-right:1px solid #303744;padding:0 5px}
+.pl-weapon:first-child{padding-left:0}.pl-weapon:last-child{border:0;padding-right:0}
+.pl-weapon small{font-size:10px;color:#9cabbc}.pl-weapon b{font-size:16px;line-height:1;color:#e0e7ed;font-weight:600;font-variant-numeric:tabular-nums}
+.pl-weapon em{font-size:8px;font-weight:700;font-style:normal;color:#cbd6e2;letter-spacing:.04em}
+.pl-weapon.low b,.pl-weapon.low em{color:#efbc66}.pl-weapon.empty b,.pl-weapon.empty em,.pl-weapon.disabled em{color:#ff8090}.pl-weapon.disabled b{color:#8693a2}
+.pl-action{height:13px;display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.pl-rail{font-size:10px;letter-spacing:.05em}.pl-rail.ready{animation:none;color:#efbc66}.pl-rail.over{color:#ff8090}
+.pl-mounts{font-size:9px;letter-spacing:.03em;color:#94a7ba}.pl-mounts.unavailable{color:#ff8090}
+.pl-signal{min-height:28px;display:flex;flex-direction:column;gap:2px;margin-top:3px;border-left:2px solid #536172;padding-left:6px;color:#b3c0d0}
+.pl-signal:empty{border-color:transparent;min-height:0;margin:0}.pl-signal b{font-size:11px;letter-spacing:.06em;font-weight:700}.pl-signal span{font-family:'Saira',sans-serif;font-size:9px;line-height:1.3}
+.pl-signal.opening{border-color:#9fce95}.pl-signal.opening b{color:#a8d79e}.pl-signal.danger{border-color:#ff8090}.pl-signal.danger b{color:#ff8090}.pl-signal.reserve{border-color:#efbc66}.pl-signal.reserve b{color:#efbc66}
+.pl-outs,.pl-outs.fresh{font-size:10px;letter-spacing:.03em;margin:4px 0 0;padding:2px 4px;line-height:1.2;animation:none;background:#632b3a;color:#ffc0c9}
+.pl-restored{font-size:10px;letter-spacing:.03em;margin:4px 0 0;padding:3px 4px;line-height:1.2;background:#294832;color:#bbdfb5}
+.pl-flag,.pl-flag.death{margin:4px 0 0;padding:3px 4px;font-size:11px;line-height:1.2;letter-spacing:.03em;animation:none}
+.pl-chat{position:static;width:auto;margin-top:4px;font-size:10px;line-height:1.25;white-space:normal;max-height:26px;overflow:hidden;display:none;transform:none}
+.pl-chat.on{display:block;opacity:.8}.pl-chat b{font-size:9px}
+.plate.edge-docked{background:#0c1119f2}
+.ship-backed{position:absolute;top:0;left:0;z-index:8;color:#f3e7c8;font:10px 'Saira',sans-serif;text-align:center;text-indent:0;line-height:0;text-shadow:0 1px 4px #070b14;pointer-events:none;background:linear-gradient(#e7d5a8,#e7d5a8) left top/9px 1px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) left top/1px 9px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) right top/9px 1px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) right top/1px 9px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) left bottom/9px 1px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) left bottom/1px 9px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) right bottom/9px 1px no-repeat,linear-gradient(#e7d5a8,#e7d5a8) right bottom/1px 9px no-repeat}
+.ship-backed[hidden]{display:none}
+.sb-side.picked{box-shadow:inset 0 2px #e7d5a8;background:#24231c80}
+.sb-side.picked .sb-name::after{content:''}
+.sb-pick{position:static;display:block;font:600 9px 'Saira',sans-serif;letter-spacing:.1em;color:#f3e7c8;margin-top:4px;line-height:1}
+.shiptag.backed::before{content:'◆ ';color:#f3e7c8}
+.camera-bearing{bottom:12px}
+body.portrait .sb-pick{display:block;font-size:8px;margin-top:3px}
+body.portrait #dock{gap:6px;align-items:end}
+body.portrait #dock .plate{padding:6px 7px;border:0;border-top:2px solid var(--team);text-align:left;min-width:0}
+body.portrait #dock .plate.t1{border-right:0;text-align:left}
+body.portrait #dock .plate.t1 .pl-head,body.portrait #dock .plate.t1 .pl-meta{flex-direction:row}
+body.portrait .pl-name{font-size:16px}body.portrait .pl-bet{font-size:8px}
+body.portrait .pl-crew i.crew-face{width:12px;height:15px}
+body.portrait .pl-plan{font-size:9px;letter-spacing:.03em;margin:0}
+body.portrait #dock .plate .pl-hull,body.portrait #dock .plate.t1 .pl-hull{margin:0 28px 5px 26px;height:3px}
+body.portrait #dock .plate .pl-hull i,body.portrait #dock .plate.t1 .pl-hull i{inset:0 auto 0 0}
+body.portrait #dock .plate .pl-hull span,body.portrait #dock .plate.t1 .pl-hull span{left:calc(100% + 5px);right:auto;top:-6px;font-size:10px}
+body.portrait #dock .plate .pl-hull b,body.portrait #dock .plate.t1 .pl-hull b{right:calc(100% + 5px);left:auto;font-size:9px;top:-5px}
+body.portrait .pl-weapon{gap:3px;padding:0 3px}body.portrait .pl-weapon small{font-size:9px}body.portrait .pl-weapon b{font-size:14px}body.portrait .pl-weapon em{font-size:7px}
+body.portrait .pl-signal b{font-size:10px}body.portrait .pl-signal span{font-size:8px}
+body.portrait .pl-outs,body.portrait .pl-outs.fresh,body.portrait .pl-restored,body.portrait .pl-flag{font-size:9px;margin:3px 0 0;padding:3px 4px}
+body.portrait .pl-chat{position:static;width:auto;font-size:9px;max-height:23px}
+#soundhint{left:50%;bottom:18px;transform:translateX(-50%)}
+@media(max-height:520px) and (min-width:601px){
+  .plate{width:176px;padding:5px 7px}.pl-name{font-size:16px}.pl-bet{font-size:8px}
+  .pl-plan{font-size:9px}.pl-crew i.crew-face{width:12px;height:14px}
+  .pl-weapon{padding:0 3px;gap:3px}.pl-weapon small{font-size:9px}.pl-weapon b{font-size:14px}.pl-weapon em{font-size:7px}
+  .pl-action{height:11px}.pl-signal{min-height:24px}.pl-signal b{font-size:10px}.pl-signal span{font-size:8px}
+  .pl-chat{font-size:9px;max-height:22px}.pl-outs,.pl-restored,.pl-flag{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.pl-hull i{transition:none}}

@@ -21,8 +21,8 @@ export class CamControl {
     this.hud.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); this.release(); });
     el.addEventListener('pointerdown', (e) => this.down(e));
     window.addEventListener('pointermove', (e) => this.move(e));
-    window.addEventListener('pointerup', (e) => this.up(e));
-    window.addEventListener('pointercancel', (e) => this.up(e));
+    window.addEventListener('pointerup', (e) => this.up(e), { capture: true });
+    window.addEventListener('pointercancel', (e) => this.up(e), { capture: true });
     el.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
     el.addEventListener('dblclick', (e) => { if (e.pointerType !== 'touch') this.release(); });
     // Desktop Safari reports a trackpad pinch as gesture events, not ctrl+wheel. (Touch screens
@@ -39,7 +39,7 @@ export class CamControl {
   get dragged() { return this.moved; }
 
   poke() { this.lastInput = performance.now() / 1000; this.snapping = false; }
-  release() { this.snapping = true; this.lastInput = -1e9; }
+  release() { this.pointers.clear(); this.pinch = null; this.el.classList.remove('grabbing'); this.snapping = true; this.lastInput = -1e9; }
 
   down(e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
