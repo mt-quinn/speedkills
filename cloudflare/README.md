@@ -2,6 +2,8 @@
 
 Implementation branch: `codex/cloudflare-migration`. The frontend remains on Vercel; production continues to use Convex until the migration readiness gates pass.
 
+Initial Vercel baseline preview: <https://hardburn-6r7uzy07f-thegameband.vercel.app>. It is protected by the existing Vercel preview policy and uses `https://resolute-crocodile-221.convex.cloud`, not production. This URL is not yet a Cloudflare gameplay comparison; later branch deployments will switch only after the Cloudflare adapter and game behavior are verified.
+
 ## Current milestone
 
 The isolated Cloudflare stack contains a private simulator service, private R2 bucket, D1 game schema, and a Durable Object coordinator foundation. A deployed benchmark verifies exact fight checksums and odds against the committed Convex WASM for baseline/customized crews and 128/400 samples. See `docs/compute-report.json` for measurements and limitations.
