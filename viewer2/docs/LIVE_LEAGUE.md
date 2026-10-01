@@ -25,7 +25,7 @@ Production Convex: `https://glad-dogfish-932.convex.cloud`.
 Development Convex: `https://resolute-crocodile-221.convex.cloud`.
 Frontend: `https://hardburn.vercel.app`.
 
-Vercel builds from the repository root with `npm ci` and `npm run build`, serving `dist`. Set `VITE_CONVEX_URL` for each environment. Production has the production URL configured; the build also has a production-only fallback. Legacy local recordings are excluded from the deployed build.
+Vercel builds from the repository root with `npm ci` and `npm run build`, serving `dist`. `VITE_CONVEX_URL` (or `CONVEX_URL`) overrides the target deployment. Without an override, Vercel production builds use the production Convex URL and branch previews use the development Convex URL. Local builds require an explicit URL. Legacy local recordings are excluded from the deployed build.
 
 Deploy the backend with `npx convex deploy`. For an existing prototype deployment, run `game:roundCredits` to normalize money and `game:initializeQueue` to book/migrate its queue. Run `game:initialize` for an empty deployment. These internal mutations are idempotent for those operations. Production commands use `npx convex run ... --prod`.
 
