@@ -1,5 +1,5 @@
 import { toggleFightFullscreen } from '../fullscreen.js';
-import { shipBetTotal, payoutSummary } from './bet-totals.js';
+import { shipBetTotal } from './bet-totals.js';
 import { geeResistance } from '../gee.js';
 import { connect } from './client.bundle.js';
 import { audioHost, captureAudioInteractions } from '../audio-context.js';
@@ -7,7 +7,8 @@ import { sessionMusic } from '../session-music.js';
 import { portrait } from '../portraits.js';
 import { renderBetting } from './betting.js';
 import { renderResults } from './results.js';
-import { shipCard, rating } from '../prematch.js';
+import { renderArchive, filterFights, archiveCsv } from './archive.js';
+import { rating } from '../prematch.js';
 const query = new URLSearchParams(location.search);
 if (query.has('studio') || query.has('audit') || query.has('auditall') || query.has('story')) {
   document.body.removeAttribute('data-screen'); await import('../main.js');
@@ -41,12 +42,12 @@ async function start() {
   captureAudioInteractions(retryAudio);
   const credits = n => Math.round(n / 100).toLocaleString();
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const gp = { model: 'random-v1' };
   const stations = { pilot:'Pilot', gunner:'Gunner', engineer:'Engineer', ops:'Ops' };
   const skills = { pilot:'Handling', gunner:'Gunnery', engineer:'Engineering', ops:'Defence' };
   const doctrines = { Reference:'Duelist', Knife:'Knife fighter', Counter:'Counterpuncher' };
   let dockScene, sceneLoading=false, profileSaving=false, profileSaved=false, profileOpen=false;
   let service, data, screen = 'hangar', offset = 0, busy = false, station = null, renaming = false, notice = '', archive = [], chat = [], unsubscribeChat;
+  let archiveState={view:'fights',query:'',filter:'all',sort:'recent',detailTab:'combat'};
   let chatShown = localStorage.getItem('hb-chat-visible') === null ? matchMedia('(min-width:761px)').matches : localStorage.getItem('hb-chat-visible') !== 'false';
   let mountedFight, mounting, preparedMount, traceSubscription, traceUrl, feedElement, lastKey = '', lastChatKey = '';
   const readyFrames=new WeakSet();
@@ -96,20 +97,13 @@ async function start() {
     if(!draft||draft.fight!==f.id){draft={fight:f.id,side:w?.side??null,amount:String(Math.min(100,Math.floor(data.player.maxBet/100)))};saveDraft();}
     return renderBetting({fight:f,player:data.player,draft,wager:w,busy});
   }
-  function results(f, personal=false) {
-    if(personal)return renderResults({fight:f,wager:data.wager});
-    if(f.winner===undefined)return '<p>Confirming the result…</p>';
-    const w=personal&&data.wager,winner=f.winner===null?null:f.ships[f.winner];
-    const stats=[['railShots','Railgun shots'],['railHits','Railgun hits'],['torpedoes','Torpedoes launched'],['intercepts','Torpedoes intercepted'],['crewSurvived','Crew survived'],['hull','Hull remaining']];
-    return `<section class="hb-finish ${personal?'match-console':''}"><header class="match-console-head"><div><span class="hb-eyebrow">MATCH ${String(f.sequence).padStart(4,'0')} / FINAL</span><h1>Fight result</h1></div><span class="final-stamp">${winner?'DECIDED':'DRAW'}</span></header><div class="${personal?'match-console-body':'result-body'}"><div class="result-verdict ${winner?'t'+f.winner:''}"><span>${winner?'WINNER':'RESULT'}</span><h2>${winner?esc(winner.name):'Draw'}</h2><p>${esc(f.story)}</p></div><div class="result-scoreboard">${f.ships.map((ship,i)=>`<article class="t${i} ${f.winner===i?'victor':''}"><span>${f.winner===null?'DRAW':f.winner===i?'WIN':'LOSS'}</span><b>${esc(ship.name)}</b><div class="result-condition"><i style="width:${f.stats[i].hull}%"></i></div><small>${f.stats[i].hull}% hull · ${f.stats[i].crewSurvived}/4 crew survived</small></article>`).join('')}</div><div class="hb-stat-table"><div><span>COMBAT RECORD</span>${f.ships.map((ship,i)=>`<b class="t${i}">${esc(ship.name)}</b>`).join('')}</div>${stats.map(([key,label])=>`<div><span>${label}</span>${f.stats.map((stat,i)=>`<b class="${stat[key]>f.stats[1-i][key]?'stat-lead':''}">${stat[key]}${key==='hull'?'%':''}</b>`).join('')}</div>`).join('')}</div>${payoutSummary(f,credits,esc)}${personal?`<div class="result-account">${w?`<div class="hb-settlement"><span>${w.returned===undefined?'Settling wager…':w.net>0?'BET WON':w.net===0?'STAKE RETURNED':'BET LOST'}</span><b class="${w.net>0?'positive':''}">${w.returned===undefined?'—':(w.net>0?'+':'')+credits(w.net)+' cr'}</b><small>${w.returned===undefined?'Credited automatically':credits(w.returned)+' cr returned'}</small></div>`:'<div class="result-no-bet">No wager placed</div>'}</div>`:''}<p class="hb-reset-note">Ship and crew restored for the next fight.</p>${personal?'':`<details><summary>Locked crews & odds</summary><div class="pm-vs">${f.ships.map((ship,i)=>shipCard(i,ship,gp)).join('')}</div><p>${f.odds.map(p=>Math.round(p*100)+'%').join(' / ')} · ${f.oddsSamples} matchup simulations</p></details>`}</div>${personal?`<footer class="match-action-bar result-action-bar"><div class="hb-next-window"><span>NEXT BETTING OPENS IN</span><b data-countdown></b></div><button data-do="hangar">Return to hangar <span>↗</span></button></footer>`:''}</section>`;
-  }
   function viewer() {
     const f = data.fight, p = phase(f);
-    return `<main class="hb-broadcast"><div id="hb-stage" class="phase-${p} ${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? results(f,true) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="fullscreen" title="Expand only the fight simulation">Fullscreen</button><button data-do="sound">${audioPlaying?'Sound on':audio.muted?'Sound off':'Enable sound'}</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
+    return `<main class="hb-broadcast"><div id="hb-stage" class="phase-${p} ${p === 'combat' ? 'combat' : ''}">${p === 'betting' ? betting() : p === 'results' ? renderResults({fight:f,wager:data.wager}) : p === 'combat' ? `<iframe id="hb-feed" title="Live space duel broadcast" src="/broadcast.html" data-fight="${esc(f.id)}" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="hb-live-caption"><span><i class="live-dot"></i> LIVE / MATCH ${String(f.sequence).padStart(4,'0')}</span><span>${data.wager ? `${credits(data.wager.stake)} cr on ${esc(f.ships[data.wager.side].name)}` : 'Betting closed · enjoy the duel'}</span><button data-do="fullscreen" title="Expand only the fight simulation">Fullscreen</button><button data-do="sound">${audioPlaying?'Sound on':audio.muted?'Sound off':'Enable sound'}</button></div><p id="broadcast-loading" ${mountedFight===f.id?'hidden':''}>Joining the live fight…</p>` : '<div class="hb-preparing"><span class="hb-eyebrow">LIVE BROADCAST</span><h1>Preparing next fight.</h1><p>The next 60-second betting period opens as soon as the matchup is ready.</p></div>'}</div>${chatPanel()}</main>`;
   }
   function chatPanel() { return `<aside id="hb-chat" ${chatShown?'':'hidden'} aria-label="Live viewer chat"><div class="hb-chat-head"><h2>Broadcast chat</h2><button data-do="chat" aria-label="Hide chat">×</button></div><details class="hb-chat-profile" ${profileOpen?'open':''}><summary>${esc(data.player.name)} · edit name</summary><form data-form="profile"><label for="viewer-name">Viewer name</label><input id="viewer-name" name="name" value="${esc(drafts.viewer || data.player.name)}" minlength="2" maxlength="24" required><button ${profileSaving?'disabled':''}>${profileSaving?'Saving…':'Save name'}</button><p id="hb-profile-status" role="status">${profileSaved?'Name saved.':''}</p></form></details><div id="hb-messages" role="log" aria-live="off"></div><form data-form="chat" class="hb-chat-form"><label class="sr-only" for="chat-message">Message</label><input id="chat-message" name="body" placeholder="Message…" value="${esc(drafts.message)}" maxlength="240" autocomplete="off" required><button aria-label="Send message">↑</button></form><p class="hb-chat-note">Be decent. Mute or report messages using ···.</p></aside>`; }
-  function archivePage() { return `<main class="hb-archive"><div class="hb-page-title"><span class="hb-eyebrow">LEAGUE RECORD</span><h1>Finished fights.</h1><p>Completed matches and combat statistics.</p></div>${archive.length ? archive.map(f=>`<details class="hb-archive-entry"><summary><span>#${String(f.sequence).padStart(4,'0')}</span><b>${esc(f.ships.map(s=>s.name).join(' vs '))}</b><strong>${f.winner===null?'Draw':esc(f.ships[f.winner].name)+' won'}</strong></summary>${results(f)}</details>`).join('') : '<p>Completed fights will appear here.</p>'}</main>`; }
-  function render(force = false) {
+  function archivePage() { return renderArchive({rows:archive,state:archiveState,ownShipId:data.ship?.id??data.ship?._id}); }
+  function render(force = false, resetArchiveScroll = false) {
     if (!data) return;
     music.setVisible(screen==='broadcast');
     if (draft && phase(data.fight) !== 'betting' && !data.wager && draft.side != null) { draft=null;saveDraft(); }
@@ -133,9 +127,11 @@ async function start() {
       renderChat(true); countdown(); return;
     }
     if (feedElement) { feedElement.contentWindow?.__hbDisposeAudio?.(); audioPlaying=false; feedElement=null; mountedFight=null; preparedMount=null; }
+    const archiveScroll=new Map(!resetArchiveScroll&&screen==='archive'?[...shell.querySelectorAll('[data-archive-scroll]')].map(el=>[el.dataset.archiveScroll,el.scrollTop]):[]);
     const active = document.activeElement, focusId = active?.id, selection = active?.selectionStart;
     document.body.dataset.screen = screen; document.body.classList.toggle('hb-chat-open',screen==='broadcast'&&chatShown);
     shell.innerHTML = `<header class="hb-header"><a href="/" class="hb-brand" data-do="hangar">HARD<span>BURN</span><small>THE DUEL LEAGUE</small></a><nav aria-label="Main">${[['hangar','Hangar'],['broadcast','Live broadcast'],['archive','Results']].map(([item,label])=>`<button data-do="${item}" aria-current="${screen===item?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3">${{hangar:'<path d="M3 20V7l9-4 9 4v13M7 20V10h10v10M3 20h18"/>',broadcast:'<path d="M9 4l11 8-11 8V4M3 7v10"/>',archive:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>'}[item]}</svg><span>${label}</span></button>`).join('')}</nav><div class="hb-location"><span>${screen==='hangar'?'LEAGUE FACILITY / PRIVATE DOCK':screen==='broadcast'?'LEAGUE / GLOBAL BROADCAST':'LEAGUE / RESULT ARCHIVE'}</span><b>${screen==='hangar'?'HANGAR 01':screen==='broadcast'?'LIVE FEED':'FIGHT RECORDS'}</b></div><div class="hb-wallet"><span>YOUR CREDITS</span><b>${credits(data.player.balance)} <small>cr</small></b></div>${screen==='broadcast'?`<button data-do="chat" class="hb-chat-toggle" aria-pressed="${chatShown}">Chat ${chatShown?'on':'off'}</button>`:''}</header><div id="hb-notice" role="status" ${notice?'':'hidden'}>${esc(notice)}<button data-do="dismiss" aria-label="Dismiss message">×</button></div>${screen==='hangar'?hangar():screen==='broadcast'?viewer():archivePage()}${query.has('lab') ? '<div class="hb-lab"><b>DESIGN LAB / DEVELOPMENT ONLY</b><button data-do="preview-credits">Add preview credits</button></div>' : ''}<div id="hb-connection" hidden role="status">Reconnecting · betting is unavailable until the connection returns</div>`;
+    shell.querySelectorAll('[data-archive-scroll]').forEach(el=>{if(archiveScroll.has(el.dataset.archiveScroll))el.scrollTop=archiveScroll.get(el.dataset.archiveScroll);});
     if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus({preventScroll:true}); try { el.setSelectionRange(selection,selection); } catch {} } }
     renderChat(true); countdown(); syncBroadcast(); syncHangar(); audioStatus();
   }
@@ -216,12 +212,20 @@ async function start() {
   }
   shell.addEventListener('toggle',e=>{if(e.target.isConnected&&e.target.matches('.hb-chat-profile'))profileOpen=e.target.open;},true);
   shell.addEventListener('input',e=>{
+    if(e.target.id==='archive-search'){archiveState.query=e.target.value;render(true,true);return;}
     if(e.target.id==='stake'){draft.amount=e.target.value;saveDraft();const p=draft.side==null?null:data.fight.odds[draft.side],stake=Math.round(Number(draft.amount)*100);document.querySelector('#profit').textContent=p==null?'Choose a ship':'+ '+credits(Math.round(stake*.95*(1-p)/p/100)*100)+' cr';document.querySelector('#after-stake').textContent=credits(data.player.balance-stake)+' cr remaining';}
     if(e.target.id==='chat-message')drafts.message=e.target.value;if(e.target.id==='ship-name')drafts.rename=e.target.value;if(e.target.id==='viewer-name'){drafts.viewer=e.target.value;profileSaved=false;syncProfile();}
   });
+  shell.addEventListener('change',e=>{if(e.target.id==='archive-filter'||e.target.id==='archive-sort'){archiveState[e.target.id==='archive-filter'?'filter':'sort']=e.target.value;archiveState.detailOpen=false;render(true,true);}});
   shell.addEventListener('keydown',e=>{const panel=e.target.closest('[data-side]');if(panel&&['Enter',' '].includes(e.key)){e.preventDefault();panel.click();}});
   shell.addEventListener('click',async e=>{
     const b=e.target.closest('button,[data-do],[data-side]');if(!b)return;e.stopPropagation();
+    if(b.hasAttribute('data-archive-export')){const content=archiveCsv(filterFights(archive,archiveState,data.ship?.id??data.ship?._id)),url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='hardburn-results.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    if(b.dataset.archiveView){archiveState.view=b.dataset.archiveView;archiveState.detailOpen=false;render(true);return;}
+    if(b.dataset.archiveFight||b.dataset.archiveOpenFight){archiveState.view='fights';archiveState.fightId=b.dataset.archiveFight??b.dataset.archiveOpenFight;archiveState.detailOpen=true;archiveState.detailTab='combat';render(true);shell.querySelector('.ar-inspector')?.focus({preventScroll:true});return;}
+    if(b.dataset.archiveShip||b.dataset.archiveFocusShip){archiveState.view='ships';archiveState.shipId=b.dataset.archiveShip??b.dataset.archiveFocusShip;archiveState.detailOpen=true;render(true);shell.querySelector('.ar-inspector')?.focus({preventScroll:true});return;}
+    if(b.hasAttribute('data-archive-back')){archiveState.detailOpen=false;render(true);shell.querySelector('.ar-ledger [aria-pressed=true]')?.focus({preventScroll:true});return;}
+    if(b.dataset.archiveDetail){archiveState.detailTab=b.dataset.archiveDetail;render(true);return;}
     if(b.dataset.side!==undefined){if(data.wager||phase(data.fight)!=='betting')return;draft.side=Number(b.dataset.side);saveDraft();render(true);shell.querySelector(`[data-side="${draft.side}"]`)?.focus({preventScroll:true});return;}
     if(b.dataset.station){station=station===b.dataset.station?null:b.dataset.station;render(true);return;}
     if(b.dataset.scout){station=b.dataset.scout;await mutation('game:tryout',{station});return;}
