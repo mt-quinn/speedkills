@@ -113,6 +113,37 @@ test('durable preparation keeps its seed on retry, rejects changed crews, and pr
   assert.notEqual((await invoke('state')).phase,'bad-stale-commit');
 });
 
+test('mixed rotations retain bot fights with two or sixteen registered player ships and preserve booked order', async () => {
+  const db=await mf.getD1Database('DB','game-test'),worker=await mf.getWorker('game-test');
+  const invoke=async(operation,...args)=>{const r=await worker.fetch('http://game-test/',{method:'POST',body:JSON.stringify({operation,args})});assert.equal(r.status,200,await r.clone().text());return(await r.json()).value;};
+  const template=await db.prepare("SELECT * FROM ships WHERE id = 'baseline-0'").first();
+  for(let i=0;i<16;i++)await db.batch([
+    db.prepare('INSERT INTO players(id,name,balance,created_at) VALUES (?,?,50000,1)').bind('rotation-player-'+i,'RotationPilot'+i),
+    db.prepare('INSERT INTO ships(id,owner_id,name,style,identity,revision,crew_json,testing) VALUES (?,?,?,?,?,1,?,?)').bind('rotation-ship-'+i,'rotation-player-'+i,'RotationShip'+i,template.style,20000+i,template.crew_json,i<2?0:1),
+  ]);
+  try {
+    const state=await invoke('state');
+    for(const count of [2,16]){
+      if(count===16)await db.prepare("UPDATE ships SET testing = 0 WHERE id LIKE 'rotation-ship-%'").run();
+      const {q,ships:eligible}=await invoke('ensureQueue',{...state,queue_json:'[]'});
+      assert.equal(eligible.length,10+count);
+      const size=eligible.length/2;
+      assert.equal(q.length,size*2);
+      for(const round of [q.slice(0,size),q.slice(size)]){
+        assert.equal(new Set(round.flat()).size,eligible.length,'each ship appears once per even-sized rotation');
+        assert.equal(round.flat().filter(id=>id.startsWith('baseline-')).length,10,'all bot ships remain in every rotation');
+        assert.ok(round.some(pair=>pair.some(id=>id.startsWith('rotation-ship-'))));
+      }
+      const booked=[['baseline-0','baseline-1'],['rotation-ship-0','rotation-ship-1']];
+      const preserved=await invoke('ensureQueue',{...state,queue_json:JSON.stringify(booked)});
+      assert.deepEqual(preserved.q.slice(0,2),booked,'player pairs cannot jump booked bot fights');
+    }
+  } finally {
+    await db.prepare("DELETE FROM ships WHERE id LIKE 'rotation-ship-%'").run();
+    await db.prepare("DELETE FROM players WHERE id LIKE 'rotation-player-%'").run();
+  }
+});
+
 test('ownership, paid crew decisions, rename, owner income, chat moderation and recovery retain game semantics', async () => {
   const db=await mf.getD1Database('DB','game-test'), worker=await mf.getWorker('game-test');
   const invoke=async(operation,...args)=>{
@@ -122,9 +153,13 @@ test('ownership, paid crew decisions, rename, owner income, chat moderation and 
   await db.prepare("INSERT INTO players(id,user_id,name,balance,created_at) VALUES ('owner-player','owner-user','OwnerPilot',500000,1),('refill-player','refill-user','RefillPilot',0,1)").run();
   let command=0;
   const call=(name,args={})=>invoke('command','owner-user',`owner-command-${++command}`,name,args);
+  const booked=JSON.parse((await invoke('state')).queue_json);
   await call('game:sponsor');
   const ship=await db.prepare("SELECT * FROM ships WHERE owner_id = 'owner-player'").first();
   assert.ok(ship);assert.equal(JSON.parse(ship.crew_json).length,4);
+  const afterSponsor=JSON.parse((await invoke('state')).queue_json);
+  assert.deepEqual(afterSponsor.slice(0,booked.length),booked);
+  assert.ok(afterSponsor.at(-1).includes(ship.id));
   assert.equal((await db.prepare("SELECT balance FROM players WHERE id = 'owner-player'").first()).balance,300000);
   await call('game:tryout',{station:'pilot'});
   const pending=JSON.parse((await db.prepare("SELECT candidate_json FROM players WHERE id = 'owner-player'").first()).candidate_json);
@@ -143,10 +178,15 @@ test('ownership, paid crew decisions, rename, owner income, chat moderation and 
   await invoke('command','refill-user','refill-command-0001','game:recovery',{});
   await invoke('command','refill-user','refill-command-0001','game:recovery',{});
   assert.equal((await db.prepare("SELECT balance FROM players WHERE id = 'refill-player'").first()).balance,5000);
+  // Select the owner's matchup explicitly; sponsorship no longer jumps the queue.
+  await db.prepare("UPDATE league_state SET queue_json = ? WHERE id = 'live'").bind(JSON.stringify([[ship.id,'baseline-0']])).run();
   const job=await invoke('reserve'), input=JSON.parse(job.input_json);
   const side=input.ships.findIndex(s=>s.id===ship.id);assert.notEqual(side,-1);
   const data={ships:input.ships,seed:input.seed,odds:[0.5,0.5],oddsSamples:128,oddsKey:'test-owner-odds',duration:1,winner:side,stats:[{hull:80},{hull:10}],story:'Test',traceKey:'private-owned-trace',sha256:'test',rawBytes:100,compressedBytes:50,wasmMemoryBytes:100};
   await invoke('accept',job,data);
+  assert.equal((await db.prepare('SELECT crowd_json FROM fights WHERE id = ?').bind(job.id).first()).crowd_json,'[0,0]');
+  // Legacy synthetic stakes must not contribute to new owner settlements.
+  await db.prepare("UPDATE fights SET crowd_json = '[2000000,2000000]' WHERE id = ?").bind(job.id).run();
   await db.prepare("UPDATE fights SET ends_at = ?,next_at = ? WHERE id = (SELECT current_id FROM league_state WHERE id = 'live')").bind(Date.now()-2,Date.now()-1).run();
   await invoke('advance');await invoke('advance');
   const home=await invoke('query','game:home',{},'owner-user','http://game-test');
@@ -157,9 +197,29 @@ test('ownership, paid crew decisions, rename, owner income, chat moderation and 
   const f=await db.prepare('SELECT * FROM fights WHERE id = ?').bind(job.id).first();
   const winner=await db.prepare('SELECT * FROM ships WHERE id = ?').bind(ship.id).first();
   const wager=await db.prepare("SELECT * FROM wagers WHERE player_id = 'owner-player'").first();
-  assert.ok(f.owner_payout>0);assert.equal(winner.earnings,f.owner_payout);assert.equal(winner.wins,1);assert.equal(winner.fights,1);
+  assert.equal(f.owner_payout,Math.round((wager.payout-wager.stake)*0.01/100)*100);assert.equal(winner.earnings,f.owner_payout);assert.equal(winner.wins,1);assert.equal(winner.fights,1);
   assert.equal((await db.prepare("SELECT balance FROM players WHERE id = 'owner-player'").first()).balance,285000-50000+wager.payout+f.owner_payout);
   assert.equal((await db.prepare("SELECT count(*) AS n FROM ledger WHERE kind = 'owner' AND player_id = 'owner-player'").first()).n,1);
+});
+
+test('rescheduling replaces unpublished work without touching the current fight, wagers or wallets', async () => {
+  const db=await mf.getD1Database('DB','game-test'),worker=await mf.getWorker('game-test');
+  const invoke=async(operation,...args)=>{const r=await worker.fetch('http://game-test/',{method:'POST',body:JSON.stringify({operation,args})});assert.equal(r.status,200,await r.clone().text());return(await r.json()).value;};
+  const before=await invoke('state');
+  const current=await db.prepare('SELECT * FROM fights WHERE id = ?').bind(before.current_id).first();
+  const wagers=(await db.prepare('SELECT * FROM wagers').all()).results;
+  const balances=(await db.prepare('SELECT id,balance FROM players ORDER BY id').all()).results;
+  const job=await invoke('reserve'),input=JSON.parse(job.input_json);
+  const result={ships:input.ships,seed:input.seed,odds:[0.5,0.5],oddsSamples:128,oddsKey:'reschedule-odds',duration:1,winner:0,stats:[],story:'Unpublished',traceKey:'unpublished-key'};
+  assert.equal(await invoke('accept',job,result),true);
+  await invoke('reschedule');
+  const after=await invoke('state');
+  assert.equal(after.current_id,before.current_id);assert.equal(after.pending_id,null);assert.equal(after.generation,before.generation+1);
+  assert.deepEqual(await db.prepare('SELECT * FROM fights WHERE id = ?').bind(before.current_id).first(),current);
+  assert.deepEqual((await db.prepare('SELECT * FROM wagers').all()).results,wagers);
+  assert.deepEqual((await db.prepare('SELECT id,balance FROM players ORDER BY id').all()).results,balances);
+  assert.equal(await invoke('accept',job,result),false,'old completion cannot undo the new queue');
+  const next=await invoke('reserve');assert.ok(next);assert.equal(next.generation,after.generation);
 });
 
 test('a 60-wager draw resumes bounded settlement pages across fresh coordinators without duplicate payouts', async () => {
@@ -288,6 +348,7 @@ test('concurrent command retries debit once; lifecycle settles in pages and neve
   assert.equal((await rpc({ ...command, args: { ...command.args, stake: 2000 } })).status, 400);
   const guest = await (await call('/rpc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'query', name: 'game:home' }) })).json();
   assert.equal(guest.value.authenticated, false);
+  assert.deepEqual(guest.value.fight.betting,{bySide:[1000,0],total:1000});
   assert.equal('winner' in guest.value.fight, false);
   assert.equal('seed' in guest.value.fight, false);
   assert.equal('trace_key' in guest.value.fight, false);

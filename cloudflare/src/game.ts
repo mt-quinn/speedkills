@@ -1,4 +1,4 @@
-import { ECONOMY, TIMING, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, quote, phase } from '../../shared/rules.js';
+import { ECONOMY, TIMING, maxBet, betCheck, settlement, ownerIncome, crewLocked, candidate, STATIONS, phase } from '../../shared/rules.js';
 import { bettingSummary } from '../../shared/betting-summary.js';
 import { crewName } from '../../shared/crew-names.js';
 import { oddsKey } from '../../shared/simulator.js';
@@ -82,7 +82,7 @@ export class Game {
     const wagers = loadedWagers ?? await this.rows('SELECT side,stake,payout FROM wagers WHERE fight_id = ?', f.id);
     const ended = f.endsAt !== null && now >= f.endsAt;
     return { id: f.id, sequence: f.sequence, ships: f.ships, odds: f.odds, oddsSamples: f.oddsSamples,
-      betting: bettingSummary(wagers, ended ? f.winner : undefined, f.crowd, f.odds),
+      betting: bettingSummary(wagers, ended ? f.winner : undefined),
       opensAt: f.opensAt, startsAt: f.startsAt, endsAt: f.endsAt, nextAt: f.nextAt,
       replayUnavailable: !!f.replay_unavailable,
       ...(ended ? { winner: f.winner, stats: f.stats, story: f.story, settled: !!f.settled, ownerPayout: f.ownerPayout } : {}) };
@@ -177,8 +177,8 @@ export class Game {
       const eligible = await this.rows('SELECT * FROM ships WHERE testing = 0');
       const q = JSON.parse(s.queue_json), opponent = eligible[random() % eligible.length];
       if (!opponent) throw new Error('League roster is unavailable');
-      const filler = q.findIndex((pair: string[]) => pair.every(v => !eligible.find(r => r.id === v)?.owner_id));
-      if (filler >= 0) q[filler] = [shipId, opponent.id]; else q.push([shipId, opponent.id]);
+      // New registrations wait behind booked fights, including bot matchups.
+      q.push([shipId, opponent.id]);
       patch.queue_json = JSON.stringify(q); await invalidate(shipId, canonical(q[0]) !== canonical(JSON.parse(s.queue_json)[0] ?? null));
     } else if (name === 'game:tryout') {
       const ship = await this.editable(p, f); if (p.candidate_json) throw new Error('Decide on your current candidate first.');
@@ -229,7 +229,7 @@ export class Game {
   async ensureQueue(s: State) {
     const ships = await this.rows('SELECT *, id AS _id, last_fight AS lastFight FROM ships WHERE testing = 0');
     if (ships.length < 2) throw new Error('At least two ships are required');
-    const eligible = new Set(ships.map(v => v.id)), human = new Set(ships.filter(v => v.owner_id).map(v => v.id));
+    const eligible = new Set(ships.map(v => v.id));
     let q: string[][] = JSON.parse(s.queue_json).filter((p: string[]) => p.length === 2 && p[0] !== p[1] && p.every(v => eligible.has(v)));
     if (q.length <= Math.ceil(ships.length / 2)) q.push(...rotation(ships));
     if (q.length <= Math.ceil(ships.length / 2)) q.push(...rotation(ships));
@@ -239,8 +239,17 @@ export class Game {
       const pool = opponents.length ? opponents : ships.filter(v => v.id !== ship.id);
       q.push([ship.id, pool[random() % pool.length].id]);
     }
-    q = q.map((pair, index) => ({ pair, index, priority: pair.some(v => human.has(v)) ? 0 : 1 })).sort((a,b) => a.priority-b.priority || a.index-b.index).map(v => v.pair);
     return { q, ships };
+  }
+  async reschedule() {
+    const s = await this.state();
+    const { q } = await this.ensureQueue({ ...s, queue_json: '[]' });
+    // Only unpublished preparation is superseded. Announced fights and wagers
+    // retain their original pairing, odds, times and settlement state.
+    await this.commit(s, [this.sql("UPDATE preparation_jobs SET status = 'stale', updated_at = ? WHERE status = 'running'", Date.now())], {
+      queue_json: JSON.stringify(q), pending_id: null, generation: s.generation + 1,
+      preparing: 0, error: null, next_at: s.maintenance ? null : Date.now() + 1,
+    });
   }
   async reserve(): Promise<Row | null> {
     let s = await this.state(); if (s.maintenance || s.pending_id) return null;
@@ -268,7 +277,7 @@ export class Game {
     for (const snap of data.ships) { const actual = await this.one('SELECT revision,testing FROM ships WHERE id = ?', snap.id); valid &&= !!actual && !actual.testing && actual.revision === snap.revision; }
     if (!valid) { await this.commit(s, [this.sql("UPDATE preparation_jobs SET status = 'stale', updated_at = ? WHERE id = ?", Date.now(), job.id)], { generation: s.generation + 1, preparing: 0 }); return false; }
     await this.commit(s, [
-      this.sql('INSERT INTO fights(id,sequence,ships_json,odds_json,odds_samples,odds_key,seed,duration,winner,stats_json,story,trace_key,crowd_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', job.id, job.sequence, JSON.stringify(data.ships), JSON.stringify(data.odds), data.oddsSamples, data.oddsKey, data.seed, data.duration, data.winner, JSON.stringify(data.stats), data.story, data.traceKey, JSON.stringify([20000 + random() % 60000, 20000 + random() % 60000].map(n => n * 100))),
+      this.sql('INSERT INTO fights(id,sequence,ships_json,odds_json,odds_samples,odds_key,seed,duration,winner,stats_json,story,trace_key,crowd_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', job.id, job.sequence, JSON.stringify(data.ships), JSON.stringify(data.odds), data.oddsSamples, data.oddsKey, data.seed, data.duration, data.winner, JSON.stringify(data.stats), data.story, data.traceKey, '[0,0]'),
       this.sql('INSERT OR IGNORE INTO odds_cache(key,probability,samples,simulator_hash,created_at) VALUES (?,?,?,?,?)', data.oddsKey, data.odds[0], data.oddsSamples, 'wasm-tactics-v5', Date.now()),
       this.sql("UPDATE preparation_jobs SET status = 'complete', trace_key = ?, updated_at = ? WHERE id = ?", data.traceKey, Date.now(), job.id),
     ], { pending_id: job.id, preparing: 0, attempts: 0, error: null, next_at: Math.min(s.next_at ?? Infinity, Date.now() + 1) });
@@ -294,7 +303,7 @@ export class Game {
         await this.commit(s, out, { phase: 'settling', next_at: now + 1 }); return;
       }
       const out: D1PreparedStatement[] = [], all = await this.rows('SELECT * FROM wagers WHERE fight_id = ?', f.id);
-      const income = f.winner === null ? 0 : ownerIncome([...all.map(w => settlement(w, f.winner).profit), quote(f.crowd[f.winner], f.odds[f.winner]) - f.crowd[f.winner]]);
+      const income = f.winner === null ? 0 : ownerIncome(all.map(w => settlement(w, f.winner).profit));
       if (f.winner !== null) { const ship = await this.one('SELECT * FROM ships WHERE id = ?', f.ships[f.winner].id);
         if (ship?.owner_id) { const p = (await this.one('SELECT * FROM players WHERE id = ?', ship.owner_id))!;
           this.move(out, p, income, 'owner', `${ship.name} owner income`, `owner:${f.id}`, f.id); out.push(this.sql('UPDATE ships SET earnings = earnings + ? WHERE id = ?', income, ship.id)); }

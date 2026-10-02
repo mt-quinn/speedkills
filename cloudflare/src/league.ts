@@ -124,6 +124,7 @@ export class League extends DurableObject<Env> {
   async control(action: string) {
     if (action === 'initialize') await this.initialize();
     else if (action === 'advance') await this.serial(() => this.game.advance());
+    else if (action === 'reschedule') await this.serial(() => this.game.reschedule());
     else if (action === 'pause' || action === 'resume') await this.serial(async () => {
       const s = await this.game.state();
       await this.game.commit(s, [], { maintenance: action === 'pause' ? 1 : 0,

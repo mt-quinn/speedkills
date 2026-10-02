@@ -169,3 +169,9 @@
 - An initial manual Vercel deploy included private migration backups in build source. Static output did not contain them; unauthenticated source access returned 403. Added exclusions, verified a clean replacement, rotated auth/operator secrets before reopening and removed the affected deployment. Project-member access was not audited; provider physical erasure is not claimed.
 - Cloudflare reopened at 23:15:10.871 UTC. Verified four new settled fights, five complete preparation jobs, balances/ledger both 843,500 units and zero unsettled wagers on completed fights. Convex remains frozen. Live counts continue to advance.
 - Cutover report records current resources, deployment IDs, recovery retention and incident details.
+
+## Mixed scheduling and real wagers — implementation
+- User clarified that player ships join immediately and bots remain in the shared rotation, including above 16 registered players. Removed player-priority sorting and new-registration replacement of bot bookings.
+- Public live/history betting totals and future owner earnings use real wagers only; newly prepared fights have zero crowd stakes. Past settled credit transactions remain intact.
+- Added protected reschedule operation: rebuild only unpublished bookings, advance the generation and supersede preparation while preserving the current fight, wagers and wallets.
+- Regression coverage checks mixed rosters with 2/16 players, queue order on sponsorship, stale completion after reschedule, exact real-wager income and legacy synthetic display exclusion.

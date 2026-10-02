@@ -53,3 +53,9 @@ Runtime tests cover imported password compatibility, legacy claims, multi-device
 ## Production status — October 1, 2026
 
 Production is live at https://www.hardburn.fun with the Vercel frontend and Cloudflare backend. Main contains the migration. Existing accounts, credential hashes, IDs, balances, ships and history were imported and reconciled; sign in again with the same email/password. Convex remains frozen as the recovery source. The cutover report records import evidence, subsequent automatic settlement/preparation, and a corrected private build-source upload incident.
+
+## Mixed scheduling and real wagers
+
+Player-sponsored ships join immediately and share rotations with all eligible bot ships. No sponsored-ship priority or 16-player gate applies. New registrations append behind existing bookings. A protected `reschedule` control action can rebuild unpublished bookings and supersede their preparation generation without changing the announced fight or its wagers.
+
+Live and historical market totals include actual player wagers only. New fights store zero simulated stakes, and future owner income uses only actual winning wager profits. Imported synthetic stake fields remain as source evidence but are ignored by market totals and future settlement. Past settled credits and recorded owner payouts are preserved.
