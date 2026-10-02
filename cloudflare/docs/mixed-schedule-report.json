@@ -1,0 +1,35 @@
+{
+  "recordedAt": "2026-10-02T00:02:52.942584+00:00",
+  "status": "live",
+  "frontend": "https://www.hardburn.fun",
+  "productionWorkerVersion": "f9ccc801-71cf-4496-957b-76cbc878bab4",
+  "previewWorkerVersion": "3b799f57-b73a-4090-9f85-168f0cae8c71",
+  "productionVercelDeployment": "dpl_3E3jX8D9zBGWks2PoPJHsAL4fy2D",
+  "policy": {
+    "playerEntry": "immediate; new registrations append behind booked matches",
+    "roster": "mixed eligible player and bot ships; no player-priority sorting or registration threshold",
+    "market": "only actual player wagers, including historical totals",
+    "ownerIncome": "only actual winning wager profits; previous settled credits preserved"
+  },
+  "checks": {
+    "cloudflareRuntimeTests": 18,
+    "frontendSharedTests": 71,
+    "typescript": "both pass",
+    "staticBuild": "pass",
+    "productionReschedule": "current fight preserved; alarm installed",
+    "newAnnouncedSequence": 488,
+    "newSimulatedStakes": [
+      0,
+      0
+    ],
+    "balanceTotal": 817000,
+    "ledgerTotal": 817000,
+    "unsettledCompletedWagers": 0,
+    "browserArchive": "latest 30 completed fights show 400 credits in actual wagers; no simulated pools"
+  },
+  "limitations": [
+    "Production currently has zero player-sponsored ships. Mixed rosters with two and sixteen players verified in the D1/workerd regression suite.",
+    "Counts are a live checkpoint and continue to change.",
+    "Superseded unannounced fight 487 remains retained as an unpublished record; it is not listed in Results."
+  ]
+}

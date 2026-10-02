@@ -175,3 +175,9 @@
 - Public live/history betting totals and future owner earnings use real wagers only; newly prepared fights have zero crowd stakes. Past settled credit transactions remain intact.
 - Added protected reschedule operation: rebuild only unpublished bookings, advance the generation and supersede preparation while preserving the current fight, wagers and wallets.
 - Regression coverage checks mixed rosters with 2/16 players, queue order on sponsorship, stale completion after reschedule, exact real-wager income and legacy synthetic display exclusion.
+
+### Live verification
+- All 18 Cloudflare runtime tests and 71 frontend/shared tests pass; both TypeScript projects and the static build pass.
+- Preview and production API deployed. Production version f9ccc801-71cf-4496-957b-76cbc878bab4; Vercel production dpl_3E3jX8D9zBGWks2PoPJHsAL4fy2D serves the updated owner explanation at www.hardburn.fun.
+- Protected reschedule succeeded with the active fight preserved and the alarm installed. Newly announced fight 488 has zero crowd stakes. Production balances/ledger both 817,000 units; completed fights have no unsettled wagers at the verification checkpoint.
+- Browser Results displays only real stakes: four 100-credit wagers total 400 credits across the latest 30 completed fights; other unwagered fights show a dash. Old artificial pools are absent.
